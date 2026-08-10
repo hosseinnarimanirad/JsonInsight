@@ -1,0 +1,157 @@
+/*
+ * The colour dictionaries, as CSS.
+ *
+ * Every value here is lifted verbatim from JsonInsight/Themes/Light.xaml and Dark.xaml, keeping the
+ * token names so a colour can be found in either app by searching for the same string. The two rules
+ * that keep the WPF dark theme honest carry over unchanged:
+ *
+ *   1. Nothing outside this file names a colour. app.css and every component use var(--brush-*),
+ *      which is the CSS equivalent of DynamicResource - flipping data-theme repaints everything with
+ *      no component re-rendering and nothing reloaded, so switching theme mid-promote cannot lose a
+ *      preview or a typed confirmation.
+ *   2. Both themes define exactly the same token set. A token present in only one resolves to
+ *      nothing after a switch and silently drops a control's colour; WebJsonInsight.Tests asserts the
+ *      two blocks below have identical key sets, the same way JsonInsight.Tests does for the XAML.
+ */
+
+:root,
+[data-theme="light"] {
+    /* Surfaces and chrome. Same token names as DiskLens so the apps read as one family. */
+    --brush-window: #F3F5F9;
+    --brush-surface: #FFFFFF;
+    --brush-surface-alt: #EBEFF5;
+    --brush-card: #FFFFFF;
+    --brush-hover: #EDF1F8;
+    --brush-selected: #DEE9FC;
+    --brush-border: #DBE1EA;
+    --brush-border-subtle: #E9EDF3;
+
+    --brush-text: #141C26;
+    --brush-text-secondary: #5A6675;
+    --brush-text-tertiary: #8894A3;
+
+    --brush-accent: #2E6FE0;
+    --brush-accent-hover: #4685EE;
+    --brush-accent-pressed: #255CBC;
+    --brush-accent-soft: #E4EDFD;
+    --brush-on-accent: #FFFFFF;
+
+    --brush-track: #E6EAF1;
+    --brush-scroll: #B9C2CE;
+    --brush-danger: #D2413F;
+    --brush-danger-soft: #FBE7E7;
+
+    /*
+     * The four findings colours, which carry the whole tool: red = a key a tier does not have,
+     * amber = a shape too different to compare, blue = present on both sides but not equal,
+     * green = agreement. Every one has a soft partner used as a row or cell wash.
+     */
+    --brush-missing: #C93B39;
+    --brush-missing-soft: #FBE7E7;
+    --brush-shape: #A06400;
+    --brush-shape-soft: #FCF2DE;
+    --brush-differs: #1F6FB2;
+    --brush-differs-soft: #E6F1FA;
+    --brush-ok: #2E7D46;
+    --brush-ok-soft: #E7F4EB;
+
+    /* Masked values. Distinct from every findings colour: a secret is a rendering rule, not a finding. */
+    --brush-secret: #7A4FBF;
+
+    /*
+     * The editor's change marks, which are deliberately NOT the findings colours: green/amber/red
+     * here mean added/edited/removed against the document as opened, where blue elsewhere means two
+     * tiers differ. Rendering them in the same palette would make "I changed this" and "these
+     * disagree" look like one statement.
+     */
+    --brush-added: #2E7D46;
+    --brush-added-soft: #E7F4EB;
+    --brush-edited: #A06400;
+    --brush-edited-soft: #FCF2DE;
+    --brush-removed: #C93B39;
+    --brush-removed-soft: #FBE7E7;
+    --brush-holds: #1F6FB2;
+}
+
+[data-theme="dark"] {
+    --brush-window: #0F1216;
+    --brush-surface: #151A21;
+    --brush-surface-alt: #1B2129;
+    --brush-card: #171D25;
+    --brush-hover: #212A35;
+    --brush-selected: #25334A;
+    --brush-border: #2A333F;
+    --brush-border-subtle: #1F2731;
+
+    --brush-text: #E8EDF4;
+    --brush-text-secondary: #9BA7B6;
+    --brush-text-tertiary: #6E7A89;
+
+    --brush-accent: #4F8EF7;
+    --brush-accent-hover: #6BA0F9;
+    --brush-accent-pressed: #3F7AD8;
+    --brush-accent-soft: #1D2C44;
+    --brush-on-accent: #FFFFFF;
+
+    --brush-track: #232B35;
+    --brush-scroll: #3A4552;
+    --brush-danger: #EE6A70;
+    --brush-danger-soft: #3A2226;
+
+    /*
+     * Re-mixed rather than reused: the light theme's #C93B39 on a #0F1216 window is unreadable, so
+     * each hue is lifted and each soft wash is a dark tint of the same hue instead of a pale one.
+     */
+    --brush-missing: #F0787E;
+    --brush-missing-soft: #38222A;
+    --brush-shape: #E0A448;
+    --brush-shape-soft: #33291A;
+    --brush-differs: #5BA5E8;
+    --brush-differs-soft: #16293C;
+    --brush-ok: #4FC189;
+    --brush-ok-soft: #15301F;
+
+    --brush-secret: #B392EE;
+
+    --brush-added: #4FC189;
+    --brush-added-soft: #15301F;
+    --brush-edited: #E0A448;
+    --brush-edited-soft: #33291A;
+    --brush-removed: #F0787E;
+    --brush-removed-soft: #38222A;
+    --brush-holds: #5BA5E8;
+}
+
+/*
+ * Metrics and type, which are theme-independent and so sit outside both blocks.
+ *
+ * The font stacks are the one place this genuinely diverges from the WPF app rather than translating
+ * it. Segoe UI Variable, Segoe Fluent Icons and Cascadia Mono ship with Windows and exist on neither
+ * Linux nor macOS, so each stack names the platform-native equivalents ahead of a generic fallback:
+ * the app should look native on all three rather than look like Windows on one and like nothing in
+ * particular on the other two.
+ */
+:root {
+    --font-ui: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont,
+        "SF Pro Text", "Inter", "Ubuntu", "Cantarell", "Noto Sans", system-ui, sans-serif;
+    --font-display: "Segoe UI Variable Display", "Segoe UI", -apple-system, BlinkMacSystemFont,
+        "SF Pro Display", "Inter", "Ubuntu", "Cantarell", "Noto Sans", system-ui, sans-serif;
+    --font-mono: "Cascadia Mono", "Consolas", "SF Mono", "Menlo", "DejaVu Sans Mono",
+        "Ubuntu Mono", "Liberation Mono", "Courier New", monospace;
+
+    /*
+     * Two control heights and nothing else, set here rather than spelled into each rule - the same
+     * discipline Button.Base and Field.Base enforce in Controls.xaml. A button and the field beside
+     * it line up by construction rather than by coincidence.
+     */
+    --size-control: 28px;
+    --size-control-dense: 23px;
+
+    --radius-card: 12px;
+    --radius-control: 7px;
+    --radius-small: 5px;
+
+    --font-size-base: 13px;
+    --font-size-small: 12px;
+    --font-size-caption: 11px;
+}

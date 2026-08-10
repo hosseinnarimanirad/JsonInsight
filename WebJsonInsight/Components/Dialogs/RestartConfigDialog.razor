@@ -1,0 +1,87 @@
+@*
+    Where one source's restart endpoint is set.
+
+    Everything on this screen is saved with the rest of the row when Save settings is pressed — and
+    the bearer token is deliberately not on it. That is not an omission: the token is typed for each
+    call, on the other dialog, and is never written anywhere.
+*@
+@inherits ObservingComponent
+
+<Modal Title="@($"Restart endpoint — {Row.Label}")"
+       Subtitle="Uploading to Vault changes nothing on its own. A restart is the only thing that re-reads it."
+       Wide="false"
+       OnClose="OnClose">
+    <ChildContent>
+        <div class="restart-config">
+
+            <label class="field-row">
+                <span>URL</span>
+                <input class="field mono" type="text"
+                       placeholder="https://api.example.com/api/v1/dev/admin/restart?drainSeconds=15"
+                       value="@Row.RestartUrl"
+                       @oninput="e => Row.RestartUrl = e.Value?.ToString() ?? string.Empty" />
+            </label>
+
+            <p class="caption">
+                POSTed with a bearer token. Any query string is part of the URL — the documented
+                endpoint takes its <code>drainSeconds</code> that way.
+            </p>
+
+            <label class="field-row top">
+                <span>Body</span>
+                <textarea class="field mono restart-body" rows="5" spellcheck="false"
+                          placeholder="optional — leave empty to send no body"
+                          value="@Row.RestartBody"
+                          @oninput="e => Row.RestartBody = e.Value?.ToString() ?? string.Empty"></textarea>
+            </label>
+
+            @* Validated by the row, not by this component: the WPF window shows the same sentence
+               from the same property, and a rule living in one view would be a rule the other
+               quietly did not have. *@
+            @if (Row.HasRestartBodyProblem)
+            {
+                <div class="notice notice-danger"><Icon Name="warn" /> <span>@Row.RestartBodyProblem</span></div>
+            }
+
+            <label class="check"
+                   title="Its own setting rather than the Vault row's: the restart endpoint is an application API on a different host with a different certificate.">
+                <input type="checkbox" checked="@Row.RestartAllowInsecureTls"
+                       @onchange="e => Row.RestartAllowInsecureTls = (bool?)e.Value ?? false" />
+                <span>Accept a self-signed certificate on this endpoint</span>
+            </label>
+
+            <div class="notice notice-warn">
+                <Icon Name="warn" />
+                <span>
+                    The URL and body are saved to appsettings.json under this project. The bearer token
+                    is not saved anywhere — it is typed each time the restart is called.
+                </span>
+            </div>
+        </div>
+    </ChildContent>
+
+    <Footer>
+        <span class="caption inline">Press Save settings on the Sources tab to persist this.</span>
+        <span class="spacer"></span>
+        @if (Row.HasRestart)
+        {
+            <button class="btn" @onclick="Clear" title="Remove the endpoint from this source.">Clear</button>
+        }
+        <button class="btn btn-primary" @onclick="OnClose">Done</button>
+    </Footer>
+</Modal>
+
+@code {
+    [Parameter, EditorRequired] public VaultConnectionVm Row { get; set; } = default!;
+
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    protected override void OnInitialized() => Observe(Row);
+
+    private void Clear()
+    {
+        Row.RestartUrl = string.Empty;
+        Row.RestartBody = string.Empty;
+        Row.RestartAllowInsecureTls = false;
+    }
+}

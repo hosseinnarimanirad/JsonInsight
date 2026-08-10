@@ -1,0 +1,183 @@
+<Window x:Class="JsonInsight.Views.PushDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:JsonInsight.ViewModels;assembly=JsonInsight.Presentation"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        d:DataContext="{d:DesignInstance Type=vm:PushVm}"
+        mc:Ignorable="d"
+        Title="Push to Vault or disk" Height="840" Width="1340"
+        WindowStartupLocation="CenterOwner"
+        UseLayoutRounding="True"
+        FontFamily="{StaticResource Font.Ui}"
+        Foreground="{DynamicResource Brush.Text}"
+        Background="{DynamicResource Brush.Window}">
+
+    <DockPanel Margin="16">
+        <Border DockPanel.Dock="Top" Style="{StaticResource Card}" Margin="0,0,0,10">
+            <StackPanel>
+                <TextBlock Text="Push to Vault or disk" Style="{StaticResource Text.Heading}" />
+
+                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                    <TextBlock Text="Tier" Style="{StaticResource Text.Base}"
+                               VerticalAlignment="Center" Margin="0,0,9,0" />
+                    <!-- Fixed when the content was handed in: a promote plan or an edited document
+                         belongs to the tier it was built against, and a picker beside it would
+                         offer to push one tier's changes into another. -->
+                    <ComboBox ItemsSource="{Binding Tiers}" SelectedItem="{Binding Tier}"
+                              DisplayMemberPath="Label" MinWidth="230"
+                              IsEnabled="{Binding IsTierFixed, Converter={StaticResource NotBool}}" />
+
+                    <Button Style="{StaticResource Button.Secondary}" Content="Check Vault again"
+                            Command="{Binding CheckVaultCommand}" Margin="14,0,0,0"
+                            IsEnabled="{Binding Busy, Converter={StaticResource NotBool}}"
+                            ToolTip="Read the secret again and rebuild the comparison. This is a read — nothing is sent." />
+
+                    <TextBlock Style="{StaticResource Text.Caption}" VerticalAlignment="Center"
+                               Margin="16,0,0,0" TextWrapping="Wrap" MaxWidth="520"
+                               Text="One tier per push — one destination, one typed confirmation. The comparison below is against what that source holds right now, not against what is on screen." />
+                </StackPanel>
+
+                <!-- Where this lands. A push has no folder fence to fall back on, so the address and
+                     the secret path are shown before anything is typed rather than in a tooltip. -->
+                <Border CornerRadius="8" Padding="11,8" Margin="0,11,0,0"
+                        Background="{DynamicResource Brush.SurfaceAlt}">
+                    <StackPanel>
+                        <TextBlock Text="DESTINATION" Style="{StaticResource Text.SectionLabel}" />
+                        <TextBlock Text="{Binding Destination}" Style="{StaticResource Text.Mono}"
+                                   TextWrapping="Wrap" Margin="0,5,0,0" />
+                        <TextBlock Text="{Binding What}" Style="{StaticResource Text.Base}"
+                                   FontSize="12" TextWrapping="Wrap" Margin="0,5,0,0"
+                                   Visibility="{Binding What, Converter={StaticResource NotEmptyVis}}" />
+                        <TextBlock Text="{Binding SourceLine}" Style="{StaticResource Text.Caption}"
+                                   TextWrapping="Wrap" Margin="0,4,0,0"
+                                   Visibility="{Binding SourceLine, Converter={StaticResource NotEmptyVis}}" />
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Text="{Binding Message}" Style="{StaticResource Text.Secondary}"
+                           FontSize="12" TextWrapping="Wrap" Margin="0,10,0,0"
+                           Visibility="{Binding Message, Converter={StaticResource NotEmptyVis}}" />
+            </StackPanel>
+        </Border>
+
+        <!-- Action bar: the typed confirmation, then the one button that leaves this machine. -->
+        <Border DockPanel.Dock="Bottom" Style="{StaticResource Card}" Margin="0,10,0,0">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Style="{StaticResource Button.Danger}"
+                        MinWidth="150" Command="{Binding PushCommand}"
+                        IsEnabled="{Binding CanPush}" Margin="8,0,0,0"
+                        ToolTip="Uploads a new version of this secret. The version being replaced has already been saved locally.">
+                    <TextBlock>
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Text" Value="Push to Vault or disk" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Busy}" Value="True">
+                                        <Setter Property="Text" Value="Working…" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Button>
+
+                <Button DockPanel.Dock="Right" Style="{StaticResource Button.Secondary}" Content="Close"
+                        MinWidth="100" Click="OnCloseClick" Margin="0,0,8,0" />
+
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource Text.Base}" VerticalAlignment="Center"
+                               Margin="0,0,9,0" Text="Type the tier name to confirm:" />
+                    <TextBox Style="{StaticResource TextBox.Inline}" Width="150"
+                             Text="{Binding ConfirmText, UpdateSourceTrigger=PropertyChanged}" />
+                    <CheckBox Content="Show unchanged lines" IsChecked="{Binding ShowUnchanged}"
+                              VerticalAlignment="Center" Margin="20,0,0,0" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- What happened, in the order it happened: the local copy of the replaced version, the
+             new version's number, the read-back verification, the retired pending file. -->
+        <Border DockPanel.Dock="Bottom" Style="{StaticResource Card}" Margin="0,10,0,0"
+                Visibility="{Binding Notes.Count, Converter={StaticResource NotEmptyVis}}">
+            <ItemsControl ItemsSource="{Binding Notes}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding}" Style="{StaticResource Text.Secondary}"
+                                   FontSize="12" TextWrapping="Wrap" Margin="0,1" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Border>
+
+        <Border DockPanel.Dock="Bottom" Style="{StaticResource Notice.Danger}" Margin="0,10,0,0"
+                Visibility="{Binding Problem, Converter={StaticResource NotEmptyVis}}">
+            <TextBlock Text="{Binding Problem}" Foreground="{DynamicResource Brush.Danger}"
+                       FontSize="12" TextWrapping="Wrap" />
+        </Border>
+
+        <Border DockPanel.Dock="Bottom" Style="{StaticResource Notice.Warn}" Margin="0,10,0,0"
+                Visibility="{Binding Warnings.Count, Converter={StaticResource NotEmptyVis}}">
+            <ItemsControl ItemsSource="{Binding Warnings}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding}" Foreground="{DynamicResource Brush.Shape}"
+                                   FontSize="12" TextWrapping="Wrap" Margin="0,1" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Border>
+
+        <!-- The comparison. Laid out as Vault | local, the same way round as every other two-sided
+             view in the app: what is there now on the left, what would replace it on the right. -->
+        <Border Style="{StaticResource Card.Flush}">
+            <DockPanel>
+                <Border DockPanel.Dock="Top" Style="{StaticResource TableHeader}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="{Binding LeftHeader}"
+                                   Style="{StaticResource Text.SectionLabel}" />
+                        <TextBlock Grid.Column="1" Text="{Binding RightHeader}"
+                                   Style="{StaticResource Text.SectionLabel}" />
+                    </Grid>
+                </Border>
+
+                <ListBox Style="{StaticResource LineList}" ItemsSource="{Binding Lines}" Padding="4"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <!-- Wrapping rather than scrolling sideways: these values include PEM
+                                 blocks and 900-character tokens, and a line that runs off to the
+                                 right takes the other column with it. -->
+                            <Border Style="{StaticResource Row.EditDiffLine}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="46" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="46" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{Binding LeftNumber}"
+                                               Style="{StaticResource Text.MonoCaption}"
+                                               TextAlignment="Right" Margin="0,0,10,0"
+                                               VerticalAlignment="Top" />
+                                    <TextBlock Grid.Column="1" Text="{Binding LeftText}"
+                                               Style="{StaticResource Text.Mono}" TextWrapping="Wrap" />
+                                    <TextBlock Grid.Column="2" Text="{Binding RightNumber}"
+                                               Style="{StaticResource Text.MonoCaption}"
+                                               TextAlignment="Right" Margin="10,0,10,0"
+                                               VerticalAlignment="Top" />
+                                    <TextBlock Grid.Column="3" Text="{Binding RightText}"
+                                               Style="{StaticResource Text.Mono}" TextWrapping="Wrap" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+        </Border>
+    </DockPanel>
+</Window>

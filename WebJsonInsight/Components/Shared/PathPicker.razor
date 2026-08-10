@@ -1,0 +1,161 @@
+@*
+    One Vault row's JSON path: a typeable field, a Search that walks that row's own Vault, and a
+    dropdown of what it found.
+
+    This replaced an <input list> plus a <datalist>. The datalist was the wrong tool twice over: it
+    draws no visible affordance in WebView2 or WebKitGTK, so a search that found 180 secrets appeared
+    to do nothing at all, and it offers no way to scan or narrow a list that long even when it does
+    open. The WPF row has an editable ComboBox with a real dropdown; this is that.
+
+    Three things it keeps from the WPF version, all deliberate:
+
+      * The field stays typeable. What a search found is a convenience, and a secret whose mount the
+        token cannot list must still be reachable by typing it.
+      * The path the row already reads stays in the list whatever the search returned, so a picker
+        never makes a working row look misconfigured. VaultVm.SearchVaultAsync puts it back.
+      * The list is not persisted. It is a property of the Vault rather than of the project, and it
+        can run to hundreds of entries.
+*@
+@inherits ObservingComponent
+
+<div class="pathpicker">
+    <div class="pathpicker-field">
+        <input class="field dense mono" type="text"
+               placeholder="kv/app/stage/resources/config/ui.json"
+               title="The whole path to one secret — mount included. Not a root with a document appended."
+               value="@Row.SecretPath"
+               @oninput="e => Row.SecretPath = e.Value?.ToString() ?? string.Empty" />
+
+        @* The count is on the button because it is the answer to "did the search find anything",
+           which is otherwise only in the row's status line. *@
+        <button class="pathpicker-toggle @(_open ? "open" : "")"
+                disabled="@(Row.KnownPaths.Count == 0)"
+                @onclick="Toggle"
+                title="@(Row.KnownPaths.Count == 0
+                           ? "Press Search to list the secrets this row's Vault holds."
+                           : $"{Row.KnownPaths.Count} known path(s) — click to choose one")">
+            <span class="pathpicker-count">@Row.KnownPaths.Count</span>
+            <Icon Name="@(_open ? "chevron-down" : "chevron-right")" Size="11" />
+        </button>
+    </div>
+
+    <button class="btn btn-small" disabled="@Row.Searching" @onclick="Search"
+            title="Walk this row's own Vault and list every secret found there. Metadata only — no value is read and nothing is written. Bounded at 400 listings and 8 levels; it says when it stopped early.">
+        <Icon Name="@(Row.Searching ? "refresh" : "search")" Size="13"
+              Class="@(Row.Searching ? "spinning" : "")" />
+        <span>@(Row.Searching ? "Searching…" : "Search")</span>
+    </button>
+
+    @if (_open)
+    {
+        @* Closes on a click anywhere else. A menu that can only be dismissed by the button that
+           opened it is one people close by pressing something they did not mean to press. *@
+        <div class="pathpicker-veil" @onclick="Close"></div>
+
+        <div class="pathpicker-menu">
+            <div class="pathpicker-search">
+                <SearchBox Value="@_filter" ValueChanged="v => _filter = v"
+                           Placeholder="Narrow the list" Dense="true" />
+            </div>
+
+            <div class="pathpicker-head">
+                @{
+                    var matches = Filtered.ToArray();
+                    var jsons = matches.Count(p => p.EndsWith(".json", StringComparison.OrdinalIgnoreCase));
+                }
+                @matches.Length of @Row.KnownPaths.Count shown · @jsons .json
+            </div>
+
+            <div class="pathpicker-list">
+                @foreach (var path in matches)
+                {
+                    <button class="pathpicker-item @(path == Row.SecretPath ? "current" : "")"
+                            @key="path" @onclick="() => Choose(path)">
+                        <span class="pp-path">@path</span>
+                        @if (path.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+                        {
+                            <span class="pp-tag">json</span>
+                        }
+                    </button>
+                }
+
+                @if (matches.Length == 0)
+                {
+                    <div class="pathpicker-empty">
+                        @(Row.KnownPaths.Count == 0
+                            ? "Nothing found yet — press Search."
+                            : "Nothing here matches that.")
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public VaultConnectionVm Row { get; set; } = default!;
+
+    [Parameter, EditorRequired] public VaultVm Vm { get; set; } = default!;
+
+    private bool _open;
+    private bool _wasSearching;
+    private string _filter = string.Empty;
+
+    protected override void OnParametersSet()
+    {
+        StopObserving();
+
+        // KnownPaths as well as the row: a search replaces the list wholesale, and the count on the
+        // toggle would otherwise keep reporting the previous one.
+        Observe(Row, Row.KnownPaths);
+    }
+
+    /// <summary>
+    /// Opens itself when a search finishes with something to show. Leaving it closed was the whole
+    /// defect this component replaced: the paths were there, and nothing on screen said so.
+    /// </summary>
+    protected override void OnAfterRender(bool first)
+    {
+        var finished = _wasSearching && !Row.Searching;
+        _wasSearching = Row.Searching;
+
+        if (finished && Row.KnownPaths.Count > 0 && !_open)
+        {
+            _open = true;
+            _filter = string.Empty;
+            StateHasChanged();
+        }
+    }
+
+    private IEnumerable<string> Filtered => _filter.Length == 0
+        ? Row.KnownPaths
+        : Row.KnownPaths.Where(p => p.Contains(_filter, StringComparison.OrdinalIgnoreCase));
+
+    private void Toggle()
+    {
+        _open = !_open;
+        _filter = string.Empty;
+    }
+
+    private void Close() => _open = false;
+
+    private void Choose(string path)
+    {
+        Row.SecretPath = path;
+        Row.Status = string.Empty;
+        _open = false;
+    }
+
+    private async Task Search()
+    {
+        await Vm.SearchVaultCommand.ExecuteAsync(Row);
+
+        // The command sets Searching false before this returns, so OnAfterRender's edge never fires
+        // for a search started here. Open it directly instead of relying on that.
+        if (Row.KnownPaths.Count > 0)
+        {
+            _open = true;
+            _filter = string.Empty;
+        }
+    }
+}

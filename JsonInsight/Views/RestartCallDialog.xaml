@@ -1,0 +1,149 @@
+<Window x:Class="JsonInsight.Views.RestartCallDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:JsonInsight.ViewModels;assembly=JsonInsight.Presentation"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        d:DataContext="{d:DesignInstance Type=vm:RestartVm}"
+        mc:Ignorable="d"
+        Title="Restart" Height="620" Width="780"
+        WindowStartupLocation="CenterOwner"
+        UseLayoutRounding="True"
+        FontFamily="{StaticResource Font.Ui}"
+        Foreground="{DynamicResource Brush.Text}"
+        Background="{DynamicResource Brush.Window}">
+
+    <!--
+        Calling one source's restart endpoint.
+
+        A window rather than a button that just fires, because the bearer token is never saved and has
+        to be typed - and that requirement is doing double duty as the confirmation. A restart drops
+        live connections and cannot be undone from here.
+    -->
+    <DockPanel Margin="16">
+
+        <Border DockPanel.Dock="Top" Style="{StaticResource Card}" Margin="0,0,0,10">
+            <StackPanel>
+                <TextBlock Style="{StaticResource Text.Heading}">
+                    <Run Text="Restart —" /><Run Text=" " /><Run Text="{Binding Environment, Mode=OneWay}" />
+                </TextBlock>
+                <TextBlock Style="{StaticResource Text.Caption}" Margin="0,3,0,0"
+                           Text="The only thing that makes a pushed configuration take effect." />
+            </StackPanel>
+        </Border>
+
+        <Border DockPanel.Dock="Bottom" Style="{StaticResource Card}" Margin="0,10,0,0">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Style="{StaticResource Button.Danger}"
+                        MinWidth="150" Margin="8,0,0,0"
+                        Command="{Binding CallCommand}"
+                        IsEnabled="{Binding CanCall}"
+                        ToolTip="POSTs to the configured endpoint with the token above. The token is not kept afterwards.">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE72C;" FontFamily="{StaticResource Font.Icons}" FontSize="13"
+                                   VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <TextBlock VerticalAlignment="Center">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Text" Value="Call restart" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Busy}" Value="True">
+                                            <Setter Property="Text" Value="Calling&#8230;" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </StackPanel>
+                </Button>
+
+                <Button DockPanel.Dock="Right" Style="{StaticResource Button.Secondary}"
+                        MinWidth="100" Click="OnCloseClick">
+                    <TextBlock>
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Text" Value="Cancel" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Completed}" Value="True">
+                                        <Setter Property="Text" Value="Close" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Button>
+
+                <TextBlock Style="{StaticResource Text.Caption}" VerticalAlignment="Center"
+                           TextWrapping="Wrap" MaxWidth="420"
+                           Text="The token is typed for every call and never saved — not to appsettings.json, and not to user secrets." />
+            </DockPanel>
+        </Border>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+
+                <Border Style="{StaticResource Notice.Danger}" Margin="0,0,0,10">
+                    <TextBlock TextWrapping="Wrap" FontSize="12"
+                               Foreground="{DynamicResource Brush.Danger}">
+                        <Run Text="This restarts whatever reads" /><Run Text=" " /><Run Text="{Binding Environment, Mode=OneWay}" FontWeight="SemiBold" /><Run Text=". It drops live connections and cannot be undone from here." />
+                    </TextBlock>
+                </Border>
+
+                <!-- The address in full: the one thing a confirmation must not leave to be assumed. -->
+                <Border Style="{StaticResource Card}" Margin="0,0,0,10"
+                        Background="{DynamicResource Brush.SurfaceAlt}">
+                    <TextBlock Style="{StaticResource Text.Mono}" TextWrapping="Wrap">
+                        <Run Text="POST" FontWeight="SemiBold" /><Run Text=" " /><Run Text="{Binding Url, Mode=OneWay}" />
+                    </TextBlock>
+                </Border>
+
+                <Border Style="{StaticResource Card}" Margin="0,0,0,10"
+                        Visibility="{Binding HasBody, Converter={StaticResource BoolVis}}">
+                    <StackPanel>
+                        <TextBlock Text="REQUEST BODY" Style="{StaticResource Text.SectionLabel}" />
+                        <TextBox Style="{StaticResource TextBox.Mono}" Margin="0,6,0,0"
+                                 IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
+                                 MaxHeight="150" VerticalScrollBarVisibility="Auto"
+                                 Text="{Binding Body, Mode=OneWay}" />
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Style="{StaticResource Text.Caption}" Margin="0,0,0,10" TextWrapping="Wrap"
+                           Text="This endpoint is configured to accept a self-signed certificate."
+                           Visibility="{Binding AllowsInsecureTls, Converter={StaticResource BoolVis}}" />
+
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="BEARER TOKEN" Style="{StaticResource Text.SectionLabel}" />
+                        <!-- A PasswordBox, so it is not left legible on screen. It is synced by hand
+                             for the same reason the Sources tab's token box is: PasswordBox exposes
+                             no bindable password property, by design. -->
+                        <PasswordBox x:Name="TokenBox" Margin="0,7,0,0"
+                                     PasswordChanged="OnTokenChanged"
+                                     ToolTip="Typed for each call and never saved. This is the confirmation step — the app cannot supply it for you." />
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource Notice.Danger}" Margin="0,10,0,0"
+                        Visibility="{Binding Problem, Converter={StaticResource NotEmptyVis}}">
+                    <TextBlock Text="{Binding Problem}" TextWrapping="Wrap" FontSize="12"
+                               Foreground="{DynamicResource Brush.Danger}" />
+                </Border>
+
+                <!-- Step by step rather than one verdict: this call can fail after being accepted,
+                     and "the POST returned 202" and "it came back up" are different claims. -->
+                <ItemsControl ItemsSource="{Binding Notes}" Margin="0,10,0,0">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="{DynamicResource Brush.SurfaceAlt}" Padding="10,6"
+                                    CornerRadius="6" Margin="0,0,0,4">
+                                <TextBlock Text="{Binding}" Style="{StaticResource Text.MonoCaption}"
+                                           TextWrapping="Wrap" />
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

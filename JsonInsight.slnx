@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="JsonInsight.Core/JsonInsight.Core.csproj" />
+  <Project Path="JsonInsight.Presentation/JsonInsight.Presentation.csproj" />
+  <Project Path="JsonInsight.Tests/JsonInsight.Tests.csproj" />
+  <Project Path="JsonInsight/JsonInsight.csproj" />
+  <Project Path="WebJsonInsight.Tests/WebJsonInsight.Tests.csproj" />
+  <Project Path="WebJsonInsight/WebJsonInsight.csproj" />
+</Solution>

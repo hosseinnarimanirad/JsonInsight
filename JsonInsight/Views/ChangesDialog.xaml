@@ -1,0 +1,200 @@
+<Window x:Class="JsonInsight.Views.ChangesDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:JsonInsight.ViewModels;assembly=JsonInsight.Presentation"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        d:DataContext="{d:DesignInstance Type=vm:ChangesVm}"
+        mc:Ignorable="d"
+        Title="Pending changes" Height="800" Width="1280"
+        WindowStartupLocation="CenterOwner"
+        UseLayoutRounding="True"
+        FontFamily="{StaticResource Font.Ui}"
+        Foreground="{DynamicResource Brush.Text}"
+        Background="{DynamicResource Brush.Window}">
+
+    <DockPanel Margin="16">
+        <Border DockPanel.Dock="Top" Style="{StaticResource Card}" Margin="0,0,0,10">
+            <StackPanel>
+                <TextBlock Text="{Binding Title}" Style="{StaticResource Text.Heading}" />
+
+                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                    <TextBlock Text="Tier" Style="{StaticResource Text.Base}"
+                               VerticalAlignment="Center" Margin="0,0,9,0" />
+                    <ComboBox ItemsSource="{Binding Tiers}" SelectedItem="{Binding Tier}"
+                              DisplayMemberPath="Label" MinWidth="230" />
+                    <Button Style="{StaticResource Button.Small}" Content="Discard this tier's changes"
+                            Command="{Binding DiscardTierCommand}" Margin="14,0,0,0" />
+                    <TextBlock Style="{StaticResource Text.Caption}" VerticalAlignment="Center"
+                               Margin="16,0,0,0" TextWrapping="Wrap"
+                               Text="One tier per commit — one file, one backup, one typed confirmation. Every key for that tier goes in a single write." />
+                </StackPanel>
+
+                <!-- Where this actually lands. For a tier read live from Vault there is no snapshot
+                     to edit, so the commit creates one and says so before you confirm. -->
+                <StackPanel Orientation="Horizontal" Margin="0,10,0,0"
+                            Visibility="{Binding TargetDescription, Converter={StaticResource NotEmptyVis}}">
+                    <TextBlock Text="&#xE8A5;" FontFamily="{StaticResource Font.Icons}" FontSize="12"
+                               Foreground="{DynamicResource Brush.TextTertiary}" VerticalAlignment="Top"
+                               Margin="0,2,8,0" />
+                    <TextBlock Text="{Binding TargetDescription}" Style="{StaticResource Text.Secondary}"
+                               FontSize="12" TextWrapping="Wrap" MaxWidth="1100" />
+                </StackPanel>
+
+                <TextBlock Text="{Binding Message}" Style="{StaticResource Text.Secondary}"
+                           FontSize="12" TextWrapping="Wrap" Margin="0,10,0,0"
+                           Visibility="{Binding Message, Converter={StaticResource NotEmptyVis}}" />
+
+                <Button Style="{StaticResource Button.Secondary}" Content="Re-base the stale changes"
+                        HorizontalAlignment="Left" Margin="0,10,0,0"
+                        Command="{Binding RebaseCommand}"
+                        Visibility="{Binding HasStale, Converter={StaticResource BoolVis}}"
+                        ToolTip="Re-reads each stale change's starting value from the tier as it stands now. The value you set is kept." />
+            </StackPanel>
+        </Border>
+
+        <!-- Action bar. The confirmation lives on the push screen, with the diff against the live
+             secret: this screen is where the batch is reviewed, not where it is committed. -->
+        <Border DockPanel.Dock="Bottom" Style="{StaticResource Card}" Margin="0,10,0,0">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Style="{StaticResource Button.Danger}"
+                        MinWidth="170" Click="OnPushClick"
+                        IsEnabled="{Binding CanPush}" Margin="8,0,0,0"
+                        ToolTip="Opens the push screen: this batch applied to the tier, diffed against what that source holds now.">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE898;" FontFamily="{StaticResource Font.Icons}" FontSize="13"
+                                   VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <TextBlock Text="Push to Vault or disk…" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <Button DockPanel.Dock="Right" Style="{StaticResource Button.Primary}" Content="Preview"
+                        MinWidth="118" Command="{Binding PreviewCommand}" />
+                <Button DockPanel.Dock="Right" Style="{StaticResource Button.Secondary}" Content="Close"
+                        MinWidth="100" Click="OnCloseClick" Margin="0,0,8,0" />
+
+                <TextBlock Style="{StaticResource Text.Caption}" VerticalAlignment="Center"
+                           TextWrapping="Wrap" MaxWidth="700"
+                           Text="Nothing is written here or anywhere else on disk. The batch becomes one new version of the tier's secret." />
+            </DockPanel>
+        </Border>
+
+        <Border DockPanel.Dock="Bottom" Style="{StaticResource Notice.Warn}" Margin="0,10,0,0"
+                Visibility="{Binding Warnings.Count, Converter={StaticResource NotEmptyVis}}">
+            <ItemsControl ItemsSource="{Binding Warnings}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding}" Foreground="{DynamicResource Brush.Shape}"
+                                   FontSize="12" TextWrapping="Wrap" Margin="0,1" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Border>
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.25*" />
+                <ColumnDefinition Width="10" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Style="{StaticResource Card.Flush}">
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Style="{StaticResource TableHeader}">
+                        <TextBlock Text="QUEUED CHANGES" Style="{StaticResource Text.SectionLabel}" />
+                    </Border>
+
+                    <DataGrid ItemsSource="{Binding Changes}" RowHeight="30">
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsStale}" Value="True">
+                                        <Setter Property="Background" Value="{DynamicResource Brush.MissingSoft}" />
+                                        <Setter Property="ToolTip" Value="{Binding StaleReason}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.RowStyle>
+
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="KEY" Binding="{Binding Path}" Width="*">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource Text.Mono}">
+                                        <Setter Property="ToolTip" Value="{Binding Path}" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTextColumn Header="WHAT" Binding="{Binding KindName}" Width="66" />
+
+                            <DataGridTextColumn Header="CLASS" Binding="{Binding ClassName}" Width="66">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource Text.ByClass}" />
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTextColumn Header="FROM" Binding="{Binding BaseDisplay}" Width="150">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource Text.Mono}">
+                                        <Setter Property="ToolTip" Value="{Binding BaseDisplay}" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTextColumn Header="TO" Binding="{Binding NewDisplay}" Width="180">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource Text.Mono}">
+                                        <Setter Property="ToolTip" Value="{Binding NewDisplay}" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTemplateColumn Header="" Width="74">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button Style="{StaticResource Button.Small}" Content="Discard"
+                                                Command="{Binding DataContext.DiscardCommand,
+                                                          RelativeSource={RelativeSource AncestorType=Window}}"
+                                                CommandParameter="{Binding}" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </Border>
+
+            <GridSplitter Grid.Column="1" Width="10" HorizontalAlignment="Stretch" />
+
+            <!-- The real bytes, produced by the same writer that performs the write -->
+            <Border Grid.Column="2" Style="{StaticResource Card.Flush}">
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Style="{StaticResource TableHeader}">
+                        <TextBlock Style="{StaticResource Text.SectionLabel}"
+                                   Text="PREVIEW — THE ACTUAL FILE DIFF, NOT A SUMMARY" />
+                    </Border>
+                    <ListBox Style="{StaticResource LineList}"
+                             ItemsSource="{Binding PreviewLines}" Padding="4"
+                             ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource Row.DiffLine}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="44" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding RightNumber}"
+                                                   Style="{StaticResource Text.MonoCaption}"
+                                                   TextAlignment="Right" Margin="0,0,10,0" />
+                                        <TextBlock Grid.Column="1" Text="{Binding RightText}"
+                                                   Style="{StaticResource Text.Mono}" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Border>
+        </Grid>
+    </DockPanel>
+</Window>

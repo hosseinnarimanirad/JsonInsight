@@ -1,0 +1,26 @@
+{
+  "// note": "A tier is a Vault secret and nothing else. There are no local files here any more: nothing this app shows is a copy, and nothing it does lands on disk. A tier is added, moved or removed by editing this file - but it must also be added to every members block in aliases.json, or that alias silently disengages for all tiers. Append rather than insert: the Text diff tab preselects its two sides positionally.",
+  "tiers": [
+    {
+      "id": "dev",
+      "label": "dev",
+      "vaultPath": "kv/app/dev"
+    },
+    {
+      "id": "stage",
+      "label": "stage",
+      "vaultPath": "kv/app/stage"
+    },
+    {
+      "id": "beta",
+      "label": "beta",
+      "vaultPath": "kv/app/beta"
+    },
+    {
+      "id": "prod",
+      "label": "prod",
+      "vaultPath": "kv/app/prod",
+      "note": "Appended last on purpose: the Text diff tab preselects its two sides positionally, so inserting prod earlier would change which tiers it opens on."
+    }
+  ]
+}

@@ -1,0 +1,666 @@
+{
+  "AccountSettings": {
+    "NightlyApprovalJob": {
+      "BatchSize": 200,
+      "Enabled": false,
+      "InitialDelaySeconds": 120,
+      "InquiryDelayMs": 250,
+      "InquiryTimeoutSeconds": 30,
+      "IntervalMinutes": 30,
+      "LockKey": "fixture-2825170ea05",
+      "LockTtlSeconds": 300,
+      "MaxAgeHours": 12,
+      "MinAgeMinutes": 5,
+      "UseDistributedLock": true
+    },
+    "ProxyUrl": "http://10.19.3.24:8443",
+    "WalletProvider": {
+      "ApiKey": "",
+      "BalanceInquiryUrl": "http:/p1/p2/p3/p4/p5/p6",
+      "BaseUrl": "https://host-dfb5.example.com:4430/p1",
+      "PartnerWalletId": "12245433524269",
+      "NightlyToken": "Authorization=Basic c0af966924f3f545905c76be",
+      "GatewayAWalletId": "",
+      "CaToken": "fixture-jwt-bcc0a9f26afb1219",
+      "CashOutUrl": "http:/p1/p2/p3/p4/p5/p6/p7",
+      "CertificateUrl": "https:/p1/p2/p3/p4",
+      "ConfirmTransferUrl": "http:/p1/p2/p3/p4/p5/p6/p7",
+      "FindTransactionUrl": "http:/p1/p2/p3/p4/p5/p6/p7/p8",
+      "InquiryLevelUrl": "http:/p1/p2/p3/p4/p5/p6",
+      "InquiryWalletsUrl": "http:/p1/p2/p3/p4/p5/p6/p7/p8",
+      "RefreshCertificateUrl": "https:/p1/p2/p3/p4/p5/p6",
+      "RegisterUrl": "http:/p1/p2/p3/p4/p5/p6",
+      "SubmitTransferUrl": "http:/p1/p2/p3/p4/p5/p6",
+      "TimeoutSeconds": 30,
+      "TransferChargeUrl": "http:/p1/p2/p3/p4/p5/p6/p7",
+      "TransferVerifyDepositUrl": "http:/p1/p2/p3/p4/p5/p6/p7/p8"
+    },
+    "Transfer": {
+      "DailyLimit": 1000000000000,
+      "MaxAmount": 100000000000,
+      "MinAmount": 1000
+    }
+  },
+  "AuthSettings": {
+    "Dev": {
+      "DeleteUserPassword": "fixture-a0e0c3a8bba"
+    },
+    "Jwt": {
+      "AccessTokenExpiryMinutes": 60,
+      "Algorithm": "RS256",
+      "AuthorizationExpiry": 600,
+      "DefaultTokenExpiry": 3600,
+      "Issuer": "host-72b5.example.com",
+      "OtpExpiryMinutes": 5,
+      "PrivateKeyFile": "Config/private.key",
+      "PublicKeyFile": "Config/public.key"
+    },
+    "ProxyUrl": "http://10.19.3.24:8443",
+    "IdentityProviderPrivateKeyFile": "C:\\fixtures\\7b70fade.key"
+  },
+  "CallbackBaseUrl": "https://host-1f7a.example.com",
+  "CharitySettings": {
+    "AllowAnonymousDonations": true,
+    "DefaultOrganizationCode": "",
+    "MaxDonationAmount": 100000000000,
+    "MinDonationAmount": 1000
+  },
+  "ConfigSettings": {
+    "ApiBaseUrl": "https://host-5e2b.example.com",
+    "AppVersion": "1.0.0",
+    "Branch": null,
+    "BuildNumber": "1",
+    "CommitHash": null,
+    "Environment": "production"
+  },
+  "ConnectionStrings": {
+    "Couchbase": {
+      "AccountScope": "account",
+      "AuthScope": "auth",
+      "BootstrapPollIntervalSeconds": 1,
+      "Bucket": "default",
+      "CharityScope": "charity",
+      "ConfigPollIntervalSeconds": 3,
+      "DeviceScope": "profile",
+      "KvConnectTimeoutSeconds": 8,
+      "KvTimeoutSeconds": 5,
+      "Modules": {
+        "Account": {
+          "Bucket": "default",
+          "Password": "fixture-8874561d",
+          "Scopes": {
+            "account": [
+              "account-balances",
+              "accounts",
+              "balances",
+              "host-1b2e.example.com",
+              "transactions"
+            ]
+          },
+          "Url": "couchbase://10.176.19.68",
+          "UseNetworkResolutionExternal": true,
+          "Username": "appuser"
+        },
+        "Auth": {
+          "Bucket": "default",
+          "Password": "fixture-5dcb1d67",
+          "Scopes": {
+            "auth": [
+              "clients",
+              "users",
+              "scopes",
+              "tokens"
+            ]
+          },
+          "Url": "couchbase://10.176.19.68",
+          "UseNetworkResolutionExternal": true,
+          "Username": "appuser"
+        },
+        "Package": {
+          "Bucket": "default",
+          "Password": "fixture-e01f61e9",
+          "QueryUrl": "http://10.176.19.68:8093",
+          "Scopes": {
+            "charity": [
+              "charities",
+              "transactions"
+            ],
+            "payment": [
+              "cards",
+              "temp",
+              "transactions"
+            ],
+            "topup": [
+              "packages",
+              "transactions"
+            ]
+          },
+          "Url": "couchbase://10.176.19.68",
+          "UseNetworkResolutionExternal": true,
+          "Username": "appuser"
+        },
+        "Profile": {
+          "Bucket": "default",
+          "Password": "fixture-0749639c",
+          "Scopes": {
+            "profile": [
+              "profiles",
+              "attributes",
+              "attributeSchemas",
+              "zones",
+              "devices",
+              "sessions"
+            ]
+          },
+          "Url": "couchbase://10.176.19.68",
+          "UseNetworkResolutionExternal": true,
+          "Username": "appuser"
+        },
+        "Transaction": {
+          "Bucket": "default",
+          "Password": "fixture-497d3d9a",
+          "Scopes": {
+            "account": [
+              "host-1b2e.example.com",
+              "transactions"
+            ]
+          },
+          "Url": "couchbase://10.176.19.68",
+          "UseNetworkResolutionExternal": true,
+          "Username": "appuser"
+        },
+        "otp": {
+          "Bucket": "default",
+          "Password": "fixture-5f9385f6",
+          "Scopes": {
+            "otp": [
+              "messages",
+              "passwords",
+              "templates"
+            ]
+          },
+          "Url": "couchbase://10.176.19.68",
+          "UseNetworkResolutionExternal": true,
+          "Username": "appuser"
+        }
+      },
+      "Password": "fixture-b9273463",
+      "PaymentScope": "payment",
+      "ProfileScope": "profile",
+      "SessionScope": "profile",
+      "SmsScope": "otp",
+      "Staging": 1,
+      "TopupScope": "topup",
+      "Username": "appuser"
+    }
+  },
+  "PartnerApiSettings": {
+    "BaseUrl": "https:/p1/p2/p3/p4/p5",
+    "Logging": {
+      "Enabled": true,
+      "IndexName": "host-8246.example.com",
+      "MaxBodySize": 100000
+    },
+    "Password": "fixture-7be36e5bf9",
+    "TimeoutSeconds": 60,
+    "Username": "host-90fd.example.com"
+  },
+  "Elasticsearch": {
+    "AllowInsecureCertificate": true,
+    "Enabled": true,
+    "Environment": "development",
+    "Password": "fixture-bbc66b6151",
+    "TimeoutSeconds": 30,
+    "Url": "https://host-56ac.example.com:9200",
+    "Username": "elastic"
+  },
+  "Encryption": {
+    "Profile": {
+      "Algorithm": "fixture-9828e8eb",
+      "Iv": "fixture-7bbb1814",
+      "Key": "fixture-be12cdab517bc217"
+    }
+  },
+  "ErrorCatalog": {
+    "CacheTtlSeconds": 300
+  },
+  "IpTracker": {
+    "BlockDurationSeconds": 21600,
+    "ElasticsearchIndex": "blockusers",
+    "Enabled": true,
+    "MaxIpCount": 10,
+    "TrackingWindowSeconds": 10800
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft": "Warning",
+      "Microsoft.AspNetCore": "Information"
+    }
+  },
+  "LoginBan": {
+    "AttemptsExpirySeconds": 3600,
+    "BanDurationSeconds": 21600,
+    "Enabled": true,
+    "MaxFailedAttempts": 3
+  },
+  "OtpRateLimiting": {
+    "DailyLimit": 20,
+    "DailyWindowSeconds": 86400,
+    "Enabled": true,
+    "ShortTermLimit": 5,
+    "ShortTermWindowSeconds": 120
+  },
+  "PaymentSettings": {
+    "GatewayC": {
+      "Authorization": "Authorization=Basic b588acef4ab2e68d60086064",
+      "MerchantUrl": "https:/p1/p2/p3/p4/p5",
+      "SettlementDetailsUrl": "https:/p1/p2/p3/p4/p5"
+    },
+    "BillInquiryProvider": "host-1b19.example.com",
+    "BillPaymentProvider": "PROVIDER_A",
+    "GatewayA": {
+      "BillPrivateKey": "fixture-c2fdebc8e75",
+      "CardTransfer": {
+        "ApiKey": "fixture-303826d8",
+        "CardInfoInquiryUrl": "http:/p1/p2/p3/p4/p5/p6",
+        "PrivateKey": "fixture-6e2e5f30215"
+      },
+      "CardTransferApiKey": "fixture-18409292",
+      "CardTransferCardInfoInquiryUrl": "http:/p1/p2/p3/p4/p5/p6",
+      "Invoice": {
+        "ApiKey": "fixture-e3c964c1",
+        "PrivateKey": "fixture-850c3ebc755",
+        "Terminal": "554"
+      },
+      "InvoiceApiKey": "fixture-7a19d8bb",
+      "InvoicePrivateKey": "fixture-9d5312e3c24",
+      "InvoiceTerminal": "610",
+      "InvoiceUrl": "http:/p1/p2/p3/p4/p5/p6",
+      "Mpg": {
+        "ApiKey": "fixture-7c7aab3c",
+        "IbanCode": "7695453525",
+        "InquiryUrl": "http:/p1/p2/p3/p4/p5/p6",
+        "PrivateKey": "fixture-ed3986acf7b",
+        "PurchaseUrl": "http:/p1/p2/p3/p4/p5/p6",
+        "ReverseUrl": "http:/p1/p2/p3/p4/p5/p6",
+        "Terminal": "3551461",
+        "VerifyUrl": "http:/p1/p2/p3/p4/p5/p6"
+      },
+      "MpgApiKey": "fixture-e1033234",
+      "MpgPrivateKey": "fixture-929dd65c929",
+      "OtpPrivateKey": "fixture-6b6e481d6fb",
+      "OtpUrl": "http:/p1/p2/p3/p4/p5/p6/p7"
+    },
+    "CallbackHtmlUrl": "https:/p1/p2/p3/p4/p5",
+    "Cheque": {
+      "FeeAmount": 12000,
+      "FeeEnabled": true,
+      "FeeTtl": 900
+    },
+    "Encryption": {
+      "Profile": {
+        "Algorithm": "fixture-a937e46b",
+        "Iv": "fixture-c6dd1dd5",
+        "Key": "fixture-5f25fd1bd8355f64"
+      }
+    },
+    "InquiryProvider": {
+      "BillInquiryUrl": "https:/p1/p2/p3/p4/p5/p6/p7",
+      "BillPaymentUrl": "https:/p1/p2/p3/p4/p5/p6/p7",
+      "InquiryToken": "fixture-1c6d10fa8ac0767cf1cd39bc6566b89919391074",
+      "Password": "fixture-982ffbbed1",
+      "PaymentToken": "fixture-975ab6640738a71680320aa214753e362f836b0c",
+      "RefreshTokenUrl": "https:/p1/p2/p3/p4/p5/p6",
+      "Username": "parnian"
+    },
+    "BillProvider": {
+      "ApiKey": "fixture-9ddf67aa23d432d3",
+      "BillPaymentUrl": "https:/p1/p2/p3/p4/p5",
+      "ElectricityBillInquiryUrl": "https:/p1/p2/p3/p4/p5",
+      "FixedLineBillInquiryUrl": "https:/p1/p2/p3/p4/p5",
+      "GasBillInquiryUrl": "https:/p1/p2/p3/p4/p5",
+      "InquiryPaidBillUrl": "https:/p1/p2/p3/p4/p5",
+      "MciBillInquiryUrl": "https:/p1/p2/p3/p4/p5",
+      "RtlBillInquiryUrl": "https:/p1/p2/p3/p4/p5",
+      "WalletId": "09221334",
+      "WaterBillInquiryUrl": "https:/p1/p2/p3/p4/p5"
+    },
+    "GwClientId": "9b96e1e4-42db-2728-7b17-b457d5e93c04",
+    "Hub": {
+      "AddCardEndpoint": "/fixtures/8bc2b093",
+      "ApiUrl": "https://host-3d4b.example.com/p1",
+      "CardTransfer": {
+        "AcceptorName": "نمونه‌ea82",
+        "Banks": {
+          "BANK_B": {
+            "AcceptorCode": "138608253428369",
+            "Code": "BANK_B",
+            "Terminal": "23442455",
+            "TerminalType": "5"
+          },
+          "BANK_C": {
+            "AcceptorCode": "020525939015407",
+            "Code": "BANK_C",
+            "Terminal": "08742933",
+            "TerminalType": "5"
+          },
+          "BANK_D": {
+            "AcceptorCode": "054513501221200",
+            "Code": "BANK_D",
+            "Terminal": "29741337",
+            "TerminalType": "5"
+          },
+          "BANK_E": {
+            "AcceptorCode": "434655814049548",
+            "Code": "BANK_E",
+            "Terminal": "01920370",
+            "TerminalType": "5"
+          },
+          "BANK_F": {
+            "AcceptorCode": "053104626875041",
+            "Code": "BANK_F",
+            "Terminal": "05441127",
+            "TerminalType": "5"
+          },
+          "BANK_G": {
+            "AcceptorCode": "713463350304221",
+            "Code": "BANK_G",
+            "Terminal": "05485427",
+            "TerminalType": "5"
+          },
+          "BANK_H": {
+            "AcceptorCode": "001214893071121",
+            "Code": "BANK_H",
+            "Terminal": "02952014",
+            "TerminalType": "1"
+          },
+          "BANK_I": {
+            "AcceptorCode": "443325970031124",
+            "Code": "BANK_I",
+            "Terminal": "20765439",
+            "TerminalType": "5"
+          },
+          "BANK_A": {
+            "AcceptorCode": "000933249637764",
+            "Code": "BANK_A",
+            "Terminal": "09605653",
+            "TerminalType": "5"
+          },
+          "BANK_J": {
+            "AcceptorCode": "ZK3j27kNw4eECtz",
+            "Code": "BANK_J",
+            "Terminal": "33772385",
+            "TerminalType": "5"
+          },
+          "BANK_K": {
+            "AcceptorCode": "043642200194173",
+            "Code": "BANK_K",
+            "Terminal": "40608082",
+            "TerminalType": "1"
+          },
+          "BANK_L": {
+            "AcceptorCode": "050259456350211",
+            "Code": "BANK_L",
+            "Terminal": "05745603",
+            "TerminalType": "1"
+          },
+          "BANK_M": {
+            "AcceptorCode": "094845492359045",
+            "Code": "BANK_M",
+            "Terminal": "03200464",
+            "TerminalType": "5"
+          },
+          "BANK_N": {
+            "AcceptorCode": "077777754230935",
+            "Code": "BANK_N",
+            "Terminal": "14480246",
+            "TerminalType": "5"
+          },
+          "BANK_O": {
+            "AcceptorCode": "031535521533547",
+            "Code": "BANK_O",
+            "Terminal": "04195122",
+            "TerminalType": "1"
+          },
+          "BANK_P": {
+            "AcceptorCode": "424014943532002",
+            "Code": "BANK_P",
+            "Terminal": "14334423",
+            "TerminalType": "5"
+          },
+          "BANK_Q": {
+            "AcceptorCode": "034116943298413",
+            "Code": "BANK_Q",
+            "Terminal": "04909615",
+            "TerminalType": "5"
+          },
+          "BANK_R": {
+            "AcceptorCode": "053968632404453",
+            "Code": "BANK_R",
+            "Terminal": "00206514",
+            "TerminalType": "5"
+          },
+          "BANK_S": {
+            "AcceptorCode": "030039590896590",
+            "Code": "BANK_S",
+            "Terminal": "00233604",
+            "TerminalType": "5"
+          },
+          "BANK_T": {
+            "AcceptorCode": "033029277413133",
+            "Code": "BANK_T",
+            "Terminal": "00853178",
+            "TerminalType": "1"
+          },
+          "BANK_U": {
+            "AcceptorCode": "079400403132239",
+            "Code": "BANK_U",
+            "Terminal": "00231248",
+            "TerminalType": "5"
+          },
+          "BANK_V": {
+            "AcceptorCode": "028221601569264",
+            "Code": "BANK_V",
+            "Terminal": "04533522",
+            "TerminalType": "5"
+          },
+          "BANK_W": {
+            "AcceptorCode": "0585983MP010012",
+            "Code": "BANK_W",
+            "Terminal": "MP010012",
+            "TerminalType": "5"
+          }
+        },
+        "CallbackUrl": "https:/p1/p2/p3/p4/p5/p6",
+        "CardHolderInquiryUrl": "https:/p1/p2/p3/p4/p5",
+        "CardInfoUrl": "https:/p1/p2/p3/p4",
+        "FindPublicKeyUrl": "https://host-7f9c.example.com/p1/p2",
+        "Password": "fixture-6e4b852f",
+        "RegistrationUrlPattern": "https://host-7f9c.example.com/p1/p2",
+        "SourceAddress": "10.198.36.91",
+        "Uri": "https:/p1/p2/p3/p4/p5/p6/p7",
+        "Username": "behpardakht-ft"
+      },
+      "Cheque": {
+        "ChequeInfoInquiryUrl": "https:/p1/p2/p3/p4",
+        "ChequeStatusInquiryUrl": "https:/p1/p2/p3/p4",
+        "ConfirmUrl": "https:/p1/p2/p3/p4",
+        "IdentityInquiryUrl": "https:/p1/p2/p3/p4",
+        "OwnerCreditInquiryUrl": "https:/p1/p2/p3/p4",
+        "OwnerInfoInquiryUrl": "https:/p1/p2/p3/p4",
+        "OwnerStatusInquiryUrl": "https:/p1/p2/p3/p4",
+        "Password": "",
+        "ReceiverInfoInquiryUrl": "https:/p1/p2/p3/p4",
+        "SubmitUrl": "https:/p1/p2/p3/p4",
+        "TransferChainInquiryUrl": "https:/p1/p2/p3/p4",
+        "TransferInquiryUrl": "https:/p1/p2/p3/p4",
+        "TransferUrl": "https:/p1/p2/p3/p4",
+        "Username": ""
+      },
+      "InquiryEndpoint": "/fixtures/3e36c1cc",
+      "OtpEndpoint": "https:/p1/p2/p3/p4/p5",
+      "Payment": {
+        "AcceptorCode": "1175318        ",
+        "Iin": "901332085",
+        "TerminalNumber": "03468909"
+      },
+      "PrivateKey": "fixture-192048401ded",
+      "SkipSslVerification": true
+    },
+    "GatewayB": {
+      "BillPrivateKey": "fixture-892811015b1",
+      "CallbackUrl": "https:/p1/p2/p3/p4/p5/p6/p7/p8",
+      "Iban": {
+        "IbanOwnerInquiryUrl": "https:/p1/p2/p3/p4/p5/p6",
+        "InquiryUrl": "https:/p1/p2/p3/p4/p5/p6",
+        "LogOutUrl": "https:/p1/p2/p3/p4/p5/p6",
+        "LoginUrl": "https:/p1/p2/p3/p4/p5/p6",
+        "Password": "fixture-035a3995",
+        "RsaKeyPem": "fixture-63d34b18d21",
+        "ServiceNo": 152,
+        "Source": "IR610120020000009070153430",
+        "TransferUrl": "https:/p1/p2/p3/p4/p5/p6",
+        "Username": "host-443a.example.com"
+      },
+      "IbanCode": "1613134959",
+      "Password": "fixture-a2ced416",
+      "PaymentPageUrl": "https:/p1/p2/p3/p4",
+      "PurchaseUrl": "https:/p1/p2/p3/p4/p5",
+      "Terminal": "4341027",
+      "Username": "sekkeh404"
+    },
+    "ProxyUrl": "http://10.19.3.24:8443",
+    "RandomizeExpiry": true,
+    "WalletBalanceId": "1150b9bd-09c7-a103-8d91-a2d4893d777a",
+    "BillWalletLock": {
+      "KeyPrefix": "rial-digital-lock:",
+      "TtlSeconds": 90
+    },
+    "WalletProviderGatewayA": {
+      "OtpUrl": "http:/p1/p2/p3/p4/p5",
+      "PurchaseUrl": "http:/p1/p2/p3/p4/p5",
+      "ReverseUrl": "http:/p1/p2/p3/p4/p5",
+      "VerifyUrl": "http:/p1/p2/p3/p4/p5"
+    },
+    "SourceAccount": "",
+    "StaticDomain": "https://host-1530.example.com/p1",
+    "TransactionExpiry": 1500
+  },
+  "ProfileSettings": {
+    "DisableAttributeFiltering": true,
+    "WalletBalanceId": "RIAL_DIGITAL"
+  },
+  "Redis": {
+    "ConnectTimeoutMs": 5000,
+    "ConnectionString": "localhost:6379",
+    "Database": 0,
+    "Enabled": true,
+    "Password": "fixture-702c5ce1",
+    "SyncTimeoutMs": 5000
+  },
+  "Serilog": {
+    "EnableSelfLog": 1,
+    "MinimumLevel": {
+      "Default": "Information",
+      "Override": {
+        "Microsoft": "Warning",
+        "Microsoft.AspNetCore": "Warning"
+      }
+    },
+    "WriteTo": [
+      {
+        "Name": "Console"
+      },
+      {
+        "Args": {
+          "allowInsecureCertificate": true,
+          "autoRegisterTemplate": false,
+          "connectionGlobalHeaders": "Authorization=Basic 17bb3c129823535e21fa6247",
+          "connectionTimeout": 30,
+          "detectElasticsearchVersion": false,
+          "disablePing": true,
+          "enableApiVersioningHeader": false,
+          "indexFormat": "host-8457.example.com",
+          "nodeUris": "https://host-641c.example.com/p1",
+          "skipProductCheck": true
+        },
+        "Name": "ElasticsearchManaged"
+      }
+    ]
+  },
+  "SmsSettings": {
+    "DefaultProvider": "PROVIDER_A",
+    "DefaultSender": "60099302",
+    "MaxOtpAttempts": 3,
+    "OtpDigits": 6,
+    "OtpExpiryMinutes": 5,
+    "Providers": {
+      "PROVIDER_A": {
+        "ApiKey": "fixture-74c92ebe",
+        "IsActive": true,
+        "Sender": "76231702",
+        "Url": "http:/p1/p2/p3/p4/p5"
+      }
+    },
+    "ProxyUrl": "http://10.19.3.24:8443"
+  },
+  "Staging": 1,
+  "ThirdPartySettings": {
+    "PartnerA": {
+      "BaseUrl": "https://host-9121.example.com",
+      "ClientId": "311dc882-4500-6085-913a-e41fc0385ad0",
+      "Scope": "GET:/p1/p2/p3/p4 POST:/p1/p2/p3/p4/p5 PUT:/p1/p2/p3/p4/p5/p6/p7 GET:/p1/p2/p3/p4/p5/p6 POST:/p1/p2/p3/p4/p5/p6 GET:/p1/p2/p3/p4/p5/p6"
+    },
+    "GwClientId": "b6e7796f-01f9-bb9b-e893-21aab7b4fb6b",
+    "PartnerB": {
+      "BaseUrl": "https://host-57fc.example.com",
+      "ClientId": "45e06f7b-b9f5-981c-116f-9ea8fd4fcbbf",
+      "Scope": "GET:/p1/p2/p3/p4 POST:/p1/p2/p3/p4/p5 PUT:/p1/p2/p3/p4/p5/p6/p7 GET:/p1/p2/p3/p4/p5/p6 POST:/p1/p2/p3/p4/p5/p6 GET:/p1/p2/p3/p4/p5/p6"
+    },
+    "LegalProvider": {
+      "EncryptionKey": "fixture-e024b75b",
+      "Url": "https:/p1/p2/p3/p4"
+    },
+    "Reservation": {
+      "EncryptionKey": "",
+      "Url": "https://host-196c.example.com/p1/p2"
+    },
+    "DiscountProvider": {
+      "BaseUrl": "https:/p1/p2/p3/p4",
+      "Password": "fixture-10d02c8c1c5b",
+      "Username": "sekkeh"
+    },
+    "InsuranceProvider": {
+      "EncryptionKey": "fixture-bd7ea893",
+      "Url": "https:/p1/p2/p3/p4"
+    },
+    "PartnerC": {
+      "BaseUrl": "http://host-d278.example.com",
+      "ClientId": "e4eebbc0-dc95-19d1-a930-e728adcca6f0",
+      "Scope": "GET:/p1/p2/p3/p4 POST:/p1/p2/p3/p4/p5 PUT:/p1/p2/p3/p4/p5/p6/p7 GET:/p1/p2/p3/p4/p5/p6 POST:/p1/p2/p3/p4/p5/p6 GET:/p1/p2/p3/p4/p5/p6"
+    }
+  },
+  "TopupSettings": {
+    "GatewayA": {
+      "ApiKey": "",
+      "BaseUrl": "http://10.172.63.114:5050",
+      "Enabled": true,
+      "PrivateKey": "",
+      "ProxyUrl": "http://10.19.3.24:8443",
+      "TerminalKey": "fixture-a88d4f9d",
+      "TimeoutSeconds": 30
+    },
+    "DailyLimit": 5000000,
+    "MessengerProvider": {
+      "ApiKey": "",
+      "BaseUrl": "https://host-6b41.example.com",
+      "Enabled": true,
+      "RefreshToken": "fixture-2a51a4de6e217e",
+      "TimeoutSeconds": 30
+    },
+    "PackageProvider": "PROVIDER_A",
+    "Provider": "PROVIDER_A",
+    "WalletBalanceId": "e204357d-c0ff-c2b6-c017-e4463dc0308d"
+  }
+}

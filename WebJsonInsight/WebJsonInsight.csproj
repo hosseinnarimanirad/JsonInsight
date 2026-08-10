@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <!-- A desktop app, not a server. There is no Kestrel here, no port and no browser: Photino opens
+         an OS window holding the platform's own webview and Blazor renders into it in-process.
+         net8.0 with no -windows suffix is what lets the same output publish for Linux and macOS. -->
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>WebJsonInsight</RootNamespace>
+    <AssemblyName>WebJsonInsight</AssemblyName>
+    <Deterministic>true</Deterministic>
+
+    <!-- Same id as the WPF app on purpose: the two front ends read and write one set of Vault
+         tokens, because they are configuring one set of projects rather than two.
+         Must match VaultSettingsStore.UserSecretsId. -->
+    <UserSecretsId>jsoninsight-9f3c1d20</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Photino.Blazor" Version="4.0.13" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The view models, and through them the engine. This project adds a window and a set of Razor
+         components; it does not add a second implementation of anything below them. -->
+    <ProjectReference Include="..\JsonInsight.Presentation\JsonInsight.Presentation.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Photino resolves wwwroot with a PhysicalFileProvider over {BaseDirectory}\wwwroot, so the
+         files have to be really there. The Razor SDK's default treatment - static web assets, served
+         from a manifest - satisfies `dotnet publish` and not `dotnet run`, which is a startup crash
+         in development only and therefore the kind that reaches a commit.
+
+         Update rather than Include: the SDK has already globbed these in, and a second Include would
+         be a duplicate-item error rather than a copy instruction. -->
+    <Content Update="wwwroot\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="WebJsonInsight.Tests" />
+  </ItemGroup>
+
+</Project>

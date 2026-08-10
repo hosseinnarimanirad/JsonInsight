@@ -1,0 +1,14 @@
+{
+  "// note": "How each array in the config is compared. An array matching no strategy is flattened by index AND reported as an UnclassifiedArray warning, so a new array shape can never be silently mis-diffed.",
+  "strategies": {
+    "Serilog:WriteTo": {
+      "kind": "keyedObjects",
+      "identityField": "Name",
+      "note": "Console / ElasticsearchManaged / Seq. Index matching would turn 'stage added the Seq sink' into three bogus rows."
+    },
+    "ConnectionStrings:Couchbase:Modules:*:Scopes:*": {
+      "kind": "stringSet",
+      "note": "Unordered sets of Couchbase collection names. Compared order-insensitively; the underlying array is never re-sorted on write."
+    }
+  }
+}

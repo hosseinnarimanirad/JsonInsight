@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- net8.0, not net8.0-windows: this is the half of the app that has no UI, and WebJsonInsight
+         has to be able to reference it from Linux and macOS. Nothing in here touches System.Windows;
+         that is what made the split a file move rather than a port. -->
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- The namespaces did not change when these files moved - they are still JsonInsight.Model,
+         JsonInsight.Diff and so on - so neither the WPF app nor the tests needed a single edit. -->
+    <RootNamespace>JsonInsight</RootNamespace>
+    <AssemblyName>JsonInsight.Core</AssemblyName>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="JsonInsight.Tests" />
+    <InternalsVisibleTo Include="WebJsonInsight" />
+    <InternalsVisibleTo Include="WebJsonInsight.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The four rule files travel with the engine that reads them, so both front ends get a copy
+         in their own output. AppPaths still prefers the authored folder over either bin\ copy. -->
+    <Content Include="config\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>config\%(Filename)%(Extension)</Link>
+    </Content>
+  </ItemGroup>
+
+</Project>

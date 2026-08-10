@@ -1,0 +1,71 @@
+@*
+    Logs — everything the app has said, kept rather than overwritten.
+
+    This replaced a banner above the tabs. A banner is the right shape for one urgent sentence and the
+    wrong one for this: a single undeclared array produces a line per source, so the thing meant to
+    draw the eye instead took the top of the window and pushed the grid below the fold — and the only
+    way to get the room back was to dismiss the findings.
+*@
+@inherits ObservingComponent
+
+@if (Vm is null)
+{
+    <div class="empty">No log.</div>
+}
+else
+{
+    <div class="logs">
+        <section class="card card-flush">
+            <div class="card-head">
+                <span class="section-label">LOG</span>
+                <div class="head-right">
+                    <span class="caption inline">@Vm.Summary</span>
+                    <button class="btn" disabled="@Vm.IsEmpty"
+                            @onclick="() => Vm.ClearCommand.Execute(null)"
+                            title="Empty the log. Safe: this is a record of what already happened, not the app's state — a reload or a pull says all of it again.">
+                        <Icon Name="trash" Size="13" /> <span>Clear</span>
+                    </button>
+                </div>
+            </div>
+
+            @if (Vm.IsEmpty)
+            {
+                <div class="empty">
+                    Nothing logged yet. Warnings, read failures and every status line land here.
+                </div>
+            }
+            else
+            {
+                @* Already newest-first; see LogVm.Entries. *@
+                <div class="log-list">
+                    @foreach (var entry in Vm.Entries)
+                    {
+                        <div class="log-row log-@entry.LevelKey">
+                            <span class="log-time">@entry.Time</span>
+                            <span class="log-level">@entry.LevelLabel</span>
+                            <span class="log-text">@entry.Text</span>
+                        </div>
+                    }
+                </div>
+            }
+        </section>
+    </div>
+}
+
+@code {
+    [Parameter] public LogVm? Vm { get; set; }
+
+    private LogVm? _observed;
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_observed, Vm))
+        {
+            return;
+        }
+
+        StopObserving();
+        _observed = Vm;
+        Observe(Vm, Vm?.Entries);
+    }
+}

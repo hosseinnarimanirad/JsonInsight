@@ -1,0 +1,54 @@
+@*
+    The shell every dialog sits in.
+
+    WPF gets a real modal window from ShowDialog(); a webview does not, so this supplies the two
+    things that made those windows modal in practice — it covers what is behind it, and Escape closes
+    it. Clicking the backdrop deliberately does NOT close: three of the four dialogs hold typed input
+    (a value, a typed tier name), and a stray click outside is not consent to throw that away.
+*@
+
+<div class="modal-backdrop" @onkeydown="OnKeyDown" tabindex="-1">
+    <div class="modal @(Wide ? "wide" : "")" role="dialog" aria-modal="true" aria-label="@Title">
+        <header class="modal-head">
+            <div>
+                <div class="modal-title">@Title</div>
+                @if (!string.IsNullOrEmpty(Subtitle))
+                {
+                    <div class="modal-subtitle">@Subtitle</div>
+                }
+            </div>
+            <button class="btn-ghost-tiny" @onclick="OnClose" title="Close (Esc)">
+                <Icon Name="close" Size="14" />
+            </button>
+        </header>
+
+        <div class="modal-body">@ChildContent</div>
+
+        @if (Footer is not null)
+        {
+            <footer class="modal-foot">@Footer</footer>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = string.Empty;
+
+    [Parameter] public string? Subtitle { get; set; }
+
+    [Parameter] public bool Wide { get; set; } = true;
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    [Parameter] public RenderFragment? Footer { get; set; }
+
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await OnClose.InvokeAsync();
+        }
+    }
+}

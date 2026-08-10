@@ -1,0 +1,28 @@
+{
+  "// note": "'identity' rewrites a path prefix at load time and then diffs normally. 'shapeOnly' declares two subtrees equivalent in purpose but structurally incomparable: one ShapeDiffers row is emitted at the alias root and the noise beneath it is suppressed.",
+  "aliases": [
+    {
+      "id": "redis",
+      "comparison": "shapeOnly",
+      "members": {
+        "dev": "Redis",
+        "stage": "Redis",
+        "beta": "RedisCache",
+        "prod": "RedisCache"
+      },
+      "note": "Two tiers hold a 6-key Redis object (ConnectionString, Password, Enabled, Database, ConnectTimeoutMs, SyncTimeoutMs); the others hold a single RedisCache:Configuration packed StackExchange connection string. This is a shape conversion, not a rename - do not treat it as one. Every configured tier needs an entry here: the side-by-side view drops an alias for ALL tiers if one is missing."
+    },
+    {
+      "id": "couchbase-scopes",
+      "comparison": "shapeOnly",
+      "when": "memberKeysDiffer",
+      "members": {
+        "dev": "ConnectionStrings:Couchbase:Modules:*:Scopes",
+        "stage": "ConnectionStrings:Couchbase:Modules:*:Scopes",
+        "beta": "ConnectionStrings:Couchbase:Modules:*:Scopes",
+        "prod": "ConnectionStrings:Couchbase:Modules:*:Scopes"
+      },
+      "note": "Later tiers split their Couchbase scopes per concern where earlier ones fold several into a single scope. Without this the diff shows ~8 phantom add/removes. A wildcard alias needs the pattern character-identical in every tier or it disengages entirely."
+    }
+  ]
+}

@@ -1,0 +1,171 @@
+@*
+    Promote — copy a subtree into a source that does not have it.
+
+    The per-key defaults come from the classifier, and they are the point of reviewing this before it
+    becomes a version:
+
+      business (bank codes, terminal ids, TTLs, flags)  copy verbatim  — genuinely identical across tiers
+      infra    (urls, hosts, ports)                     placeholder    — completes the shape, fails loudly at startup
+      secret                                            placeholder    — credentials are not copied between tiers
+
+    The placeholder is deliberately not "": an empty string is a valid, deliberate value in these
+    documents, so blanking a key would be indistinguishable from someone forgetting to set it.
+*@
+@inherits ObservingComponent
+
+<Modal Title="@Vm.Title" Subtitle="@Vm.Subtitle" OnClose="OnClose">
+    <ChildContent>
+    
+        <div class="promote">
+    
+            <div class="toolbar-row">
+                <label for="promote-dest">Destination</label>
+                <select id="promote-dest" class="field" value="@Vm.Destination?.Id"
+                        @onchange="e => Vm.Destination = Vm.Destinations.FirstOrDefault(d => d.Id == e.Value?.ToString())">
+                    @foreach (var destination in Vm.Destinations)
+                    {
+                        <option value="@destination.Id" selected="@(destination.Id == Vm.Destination?.Id)">@destination.Label</option>
+                    }
+                </select>
+    
+                <button class="btn btn-primary" @onclick="() => Vm.PreviewCommand.Execute(null)">Preview</button>
+    
+                <span class="caption inline">
+                    Sources marked read-only are not offered.
+                </span>
+            </div>
+    
+            @if (!string.IsNullOrEmpty(Vm.Message))
+            {
+                <div class="notice notice-info">@Vm.Message</div>
+            }
+    
+            <div class="promote-body">
+                <div class="card card-flush grid-card">
+                    <div class="grid-scroll">
+                        <table class="grid">
+                            <thead>
+                                <tr>
+                                    <th class="col-path">KEY</th>
+                                    <th style="width:62px">CLASS</th>
+                                    <th style="width:150px">ACTION</th>
+                                    <th class="col-tier">VALUE WRITTEN</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var leaf in Vm.Leaves)
+                                {
+                                    <tr @key="leaf.Path" title="@leaf.Reason">
+                                        <td class="col-path"><span class="path-label">@leaf.Path</span></td>
+                                        <td class="class-@leaf.ClassName">@leaf.ClassName</td>
+                                        <td>
+                                            <select class="field dense" value="@leaf.Action"
+                                                    @onchange="e => OnAction(leaf, e)">
+                                                @foreach (var action in Actions)
+                                                {
+                                                    <option value="@action" selected="@(action == leaf.Action)">@Label(action)</option>
+                                                }
+                                            </select>
+                                        </td>
+                                        <td class="col-tier @(leaf.ClassName == "secret" ? "cell-secret" : "")">@leaf.ResultDisplay</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+    
+                <div class="card card-flush grid-card">
+                    <div class="difflines-head">
+                        <div class="dl-num"></div>
+                        <div class="dl-text">AS IT IS</div>
+                        <div class="dl-num"></div>
+                        <div class="dl-text">WITH THIS PROMOTED IN</div>
+                    </div>
+                    <div class="difflines">
+                        @foreach (var line in Vm.PreviewLines)
+                        {
+                            <div class="dl-row @LineClass(line)">
+                                <div class="dl-num">@line.LeftNumber</div>
+                                <div class="dl-text dl-left">@line.LeftText</div>
+                                <div class="dl-num">@line.RightNumber</div>
+                                <div class="dl-text dl-right">@line.RightText</div>
+                            </div>
+                        }
+    
+                        @if (Vm.PreviewLines.Count == 0)
+                        {
+                            <div class="grid-empty">Press Preview.</div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </ChildContent>
+
+    <Footer>
+        <span class="caption inline">
+            A placeholder value fails loudly at startup rather than quietly working — which is the
+            point of it. The push screen lists the keys that carry one.
+        </span>
+        <span class="spacer"></span>
+        <button class="btn" @onclick="OnClose">Cancel</button>
+        <button class="btn btn-danger" disabled="@(!Vm.CanPush)" @onclick="Push"
+                title="Opens the push screen: the destination with this subtree added, diffed against what that source holds now.">
+            <Icon Name="push" Size="13" /> <span>Push to Vault or disk…</span>
+        </button>
+    </Footer>
+</Modal>
+
+@code {
+    [Parameter, EditorRequired] public PromoteVm Vm { get; set; } = default!;
+
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    /// <summary>Handed the destination-with-the-subtree-added, for the one push screen to confirm.</summary>
+    [Parameter] public EventCallback<(JsonInsight.Model.TierDocument Tier, System.Text.Json.Nodes.JsonNode Updated, string What)> OnPush { get; set; }
+
+    private static readonly PromotionAction[] Actions = Enum.GetValues<PromotionAction>();
+
+    protected override void OnInitialized()
+    {
+        Observe(Vm, Vm.Leaves, Vm.PreviewLines, Vm.Destinations);
+
+        foreach (var leaf in Vm.Leaves)
+        {
+            Observe(leaf);
+        }
+    }
+
+    private static void OnAction(PromoteLeafVm leaf, ChangeEventArgs e)
+    {
+        if (Enum.TryParse<PromotionAction>(e.Value?.ToString(), out var action))
+        {
+            leaf.Action = action;
+        }
+    }
+
+    private static string Label(PromotionAction action) => action switch
+    {
+        PromotionAction.CopyVerbatim => "Copy verbatim",
+        PromotionAction.CopyPlaceholder => "Placeholder",
+        PromotionAction.Skip => "Skip",
+        _ => action.ToString(),
+    };
+
+    private async Task Push()
+    {
+        if (Vm.Destination is { } destination && Vm.BuildUpdated() is { } updated)
+        {
+            await OnPush.InvokeAsync((destination, updated, Vm.What));
+        }
+    }
+
+    private static string LineClass(DiffLineVm line) => line.Type switch
+    {
+        DiffPlex.DiffBuilder.Model.ChangeType.Inserted => "dl-added",
+        DiffPlex.DiffBuilder.Model.ChangeType.Deleted => "dl-removed",
+        DiffPlex.DiffBuilder.Model.ChangeType.Modified => "dl-modified",
+        _ => string.Empty,
+    };
+}

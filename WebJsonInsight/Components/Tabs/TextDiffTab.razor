@@ -1,0 +1,122 @@
+@*
+    Text diff — any two configured sources, both serialized through the same writer and diffed line by
+    line, laid out as left | as right.
+
+    Both sides go through OrdinalJsonWriter, so what shows up is content rather than formatting. Long
+    lines wrap rather than scrolling sideways: a PEM block or a 900-character token used to carry the
+    right-hand column off the screen with it, so a two-column diff read as a one-column one until you
+    scrolled to find the other side.
+*@
+@inherits ObservingComponent
+
+@if (Vm is null)
+{
+    <div class="empty">No project is open.</div>
+}
+else
+{
+    <div class="rawdiff">
+
+        <div class="card rawdiff-toolbar">
+            <div class="toolbar-row">
+                <label for="diff-left">Left</label>
+                <select id="diff-left" class="field" value="@Vm.Left?.Id"
+                        @onchange="e => Vm.Left = Find(e.Value?.ToString())">
+                    @foreach (var document in Vm.Documents)
+                    {
+                        <option value="@document.Id" selected="@(document.Id == Vm.Left?.Id)">@document.Label</option>
+                    }
+                </select>
+
+                <button class="btn btn-icon" @onclick="() => Vm.SwapCommand.Execute(null)" title="Swap the two sides">
+                    <Icon Name="refresh" />
+                </button>
+
+                <label for="diff-right">Right</label>
+                <select id="diff-right" class="field" value="@Vm.Right?.Id"
+                        @onchange="e => Vm.Right = Find(e.Value?.ToString())">
+                    @foreach (var document in Vm.Documents)
+                    {
+                        <option value="@document.Id" selected="@(document.Id == Vm.Right?.Id)">@document.Label</option>
+                    }
+                </select>
+
+                <label class="check">
+                    <input type="checkbox" checked="@Vm.HideUnchanged"
+                           @onchange="e => Vm.HideUnchanged = (bool?)e.Value ?? false" />
+                    <span>Hide unchanged</span>
+                </label>
+
+                <span class="caption inline">@Vm.Summary</span>
+            </div>
+
+            @if (Vm.Documents.Count < 2)
+            {
+                <p class="caption">
+                    This tab needs two sources that loaded. Pull from Vault or disk, or tick more on the
+                    Sources tab.
+                </p>
+            }
+        </div>
+
+        <div class="card card-flush difflines-card">
+            <div class="difflines-head">
+                <div class="dl-num"></div>
+                <div class="dl-text">AS @(Vm.Left?.Id.ToUpperInvariant() ?? "LEFT")</div>
+                <div class="dl-num"></div>
+                <div class="dl-text">AS @(Vm.Right?.Id.ToUpperInvariant() ?? "RIGHT")</div>
+            </div>
+
+            <div class="difflines">
+                @foreach (var line in Vm.Lines)
+                {
+                    <div class="dl-row @LineClass(line)">
+                        <div class="dl-num">@line.LeftNumber</div>
+                        <div class="dl-text dl-left">@line.LeftText</div>
+                        <div class="dl-num">@line.RightNumber</div>
+                        <div class="dl-text dl-right">@line.RightText</div>
+                    </div>
+                }
+
+                @if (Vm.Lines.Count == 0)
+                {
+                    <div class="grid-empty">
+                        @(Vm.Left is null || Vm.Right is null
+                            ? "Pick two sources."
+                            : "These two are identical, line for line.")
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public RawDiffVm? Vm { get; set; }
+
+    private RawDiffVm? _observed;
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_observed, Vm))
+        {
+            return;
+        }
+
+        StopObserving();
+        _observed = Vm;
+        Observe(Vm, Vm?.Lines);
+    }
+
+    private TierDocument? Find(string? id) =>
+        Vm?.Documents.FirstOrDefault(d => d.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+
+    private static string LineClass(DiffLineVm line) => line.Type switch
+    {
+        DiffPlex.DiffBuilder.Model.ChangeType.Inserted => "dl-added",
+        DiffPlex.DiffBuilder.Model.ChangeType.Deleted => "dl-removed",
+        DiffPlex.DiffBuilder.Model.ChangeType.Modified => "dl-modified",
+        DiffPlex.DiffBuilder.Model.ChangeType.Imaginary => "dl-imaginary",
+        _ => string.Empty,
+    };
+}

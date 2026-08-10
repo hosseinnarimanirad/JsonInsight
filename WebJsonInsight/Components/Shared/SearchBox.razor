@@ -1,0 +1,48 @@
+@*
+    A filter field: icon, placeholder, and a clear button that appears once there is something to
+    clear.
+
+    One component rather than a class on an <input>, for the same reason the WPF app made it a control
+    template: the filter on All tiers, the path search on the Tier editor and the find box all get the
+    clear affordance without any of them knowing they do.
+*@
+
+<div class="searchbox @(Dense ? "dense" : "")">
+    <span class="searchbox-icon"><Icon Name="search" Size="@(Dense ? 12 : 14)" /></span>
+
+    <input class="searchbox-input" type="text"
+           placeholder="@Placeholder"
+           value="@Value"
+           @oninput="OnInput"
+           @onkeydown="OnKeyDown" />
+
+    @if (!string.IsNullOrEmpty(Value))
+    {
+        <button class="btn-ghost-tiny searchbox-clear" @onclick="Clear" title="Clear (Esc)">
+            <Icon Name="close" Size="12" />
+        </button>
+    }
+</div>
+
+@code {
+    [Parameter] public string Value { get; set; } = string.Empty;
+
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+
+    [Parameter] public string Placeholder { get; set; } = "Filter…";
+
+    [Parameter] public bool Dense { get; set; }
+
+    private Task OnInput(ChangeEventArgs e) => ValueChanged.InvokeAsync(e.Value?.ToString() ?? string.Empty);
+
+    /// <summary>Escape clears, which is the shortcut a field with a clear button is expected to have.</summary>
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape" && !string.IsNullOrEmpty(Value))
+        {
+            await Clear();
+        }
+    }
+
+    private Task Clear() => ValueChanged.InvokeAsync(string.Empty);
+}

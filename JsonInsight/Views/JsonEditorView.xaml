@@ -1,0 +1,538 @@
+<UserControl x:Class="JsonInsight.Views.JsonEditorView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:JsonInsight.ViewModels;assembly=JsonInsight.Presentation"
+             xmlns:views="clr-namespace:JsonInsight.Views"
+             d:DataContext="{d:DesignInstance Type=vm:JsonEditorVm}"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <DockPanel>
+        <!-- Toolbar: which tier, and everything that acts on the document as a whole. -->
+        <Border DockPanel.Dock="Top" Style="{StaticResource Card}" Margin="0,0,0,10">
+            <StackPanel>
+                <DockPanel LastChildFill="True">
+                    <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
+                        <TextBlock Text="Tier" Style="{StaticResource Text.Base}"
+                                   VerticalAlignment="Center" Margin="0,0,9,0" />
+                        <ComboBox ItemsSource="{Binding Tiers}" SelectedItem="{Binding Tier}"
+                                  DisplayMemberPath="Label" MinWidth="230" />
+                    </StackPanel>
+
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Style="{StaticResource Button.Small}" Content="&#xE7A7;  Undo"
+                                Command="{Binding UndoCommand}" IsEnabled="{Binding CanUndo}"
+                                Margin="0,0,6,0" ToolTip="Undo the last replacement" />
+                        <Button Style="{StaticResource Button.Small}" Content="&#xE7A6;  Redo"
+                                Command="{Binding RedoCommand}" IsEnabled="{Binding CanRedo}"
+                                Margin="0,0,6,0" />
+                        <Button Style="{StaticResource Button.Small}" Content="Revert all"
+                                Command="{Binding RevertAllCommand}" IsEnabled="{Binding IsModified}"
+                                Margin="0,0,6,0"
+                                ToolTip="Back to the state this tier was opened in. Itself undoable." />
+                        <!-- A mode, not an action, so the button stays lit while it is on. A
+                             DataTrigger cannot swap the Style it lives in, so the on-state is
+                             painted with the same accent brushes Button.Primary uses. -->
+                        <Button Command="{Binding ToggleComparisonCommand}"
+                                MinWidth="176" IsEnabled="{Binding CanCompare}"
+                                ToolTip="Diff the selected node against the state it was opened in — the root row is the whole document. Press again to go back to the editor. Disabled for a node with nothing to compare.">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource Button.Secondary}">
+                                    <Setter Property="Content" Value="Compare with original" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ShowingComparison}" Value="True">
+                                            <Setter Property="Content" Value="&#xE73E;  Comparing" />
+                                            <Setter Property="Background" Value="{DynamicResource Brush.Accent}" />
+                                            <Setter Property="Foreground" Value="{DynamicResource Brush.OnAccent}" />
+                                            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
+                                            <Setter Property="FontWeight" Value="SemiBold" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </StackPanel>
+
+                    <TextBlock Text="{Binding StatusLine}" Style="{StaticResource Text.Caption}"
+                               VerticalAlignment="Center" Margin="18,0,18,0"
+                               TextTrimming="CharacterEllipsis" />
+                </DockPanel>
+
+                <!-- dev is readable here and never writable; saying why beats a greyed-out button. -->
+                <Border Style="{StaticResource Notice.Warn}" Margin="0,11,0,0"
+                        Visibility="{Binding ReadOnlyReason, Converter={StaticResource NotEmptyVis}}">
+                    <TextBlock Text="{Binding ReadOnlyReason}" Foreground="{DynamicResource Brush.Shape}"
+                               FontSize="12" TextWrapping="Wrap" />
+                </Border>
+            </StackPanel>
+        </Border>
+
+        <!-- Push bar. There is no Save beside it, and nothing missing: a tier is a Vault secret, so
+             the only place an edit can go is back into it. -->
+        <Border DockPanel.Dock="Bottom" Style="{StaticResource Card}" Margin="0,10,0,0"
+                Visibility="{Binding CanEdit, Converter={StaticResource BoolVis}}">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Style="{StaticResource Button.Danger}"
+                        MinWidth="170" Click="OnPushClick" Margin="8,0,0,0"
+                        IsEnabled="{Binding CanPush}" ToolTip="{Binding PushHint}"
+                        ToolTipService.ShowOnDisabled="True">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE898;" FontFamily="{StaticResource Font.Icons}" FontSize="13"
+                                   VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <TextBlock Text="Push to Vault or disk" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+
+                <!-- What the button would do, or why it will not. A greyed button that keeps its
+                     reason to itself is one you press twice and then go looking for a bug. -->
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#xE8A5;" FontFamily="{StaticResource Font.Icons}" FontSize="12"
+                               Foreground="{DynamicResource Brush.TextTertiary}" VerticalAlignment="Top"
+                               Margin="0,2,8,0" />
+                    <TextBlock Text="{Binding PushHint}" Style="{StaticResource Text.Secondary}"
+                               FontSize="12" TextWrapping="Wrap" MaxWidth="1050" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <Border DockPanel.Dock="Bottom" Style="{StaticResource Notice.Danger}" Margin="0,10,0,0"
+                Visibility="{Binding Error, Converter={StaticResource NotEmptyVis}}">
+            <TextBlock Text="{Binding Error}" Foreground="{DynamicResource Brush.Danger}"
+                       FontSize="12" TextWrapping="Wrap" />
+        </Border>
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.05*" MinWidth="280" />
+                <ColumnDefinition Width="10" />
+                <ColumnDefinition Width="1.6*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- The hierarchy -->
+            <Border Grid.Column="0" Style="{StaticResource Card.Flush}">
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Style="{StaticResource TableHeader}">
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <Button Style="{StaticResource Button.Small}" Content="Expand"
+                                        Command="{Binding ExpandAllCommand}" Margin="0,0,4,0" />
+                                <Button Style="{StaticResource Button.Small}" Content="Collapse"
+                                        Command="{Binding CollapseAllCommand}" />
+                            </StackPanel>
+                            <TextBlock Text="HIERARCHY" Style="{StaticResource Text.SectionLabel}"
+                                       VerticalAlignment="Center" />
+                        </DockPanel>
+                    </Border>
+
+                    <Border DockPanel.Dock="Top" Padding="10,9"
+                            Background="{DynamicResource Brush.Surface}">
+                        <StackPanel>
+                            <!-- The standing filter shares the search box's row, so the two read as
+                                 one control: "changed only, matching this". A switch rather than a
+                                 tick box because it is a mode you leave on, and one left on is the
+                                 reason a tree looks half empty an hour later. -->
+                            <DockPanel>
+                                <CheckBox DockPanel.Dock="Right" Style="{StaticResource Switch.Filter}"
+                                          Content="Changed" Margin="8,0,0,0"
+                                          VerticalAlignment="Center"
+                                          IsChecked="{Binding ShowChangedOnly}"
+                                          ToolTip="Show only the nodes you have edited, with the sections above them so the tree still navigates. Combines with the search." />
+
+                                <TextBox Style="{StaticResource TextBox.Search}" Tag="Search paths…"
+                                         ToolTip="Path substring, or a glob once it contains a * — for example **:*Password"
+                                         Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged, Delay=250}" />
+                            </DockPanel>
+
+                            <!-- Says why the tree is empty, which is otherwise indistinguishable
+                                 from something being broken. -->
+                            <TextBlock Text="{Binding FilterHint}" Style="{StaticResource Text.Caption}"
+                                       Margin="0,7,0,0" TextTrimming="CharacterEllipsis"
+                                       Visibility="{Binding FilterHint, Converter={StaticResource NotEmptyVis}}" />
+                        </StackPanel>
+                    </Border>
+
+                    <ListBox x:Name="Tree" Style="{StaticResource EntryList}"
+                             ItemsSource="{Binding Nodes}"
+                             SelectedItem="{Binding SelectedNode, Mode=TwoWay}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal"
+                                            Margin="{Binding Indent, Converter={StaticResource Indent}}">
+                                    <TextBlock Text="{Binding Glyph}" Width="14"
+                                               Foreground="{DynamicResource Brush.TextTertiary}"
+                                               VerticalAlignment="Center" />
+
+                                    <!-- Unsaved-change marker, and which kind of change it is: green
+                                         + added, amber pencil edited, red − removed. A section that
+                                         merely holds changes keeps the blue * — it may hold all
+                                         three at once, and claiming it is any one of them would be
+                                         a lie told at exactly the level you are scanning.
+
+                                         A fixed-width cell rather than an inline character, so a
+                                         marked row does not sit one glyph wider than its unmarked
+                                         siblings and break the column. -->
+                                    <TextBlock Width="15" FontWeight="Bold"
+                                               VerticalAlignment="Center" TextAlignment="Left"
+                                               ToolTip="{Binding ChangedTooltip}"
+                                               Visibility="{Binding IsChanged, Converter={StaticResource BoolVis}}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Text" Value="*" />
+                                                <Setter Property="Foreground" Value="{DynamicResource Brush.Differs}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Change}" Value="Added">
+                                                        <Setter Property="Text" Value="+" />
+                                                        <Setter Property="Foreground" Value="{DynamicResource Brush.Ok}" />
+                                                    </DataTrigger>
+                                                    <!-- The pencil is the one marker with no legible
+                                                         ASCII form, so this row alone borrows the
+                                                         icon font. -->
+                                                    <DataTrigger Binding="{Binding Change}" Value="Edited">
+                                                        <Setter Property="Text" Value="&#xE70F;" />
+                                                        <Setter Property="FontFamily" Value="{StaticResource Font.Icons}" />
+                                                        <Setter Property="FontSize" Value="9" />
+                                                        <Setter Property="FontWeight" Value="Normal" />
+                                                        <Setter Property="Foreground" Value="{DynamicResource Brush.Shape}" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding Change}" Value="Removed">
+                                                        <Setter Property="Text" Value="&#x2212;" />
+                                                        <Setter Property="Foreground" Value="{DynamicResource Brush.Missing}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <TextBlock Width="15" VerticalAlignment="Center"
+                                               Visibility="{Binding IsChanged, Converter={StaticResource BoolVis}, ConverterParameter=invert}" />
+
+                                    <!-- The name carries the same colour, so the kind of change is
+                                         readable at a glance rather than only from a 12px marker.
+                                         Struck through and red for a pending removal: the standard
+                                         rendering, and the only one that reads as "gone but not yet
+                                         committed". -->
+                                    <TextBlock VerticalAlignment="Center">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource Text.Mono}">
+                                                <Setter Property="Text" Value="{Binding Name}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Change}" Value="Mixed">
+                                                        <Setter Property="FontWeight" Value="SemiBold" />
+                                                        <Setter Property="Foreground" Value="{DynamicResource Brush.Differs}" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding Change}" Value="Added">
+                                                        <Setter Property="FontWeight" Value="SemiBold" />
+                                                        <Setter Property="Foreground" Value="{DynamicResource Brush.Ok}" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding Change}" Value="Edited">
+                                                        <Setter Property="FontWeight" Value="SemiBold" />
+                                                        <Setter Property="Foreground" Value="{DynamicResource Brush.Shape}" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding Change}" Value="Removed">
+                                                        <Setter Property="FontWeight" Value="Normal" />
+                                                        <Setter Property="Foreground" Value="{DynamicResource Brush.Missing}" />
+                                                        <Setter Property="TextDecorations" Value="Strikethrough" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+
+                                    <TextBlock Text="{Binding Summary}" Style="{StaticResource Text.Caption}"
+                                               Margin="8,0,0,0" VerticalAlignment="Center"
+                                               Visibility="{Binding Summary, Converter={StaticResource NotEmptyVis}}" />
+                                    <TextBlock Text="{Binding Preview}" Margin="10,0,0,0"
+                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                               MaxWidth="240"
+                                               Visibility="{Binding Preview, Converter={StaticResource NotEmptyVis}}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource Text.MonoCaption}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding ContainsSecret}" Value="True">
+                                                        <Setter Property="Foreground" Value="{DynamicResource Brush.Secret}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Border>
+
+            <GridSplitter Grid.Column="1" Width="10" HorizontalAlignment="Stretch" />
+
+            <!-- The editor, or the comparison -->
+            <Border Grid.Column="2" Style="{StaticResource Card.Flush}">
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Style="{StaticResource TableHeader}">
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                                        Visibility="{Binding ShowingComparison, Converter={StaticResource BoolVis}, ConverterParameter=invert}">
+                                <!-- The display modes are switches rather than buttons, because they
+                                     are states you leave set: a button labelled with its own current
+                                     state has to be read before it can be pressed, and reads as an
+                                     action either way. They match the Changed switch on the tree. -->
+                                <CheckBox Style="{StaticResource Switch.Filter}" Content="Compact"
+                                          IsChecked="{Binding CompactJson}" Margin="0,0,5,0"
+                                          ToolTip="Show the pane as single-line JSON instead of indented. Display only — nothing compact is ever written, and switching mid-edit reformats what is in the pane rather than reloading the node." />
+
+                                <CheckBox Style="{StaticResource Switch.Filter}" Content="Wrap"
+                                          IsChecked="{Binding WordWrap}" Margin="0,0,5,0"
+                                          ToolTip="Wrap long lines instead of letting them run off with a horizontal scrollbar. On is for reading a 900-character token; off is for seeing the shape of a deep structure." />
+
+                                <CheckBox Style="{StaticResource Switch.Filter}" Content="Find"
+                                          IsChecked="{Binding FindOpen}" Margin="0,0,5,0"
+                                          Checked="OnFindToggled"
+                                          ToolTip="Find and replace inside this pane (Ctrl+F). F3 finds the next match, Shift+F3 the previous." />
+
+                                <Button Style="{StaticResource Button.Small}" Content="&#xE8C8;  Copy"
+                                        Command="{Binding CopyNodeCommand}" Margin="0,0,4,0"
+                                        ToolTip="Copy this pane's JSON to the clipboard — exactly what is shown, edits included." />
+
+                                <Button Style="{StaticResource Button.Small}" Content="Reload node"
+                                        Command="{Binding ReloadNodeCommand}" Margin="0,0,4,0"
+                                        ToolTip="Throw away what is typed in this pane and show the node again as the document currently has it. It changes nothing in the document — Undo node changes is the one that does." />
+                                <Button Style="{StaticResource Button.Small}" Content="Remove node"
+                                        Command="{Binding RemoveNodeCommand}" Margin="0,0,4,0"
+                                        IsEnabled="{Binding CanRemoveNode}"
+                                        Visibility="{Binding SelectedIsRemoved, Converter={StaticResource BoolVis}, ConverterParameter=invert}"
+                                        ToolTip="Delete this node from the document. It stays in the tree, struck through, until you save." />
+
+                                <!-- One action, two readings. Putting a deleted node back is not
+                                     "undoing changes", so the label says which one this is - but it
+                                     is the same button doing the same thing to the same node, so it
+                                     is not dressed as a different one either. -->
+                                <Button Command="{Binding RevertNodeCommand}" Margin="0,0,4,0"
+                                        Content="{Binding RevertNodeLabel}"
+                                        Visibility="{Binding CanRevertNode, Converter={StaticResource BoolVis}}">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource Button.Danger}">
+                                            <Setter Property="ToolTip" Value="Undo the changes already applied to this node, back to what it held when the tier was opened, leaving every other edit alone. Unlike Reload node, this changes the document." />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SelectedIsRemoved}" Value="True">
+                                                    <Setter Property="ToolTip" Value="Put this node back. Removing it was never written to disk — nothing has been saved yet." />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+
+                                <Button Style="{StaticResource Button.Primary}" Content="Update node"
+                                        Command="{Binding ApplyCommand}" IsEnabled="{Binding CanApply}"
+                                        ToolTip="Apply the JSON in the pane to this node. In memory only — Save writes it. Disabled while the pane matches the document." />
+                            </StackPanel>
+
+                            <!-- Names the comparison's scope while it is on: a node-scoped diff that
+                                 does not say which node it is showing is indistinguishable from a
+                                 stale one left over from the last selection. -->
+                            <TextBlock Text="{Binding PaneHeader}" VerticalAlignment="Center"
+                                       Style="{StaticResource Text.SectionLabel}"
+                                       TextTrimming="CharacterEllipsis"
+                                       ToolTip="This pane holds the selected node's whole subtree. Update node replaces that node with whatever is here — it is not a patch, and the keys it does not mention are gone." />
+                        </DockPanel>
+                    </Border>
+
+                    <!-- Find and replace over the pane. It sits above the text rather than floating
+                         over it, because a bar that covers the first lines of a 28 KB document hides
+                         the match it just found. Hidden while comparing: there is no editable text
+                         behind the diff to search. -->
+                    <Border DockPanel.Dock="Top" Padding="10,8"
+                            Background="{DynamicResource Brush.SurfaceAlt}"
+                            BorderBrush="{DynamicResource Brush.BorderSubtle}" BorderThickness="0,0,0,1">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding FindOpen}" Value="True" />
+                                            <Condition Binding="{Binding ShowingComparison}" Value="False" />
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </MultiDataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+
+                        <!-- One row. Two would push the text down by the height of a whole field for
+                             a feature that is open most of the time it is used, and neither box
+                             needs a label when it carries a hint and an icon of its own. -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MinWidth="120" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" MinWidth="120" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBox Grid.Column="0" x:Name="FindBox"
+                                     Style="{StaticResource TextBox.Search}" Tag="Find"
+                                     KeyDown="OnFindBoxKeyDown"
+                                     Text="{Binding FindText, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="Enter finds the next match, Shift+Enter the previous, Escape closes." />
+
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="5,0,0,0">
+                                <Button Style="{StaticResource Button.Icon}" Content="&#xE70E;" FontSize="10"
+                                        Click="OnFindPrevious" ToolTip="Previous match (Shift+F3)" />
+                                <Button Style="{StaticResource Button.Icon}" Content="&#xE70D;" FontSize="10"
+                                        Margin="2,0,0,0" Click="OnFindNext" ToolTip="Next match (F3)" />
+                                <CheckBox Content="Aa" IsChecked="{Binding MatchCase}" FontSize="12"
+                                          VerticalAlignment="Center" Margin="9,0,0,0"
+                                          ToolTip="Match case. Worth turning on here — this file's key order treats Url and URL as two different keys." />
+
+                                <!-- Fixed width: the count changes on every keystroke, and a status
+                                     that resizes shoves the whole row sideways while you type. -->
+                                <TextBlock Text="{Binding FindStatus}" Style="{StaticResource Text.Caption}"
+                                           VerticalAlignment="Center" TextAlignment="Right"
+                                           Width="62" Margin="8,0,9,0" />
+                            </StackPanel>
+
+                            <TextBox Grid.Column="2"
+                                     Style="{StaticResource TextBox.Search}" Tag="Replace with"
+                                     views:SearchBox.Glyph="&#xE70F;"
+                                     KeyDown="OnFindBoxKeyDown"
+                                     IsEnabled="{Binding IsEditorReadOnly, Converter={StaticResource NotBool}}"
+                                     Text="{Binding ReplaceText, UpdateSourceTrigger=PropertyChanged}" />
+
+                            <StackPanel Grid.Column="3" Orientation="Horizontal" Margin="5,0,0,0">
+                                <Button Style="{StaticResource Button.Secondary}" Content="Replace"
+                                        Click="OnReplace"
+                                        IsEnabled="{Binding IsEditorReadOnly, Converter={StaticResource NotBool}}"
+                                        ToolTip="Replace the selected match and move to the next one" />
+                                <Button Style="{StaticResource Button.Secondary}" Content="All"
+                                        Click="OnReplaceAll" Margin="4,0,0,0"
+                                        IsEnabled="{Binding IsEditorReadOnly, Converter={StaticResource NotBool}}"
+                                        ToolTip="Replace every match in this pane. Still only in the pane — a section needs Update node afterwards." />
+                                <Button Style="{StaticResource Button.Icon}" Content="&#xE711;" FontSize="10"
+                                        Margin="7,0,0,0"
+                                        Command="{Binding CloseFindCommand}" ToolTip="Close (Escape)" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- A tombstone shows what it held, read-only. There is nothing to edit until
+                         it is put back, and that is one button away. -->
+                    <Border DockPanel.Dock="Top" Padding="11,9"
+                            Background="{DynamicResource Brush.MissingSoft}"
+                            Visibility="{Binding SelectedIsRemoved, Converter={StaticResource BoolVis}}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE74D;" FontFamily="{StaticResource Font.Icons}" FontSize="13"
+                                       Foreground="{DynamicResource Brush.Missing}" VerticalAlignment="Center"
+                                       Margin="0,0,9,0" />
+                            <TextBlock Foreground="{DynamicResource Brush.Missing}" FontSize="12"
+                                       VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="700"
+                                       Text="Removed, and not yet saved. This is what it held when the tier was opened — Restore node puts it back exactly." />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- This pane shows values in clear, credentials included. It has to: a subtree
+                         cannot be retyped without being read. The hierarchy beside it still renders
+                         secrets as fingerprints, which is the form worth scanning. -->
+                    <TextBlock DockPanel.Dock="Bottom" Text="{Binding Message}"
+                               Style="{StaticResource Text.Secondary}" FontSize="12"
+                               TextWrapping="Wrap" Margin="11,9"
+                               Visibility="{Binding Message, Converter={StaticResource NotEmptyVis}}" />
+
+                    <!-- Which of the two ways this pane commits. A screen where some edits land as
+                         you type and others wait for a button has to say which one you are in;
+                         working it out from whether the button greyed itself out is not a design. -->
+                    <Border DockPanel.Dock="Bottom" Padding="11,7"
+                            Background="{DynamicResource Brush.SurfaceAlt}"
+                            BorderBrush="{DynamicResource Brush.BorderSubtle}" BorderThickness="0,1,0,0"
+                            Visibility="{Binding CommitHint, Converter={StaticResource NotEmptyVis}}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock FontFamily="{StaticResource Font.Icons}" FontSize="11"
+                                       VerticalAlignment="Center" Margin="0,0,8,0">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Text" Value="&#xE7BA;" />
+                                        <Setter Property="Foreground" Value="{DynamicResource Brush.TextTertiary}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding SelectedIsScalar}" Value="True">
+                                                <Setter Property="Text" Value="&#xE930;" />
+                                                <Setter Property="Foreground" Value="{DynamicResource Brush.Ok}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            <TextBlock Text="{Binding CommitHint}" Style="{StaticResource Text.Caption}"
+                                       TextWrapping="Wrap" MaxWidth="620" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+
+                    <Grid>
+                        <!-- Wraps by default rather than scrolling sideways: these values include
+                             tokens and PEM blocks hundreds of characters long, and reading one of
+                             those a screen-width at a time is not reading it. The toggle is for the
+                             opposite need - seeing the indentation of a deep structure without every
+                             long value folding the shape out of it. Set through the style rather
+                             than as attributes, because a local value would win over the trigger. -->
+                        <TextBox x:Name="Editor"
+                                 Visibility="{Binding ShowingComparison, Converter={StaticResource BoolVis}, ConverterParameter=invert}"
+                                 Text="{Binding EditorText, UpdateSourceTrigger=PropertyChanged, Delay=250}"
+                                 IsReadOnly="{Binding IsEditorReadOnly}"
+                                 KeyDown="OnEditorKeyDown"
+                                 AcceptsReturn="True" AcceptsTab="True"
+                                 VerticalContentAlignment="Stretch" Padding="10"
+                                 VerticalScrollBarVisibility="Auto">
+                            <TextBox.Style>
+                                <Style TargetType="TextBox" BasedOn="{StaticResource TextBox.Mono}">
+                                    <Setter Property="TextWrapping" Value="Wrap" />
+                                    <Setter Property="HorizontalScrollBarVisibility" Value="Disabled" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding WordWrap}" Value="False">
+                                            <Setter Property="TextWrapping" Value="NoWrap" />
+                                            <Setter Property="HorizontalScrollBarVisibility" Value="Auto" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBox.Style>
+                        </TextBox>
+
+                        <!-- Both sides, so a removed line has somewhere to appear and a changed one
+                             shows what it changed from. -->
+                        <ListBox Style="{StaticResource LineList}" Padding="4"
+                                 Visibility="{Binding ShowingComparison, Converter={StaticResource BoolVis}}"
+                                 ItemsSource="{Binding ComparisonLines}"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource Row.EditDiffLine}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="40" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="40" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <TextBlock Grid.Column="0" Text="{Binding LeftNumber}"
+                                                       Style="{StaticResource Text.MonoCaption}"
+                                                       TextAlignment="Right" Margin="0,0,8,0"
+                                                       VerticalAlignment="Top" />
+                                            <TextBlock Grid.Column="1" Text="{Binding LeftText}"
+                                                       Style="{StaticResource Text.Mono}"
+                                                       TextWrapping="Wrap" />
+
+                                            <TextBlock Grid.Column="2" Text="{Binding RightNumber}"
+                                                       Style="{StaticResource Text.MonoCaption}"
+                                                       TextAlignment="Right" Margin="10,0,8,0"
+                                                       VerticalAlignment="Top" />
+                                            <TextBlock Grid.Column="3" Text="{Binding RightText}"
+                                                       Style="{StaticResource Text.Mono}"
+                                                       TextWrapping="Wrap" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+                </DockPanel>
+            </Border>
+        </Grid>
+    </DockPanel>
+</UserControl>

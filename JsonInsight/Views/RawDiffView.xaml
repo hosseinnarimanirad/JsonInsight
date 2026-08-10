@@ -1,0 +1,74 @@
+<UserControl x:Class="JsonInsight.Views.RawDiffView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:JsonInsight.ViewModels;assembly=JsonInsight.Presentation"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             d:DataContext="{d:DesignInstance Type=vm:RawDiffVm}"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <!--
+            The wash comes from Row.DiffLine, keyed on DiffPlex's change type.
+
+            Laid out like the JSON editor's comparison, and wrapping for the same reason: a line
+            holding a PEM block or a 900-character token used to run off to the right and take the
+            whole right-hand column with it, so a two-column diff read as a one-column one until you
+            scrolled sideways to find the other side. Wrapping keeps both columns on screen at every
+            width, which is the only arrangement in which the pane answers the question it is for.
+        -->
+        <DataTemplate x:Key="DiffRow">
+            <Border Style="{StaticResource Row.DiffLine}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="46" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="46" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="{Binding LeftNumber}"
+                               Style="{StaticResource Text.MonoCaption}"
+                               TextAlignment="Right" Margin="0,0,10,0"
+                               VerticalAlignment="Top" />
+                    <TextBlock Grid.Column="1" Text="{Binding LeftText}" Style="{StaticResource Text.Mono}"
+                               TextWrapping="Wrap" />
+                    <TextBlock Grid.Column="2" Text="{Binding RightNumber}"
+                               Style="{StaticResource Text.MonoCaption}"
+                               TextAlignment="Right" Margin="10,0,10,0"
+                               VerticalAlignment="Top" />
+                    <TextBlock Grid.Column="3" Text="{Binding RightText}" Style="{StaticResource Text.Mono}"
+                               TextWrapping="Wrap" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <DockPanel>
+        <Border DockPanel.Dock="Top" Style="{StaticResource Card}" Margin="0,0,0,10">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <ComboBox ItemsSource="{Binding Documents}" SelectedItem="{Binding Left}"
+                              DisplayMemberPath="Label" MinWidth="240" />
+                    <Button Style="{StaticResource Button.Icon}" Content="&#xE8AB;" Margin="8,0"
+                            Command="{Binding SwapCommand}" ToolTip="Swap sides" />
+                    <ComboBox ItemsSource="{Binding Documents}" SelectedItem="{Binding Right}"
+                              DisplayMemberPath="Label" MinWidth="240" />
+                    <CheckBox Content="Hide unchanged lines" IsChecked="{Binding HideUnchanged}"
+                              Margin="18,0,0,0" />
+                </StackPanel>
+
+                <TextBlock Text="{Binding Summary}" Style="{StaticResource Text.Base}"
+                           FontWeight="SemiBold" Margin="0,10,0,0" />
+                <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,4,0,0"
+                           Text="Both sides are serialized through the same writer before diffing, so what appears here is a real content difference rather than a formatting artefact." />
+            </StackPanel>
+        </Border>
+
+        <Border Style="{StaticResource Card.Flush}">
+            <ListBox Style="{StaticResource LineList}"
+                     ItemsSource="{Binding Lines}" ItemTemplate="{StaticResource DiffRow}"
+                     Padding="4"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
+        </Border>
+    </DockPanel>
+</UserControl>

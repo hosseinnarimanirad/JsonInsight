@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- net8.0 for the same reason JsonInsight.Core is: WebJsonInsight has to reference this from Linux
+         and macOS. That it can is the surprising part - the whole view-model layer turned out to
+         touch WPF in exactly three places, all of them now behind Platform. -->
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>JsonInsight</RootNamespace>
+    <AssemblyName>JsonInsight.Presentation</AssemblyName>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Both are cross-platform: CommunityToolkit.Mvvm is the source generator behind
+         [ObservableProperty] and [RelayCommand], DiffPlex computes the line diffs the Text diff tab
+         and the editor's compare-with-original pane render. Neither pulls in a UI framework. -->
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <PackageReference Include="DiffPlex" Version="1.7.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\JsonInsight.Core\JsonInsight.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="JsonInsight.Tests" />
+    <InternalsVisibleTo Include="WebJsonInsight" />
+    <InternalsVisibleTo Include="WebJsonInsight.Tests" />
+  </ItemGroup>
+
+</Project>

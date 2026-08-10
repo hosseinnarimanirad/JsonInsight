@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WebJsonInsight</title>
+
+    <!--
+        No external anything. This page is loaded from the app's own bundle inside an OS webview with
+        no network in front of it, so a CDN font or stylesheet would be a request that fails on a
+        machine with no internet and blocks first paint on one with a slow link.
+    -->
+    <link rel="stylesheet" href="css/theme.css" />
+    <link rel="stylesheet" href="css/app.css" />
+</head>
+<body>
+    <div id="app">
+        <div class="boot">Loading…</div>
+    </div>
+
+    <!--
+        Blazor's own error strip. Kept and restyled rather than hidden: in a desktop window there is
+        no dev-tools tab to notice a red banner in, and an unhandled render error otherwise presents
+        as a window that has simply stopped responding to clicks.
+    -->
+    <div id="blazor-error-ui">
+        An unexpected error has occurred.
+        <a href="" class="reload">Reload</a>
+        <span class="dismiss">🗙</span>
+    </div>
+
+    <script src="_framework/blazor.webview.js"></script>
+    <script src="js/interop.js"></script>
+</body>
+</html>

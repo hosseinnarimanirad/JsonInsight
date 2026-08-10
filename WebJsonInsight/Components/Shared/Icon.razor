@@ -1,0 +1,23 @@
+@* One icon. The path data lives in IconPaths.cs — see the note there for why it is not in this file. *@
+
+<svg class="icon @Class"
+     width="@Size" height="@Size"
+     viewBox="0 0 24 24"
+     fill="none"
+     stroke="currentColor"
+     stroke-width="@StrokeWidth"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     aria-hidden="true"
+     focusable="false">@((MarkupString)IconPaths.For(Name))</svg>
+
+@code {
+    [Parameter, EditorRequired] public string Name { get; set; } = string.Empty;
+
+    /// <summary>Pixels. 15 sits with the 13px UI font the way a Fluent glyph at 13 sits in the WPF app.</summary>
+    [Parameter] public int Size { get; set; } = 15;
+
+    [Parameter] public string Class { get; set; } = string.Empty;
+
+    [Parameter] public double StrokeWidth { get; set; } = 1.7;
+}

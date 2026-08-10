@@ -1,0 +1,107 @@
+<Window x:Class="JsonInsight.Views.RestartConfigDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:JsonInsight.ViewModels;assembly=JsonInsight.Presentation"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        d:DataContext="{d:DesignInstance Type=vm:VaultConnectionVm}"
+        mc:Ignorable="d"
+        Title="Restart endpoint" Height="560" Width="760"
+        WindowStartupLocation="CenterOwner"
+        UseLayoutRounding="True"
+        FontFamily="{StaticResource Font.Ui}"
+        Foreground="{DynamicResource Brush.Text}"
+        Background="{DynamicResource Brush.Window}">
+
+    <!--
+        Where one source's restart endpoint is set. The DataContext is the row itself, so what is
+        typed here is saved by the Sources tab's own Save settings alongside everything else on it.
+
+        The bearer token is deliberately not on this screen. It is typed for each call, on the other
+        dialog, and is never written anywhere.
+    -->
+    <DockPanel Margin="16">
+
+        <Border DockPanel.Dock="Top" Style="{StaticResource Card}" Margin="0,0,0,10">
+            <StackPanel>
+                <TextBlock Style="{StaticResource Text.Heading}">
+                    <Run Text="Restart endpoint —" /><Run Text=" " /><Run Text="{Binding Label, Mode=OneWay}" />
+                </TextBlock>
+                <TextBlock Style="{StaticResource Text.Caption}" Margin="0,3,0,0" TextWrapping="Wrap"
+                           Text="Uploading to Vault changes nothing on its own: the secret is materialised into a configuration source that can never reload, and nearly every consumer binds IOptions&lt;T&gt; once. A restart is the only thing that re-reads it." />
+            </StackPanel>
+        </Border>
+
+        <Border DockPanel.Dock="Bottom" Style="{StaticResource Card}" Margin="0,10,0,0">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Style="{StaticResource Button.Primary}"
+                        Content="Done" MinWidth="110" IsDefault="True" Click="OnDoneClick" />
+                <Button DockPanel.Dock="Right" Style="{StaticResource Button.Secondary}"
+                        Content="Clear" MinWidth="90" Margin="0,0,8,0" Click="OnClearClick"
+                        Visibility="{Binding HasRestart, Converter={StaticResource BoolVis}}"
+                        ToolTip="Remove the endpoint from this source." />
+
+                <TextBlock Style="{StaticResource Text.Caption}" VerticalAlignment="Center"
+                           TextWrapping="Wrap" MaxWidth="440"
+                           Text="Press Save settings on the Sources tab to persist this." />
+            </DockPanel>
+        </Border>
+
+        <Border Style="{StaticResource Card}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="86" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="URL" Style="{StaticResource Text.Base}"
+                           VerticalAlignment="Center" Margin="0,0,9,0" />
+                <TextBox Grid.Row="0" Grid.Column="1" Style="{StaticResource TextBox.Mono}"
+                         Text="{Binding RestartUrl, UpdateSourceTrigger=PropertyChanged}"
+                         ToolTip="POSTed with a bearer token, e.g. https://api.example.com/api/v1/dev/admin/restart?drainSeconds=15" />
+
+                <TextBlock Grid.Row="1" Grid.Column="1" Style="{StaticResource Text.Caption}"
+                           TextWrapping="Wrap" Margin="0,6,0,0"
+                           Text="Any query string is part of the URL — the documented endpoint takes its drainSeconds that way." />
+
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="Body" Style="{StaticResource Text.Base}"
+                           VerticalAlignment="Top" Margin="0,14,9,0" />
+                <TextBox Grid.Row="2" Grid.RowSpan="2" Grid.Column="1"
+                         Style="{StaticResource TextBox.Mono}" Margin="0,14,0,0"
+                         AcceptsReturn="True" AcceptsTab="True" TextWrapping="Wrap"
+                         VerticalScrollBarVisibility="Auto" MinHeight="140"
+                         VerticalContentAlignment="Top"
+                         Text="{Binding RestartBody, UpdateSourceTrigger=PropertyChanged}"
+                         ToolTip="Optional. Leave empty to send no body at all — an empty string is rejected by some endpoints as a malformed payload." />
+
+                <!-- Checked as it is typed, because a body that does not parse is caught here or at
+                     the moment somebody is trying to restart production. -->
+                <Border Grid.Row="4" Grid.Column="1" Style="{StaticResource Notice.Danger}" Margin="0,10,0,0"
+                        Visibility="{Binding HasRestartBodyProblem, Converter={StaticResource BoolVis}}">
+                    <TextBlock Text="{Binding RestartBodyProblem}" TextWrapping="Wrap" FontSize="12"
+                               Foreground="{DynamicResource Brush.Danger}" />
+                </Border>
+
+                <CheckBox Grid.Row="5" Grid.Column="1" Margin="0,12,0,0"
+                          IsChecked="{Binding RestartAllowInsecureTls}"
+                          Content="Accept a self-signed certificate on this endpoint"
+                          ToolTip="Its own setting rather than the Vault row's: the restart endpoint is an application API on a different host with a different certificate. Coupling them would mean trusting a bad certificate on one to reach the other." />
+
+                <Border Grid.Row="6" Grid.Column="1" Style="{StaticResource Notice.Warn}" Margin="0,14,0,0">
+                    <TextBlock TextWrapping="Wrap" FontSize="12"
+                               Foreground="{DynamicResource Brush.Shape}"
+                               Text="The URL and body are saved to appsettings.json under this project. The bearer token is not saved anywhere — it is typed each time the restart is called." />
+                </Border>
+            </Grid>
+        </Border>
+    </DockPanel>
+</Window>

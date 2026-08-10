@@ -1,0 +1,141 @@
+@*
+    Compare files — any two JSON files on disk, browsed for.
+
+    The one tab that reads a file at all, and it never writes one. Compared by key path rather than by
+    line, so a reordered key is not a change. Browsed files go through the same flattener, array
+    strategies and secret classification as a source, so the comparison means the same thing, and are
+    marked read-only on the way in.
+*@
+@inherits ObservingComponent
+
+@if (Vm is null)
+{
+    <div class="empty">Compare files is not available.</div>
+}
+else
+{
+    <div class="compare">
+
+        <div class="card compare-toolbar">
+            <div class="compare-picker">
+                <label for="cmp-left">Left</label>
+                <input id="cmp-left" class="field mono" type="text" placeholder="a JSON file on disk"
+                       value="@Vm.LeftPath"
+                       @oninput="e => Vm.LeftPath = e.Value?.ToString() ?? string.Empty" />
+                <button class="btn" @onclick="() => Vm.BrowseLeftCommand.Execute(null)">
+                    <Icon Name="folder" /> <span>Browse</span>
+                </button>
+
+                <button class="btn btn-icon" @onclick="() => Vm.SwapCommand.Execute(null)" title="Swap the two sides">
+                    <Icon Name="refresh" />
+                </button>
+
+                <label for="cmp-right">Right</label>
+                <input id="cmp-right" class="field mono" type="text" placeholder="a JSON file on disk"
+                       value="@Vm.RightPath"
+                       @oninput="e => Vm.RightPath = e.Value?.ToString() ?? string.Empty" />
+                <button class="btn" @onclick="() => Vm.BrowseRightCommand.Execute(null)">
+                    <Icon Name="folder" /> <span>Browse</span>
+                </button>
+            </div>
+
+            <div class="toolbar-row">
+                <SearchBox Value="@Vm.Filter" ValueChanged="v => Vm.Filter = v"
+                           Placeholder="Filter by path" Dense="true" />
+
+                <label class="check">
+                    <input type="checkbox" checked="@Vm.ShowIdentical"
+                           @onchange="e => Vm.ShowIdentical = (bool?)e.Value ?? false" />
+                    <span>Show identical</span>
+                </label>
+
+                <button class="btn btn-small" @onclick="() => Vm.ReloadCommand.Execute(null)"
+                        title="Re-read both files from disk. Useful after editing one outside the app.">
+                    <Icon Name="refresh" Size="13" /> <span>Reload</span>
+                </button>
+
+                <span class="caption inline">@Vm.Summary</span>
+            </div>
+
+            @if (!string.IsNullOrEmpty(Vm.Error))
+            {
+                <div class="notice notice-danger"><Icon Name="warn" /> <span>@Vm.Error</span></div>
+            }
+
+            @if (Vm.Warnings.Count > 0)
+            {
+                @* An array declared in neither file's strategy is compared by index, which is a real
+                   risk of a mis-diff rather than a note. *@
+                <div class="notice notice-warn">
+                    <Icon Name="warn" />
+                    <div>
+                        @foreach (var warning in Vm.Warnings)
+                        {
+                            <div>@warning</div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="card card-flush grid-card">
+            <div class="grid-scroll">
+                <table class="grid">
+                    <thead>
+                        <tr>
+                            <th class="col-path">PATH</th>
+                            <th class="col-status">STATUS</th>
+                            <th class="col-tier">LEFT</th>
+                            <th class="col-tier">RIGHT</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Vm.Rows)
+                        {
+                            <tr @key="row.Path">
+                                <td class="col-path"><span class="path-label">@row.Path</span></td>
+                                <td class="col-status @StatusClass(row)">@row.Status</td>
+                                <td class="col-tier @(row.IsSecret ? "cell-secret" : "")"
+                                    title="@(row.IsSecret ? "Secret — the value is never shown." : row.LeftValue)">@row.LeftValue</td>
+                                <td class="col-tier @(row.IsSecret ? "cell-secret" : "")"
+                                    title="@(row.IsSecret ? "Secret — the value is never shown." : row.RightValue)">@row.RightValue</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+
+                @if (Vm.Rows.Count == 0)
+                {
+                    <div class="grid-empty">@Vm.Summary</div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public JsonCompareVm? Vm { get; set; }
+
+    private JsonCompareVm? _observed;
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_observed, Vm))
+        {
+            return;
+        }
+
+        StopObserving();
+        _observed = Vm;
+        Observe(Vm, Vm?.Rows, Vm?.Warnings);
+    }
+
+    /// <summary>The findings colours, by the kind of difference — the same four the grid uses.</summary>
+    private static string StatusClass(JsonCompareRowVm row) => row.Kind switch
+    {
+        DiffKind.OnlyInLeft or DiffKind.OnlyInRight => "cell-missing",
+        DiffKind.ShapeDiffers or DiffKind.TypeDiffers => "cell-shape",
+        DiffKind.ValueDiffers or DiffKind.SetDiffers => "cell-differs",
+        _ => "cell-same",
+    };
+}

@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>JsonInsight</RootNamespace>
+    <AssemblyName>JsonInsight</AssemblyName>
+    <!-- Windows with no Icon of their own fall back to the exe icon, so this one line covers the
+         title bar, the taskbar, Alt-Tab and Explorer. Assets/make-icon.ps1 regenerates the file. -->
+    <ApplicationIcon>Assets\JsonInsight.ico</ApplicationIcon>
+    <!-- Must match VaultSettingsStore.UserSecretsId; changing one without the other orphans the stored tokens. -->
+    <UserSecretsId>jsoninsight-9f3c1d20</UserSecretsId>
+    <!-- Never log or embed config values; keep the build deterministic. -->
+    <Deterministic>true</Deterministic>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="JsonInsight.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- What is left in this project is the WPF half and nothing else: App, MainWindow, Views\,
+         Themes\ and Assets\. Everything below the seam is shared with WebJsonInsight.
+
+         Presentation carries the view models and transitively the engine (Model, Loading, Diff,
+         Classify, Editing, Promote, Sources, Vault) plus CommunityToolkit.Mvvm and DiffPlex, which
+         is why the package references that used to be here are gone rather than duplicated. -->
+    <ProjectReference Include="..\JsonInsight.Presentation\JsonInsight.Presentation.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,44 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Surfaces and chrome. Same token names as DiskLens so the two apps read as one family. -->
+    <SolidColorBrush x:Key="Brush.Window" Color="#0F1216" />
+    <SolidColorBrush x:Key="Brush.Surface" Color="#151A21" />
+    <SolidColorBrush x:Key="Brush.SurfaceAlt" Color="#1B2129" />
+    <SolidColorBrush x:Key="Brush.Card" Color="#171D25" />
+    <SolidColorBrush x:Key="Brush.Hover" Color="#212A35" />
+    <SolidColorBrush x:Key="Brush.Selected" Color="#25334A" />
+    <SolidColorBrush x:Key="Brush.Border" Color="#2A333F" />
+    <SolidColorBrush x:Key="Brush.BorderSubtle" Color="#1F2731" />
+
+    <SolidColorBrush x:Key="Brush.Text" Color="#E8EDF4" />
+    <SolidColorBrush x:Key="Brush.TextSecondary" Color="#9BA7B6" />
+    <SolidColorBrush x:Key="Brush.TextTertiary" Color="#6E7A89" />
+
+    <SolidColorBrush x:Key="Brush.Accent" Color="#4F8EF7" />
+    <SolidColorBrush x:Key="Brush.AccentHover" Color="#6BA0F9" />
+    <SolidColorBrush x:Key="Brush.AccentPressed" Color="#3F7AD8" />
+    <SolidColorBrush x:Key="Brush.AccentSoft" Color="#1D2C44" />
+    <SolidColorBrush x:Key="Brush.OnAccent" Color="#FFFFFF" />
+
+    <SolidColorBrush x:Key="Brush.Track" Color="#232B35" />
+    <SolidColorBrush x:Key="Brush.Scroll" Color="#3A4552" />
+    <SolidColorBrush x:Key="Brush.Danger" Color="#EE6A70" />
+    <SolidColorBrush x:Key="Brush.DangerSoft" Color="#3A2226" />
+
+    <!-- The four findings colours, re-mixed rather than reused: the light theme's #C93B39 on a
+         #0F1216 window is unreadable, so each hue is lifted and each soft wash is a dark tint
+         of the same hue instead of a pale one. -->
+    <SolidColorBrush x:Key="Brush.Missing" Color="#F0787E" />
+    <SolidColorBrush x:Key="Brush.MissingSoft" Color="#38222A" />
+    <SolidColorBrush x:Key="Brush.Shape" Color="#E0A448" />
+    <SolidColorBrush x:Key="Brush.ShapeSoft" Color="#33291A" />
+    <SolidColorBrush x:Key="Brush.Differs" Color="#5BA5E8" />
+    <SolidColorBrush x:Key="Brush.DiffersSoft" Color="#16293C" />
+    <SolidColorBrush x:Key="Brush.Ok" Color="#4FC189" />
+    <SolidColorBrush x:Key="Brush.OkSoft" Color="#15301F" />
+
+    <!-- Masked values. Distinct from every findings colour: a secret is a rendering rule, not a finding. -->
+    <SolidColorBrush x:Key="Brush.Secret" Color="#B392EE" />
+
+</ResourceDictionary>

@@ -1,0 +1,94 @@
+@*
+    Calling one source's restart endpoint.
+
+    A screen rather than a button that just fires, because the bearer token is never saved and has to
+    be typed — and that requirement is doing double duty as the confirmation. A restart drops
+    connections on a live environment and cannot be taken back.
+
+    The environment and the URL are named in full for the same reason the push screen names its
+    destination: the address is the one thing a confirmation must not leave to be assumed.
+*@
+@inherits ObservingComponent
+
+<Modal Title="@($"Restart — {Vm.Environment}")"
+       Subtitle="The only thing that makes a pushed configuration take effect."
+       Wide="false"
+       OnClose="OnClose">
+    <ChildContent>
+        <div class="restart-call">
+
+            <div class="notice notice-warn">
+                <Icon Name="warn" />
+                <span>
+                    This restarts whatever reads <strong>@Vm.Environment</strong>. It drops live
+                    connections and cannot be undone from here.
+                </span>
+            </div>
+
+            <div class="push-destination">POST @Vm.Url</div>
+
+            @if (Vm.HasBody)
+            {
+                <details class="restart-body-preview">
+                    <summary>Request body</summary>
+                    <pre>@Vm.Body</pre>
+                </details>
+            }
+
+            @if (Vm.AllowsInsecureTls)
+            {
+                <div class="caption">This endpoint is configured to accept a self-signed certificate.</div>
+            }
+
+            <label class="field-row">
+                <span>Bearer token</span>
+                @* type=password, and never persisted — not to appsettings.json and not to user
+                   secrets. It exists for the length of this call. *@
+                <input class="field" type="password" autocomplete="off"
+                       placeholder="typed for each call — never saved"
+                       disabled="@(Vm.Busy || Vm.Completed)"
+                       value="@Vm.Token"
+                       @oninput="e => Vm.Token = e.Value?.ToString() ?? string.Empty"
+                       @onkeydown="OnKey" />
+            </label>
+
+            @if (!string.IsNullOrEmpty(Vm.Problem))
+            {
+                <div class="notice notice-danger"><Icon Name="warn" /> <span>@Vm.Problem</span></div>
+            }
+
+            @* Step by step rather than one verdict: this is a call that can fail after being
+               accepted, and "the POST returned 202" and "it came back up" are different claims. *@
+            @foreach (var note in Vm.Notes)
+            {
+                <div class="push-note">@note</div>
+            }
+        </div>
+    </ChildContent>
+
+    <Footer>
+        <span class="spacer"></span>
+        <button class="btn" @onclick="OnClose">@(Vm.Completed ? "Close" : "Cancel")</button>
+        <button class="btn btn-danger" disabled="@(!Vm.CanCall)" @onclick="() => Vm.CallCommand.ExecuteAsync(null)">
+            <Icon Name="refresh" Size="13" Class="@(Vm.Busy ? "spinning" : "")" />
+            <span>@(Vm.Busy ? "Calling…" : "Call restart")</span>
+        </button>
+    </Footer>
+</Modal>
+
+@code {
+    [Parameter, EditorRequired] public RestartVm Vm { get; set; } = default!;
+
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    protected override void OnInitialized() => Observe(Vm, Vm.Notes);
+
+    /// <summary>Enter fires it, since the token field is the last thing touched before pressing.</summary>
+    private async Task OnKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && Vm.CanCall)
+        {
+            await Vm.CallAsync();
+        }
+    }
+}

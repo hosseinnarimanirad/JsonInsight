@@ -1,0 +1,161 @@
+@*
+    Edit — one or many paths, every tier, in one grid.
+
+    One row per key PER TIER, including tiers that do not have the key: a key present in exactly one
+    tier is the drift this tool exists to find, so the shape of the screen makes "set it everywhere"
+    the easy action and "set it in one place" the one you have to choose.
+
+    Nothing here writes. Queue adds to the pending set; the push screen is what sends it.
+*@
+@inherits ObservingComponent
+
+<Modal Title="@Vm.Title" Subtitle="@Vm.Subtitle" OnClose="OnClose">
+    <ChildContent>
+    
+        <div class="editrows">
+    
+            <div class="toolbar-row">
+                <label for="set-all">Set every row to</label>
+                <input id="set-all" class="field" type="text" value="@Vm.BulkValue"
+                       @oninput="e => Vm.BulkValue = e.Value?.ToString() ?? string.Empty" />
+    
+                <select class="field" value="@Vm.BulkKind"
+                        @onchange="e => { if (Enum.TryParse<System.Text.Json.JsonValueKind>(e.Value?.ToString(), out var k)) Vm.BulkKind = k; }">
+                    @foreach (var option in EditVm.KindOptions)
+                    {
+                        <option value="@option.Kind" selected="@(option.Kind == Vm.BulkKind)">@option.Label</option>
+                    }
+                </select>
+    
+                <button class="btn btn-small" @onclick="() => Vm.ApplyToAllCommand.Execute(null)">Apply to all</button>
+                <button class="btn btn-small" @onclick="() => Vm.SelectAllCommand.Execute(null)">Set all</button>
+                <button class="btn btn-small" @onclick="() => Vm.KeepAllCommand.Execute(null)">Keep all</button>
+                <button class="btn btn-small" @onclick="() => Vm.DeleteAllCommand.Execute(null)">Delete all</button>
+            </div>
+    
+            @* A brand-new key is checked harder than an edit, because it is the one operation with no
+               anchor and is indistinguishable from a typo. *@
+            @foreach (var warning in Vm.Warnings)
+            {
+                <div class="notice notice-warn"><Icon Name="warn" /> <span>@warning</span></div>
+            }
+    
+            @if (!string.IsNullOrEmpty(Vm.Message))
+            {
+                <div class="notice notice-info">@Vm.Message</div>
+            }
+    
+            <div class="card card-flush grid-card">
+                <div class="grid-scroll">
+                    <table class="grid">
+                        <thead>
+                            <tr>
+                                <th class="col-path">KEY</th>
+                                <th style="width:74px">TIER</th>
+                                <th style="width:62px">CLASS</th>
+                                <th class="col-tier">NOW</th>
+                                <th style="width:106px">ACTION</th>
+                                <th class="col-tier">NEW VALUE</th>
+                                <th style="width:92px">TYPE</th>
+                                <th class="col-tier">RESULT</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in Vm.Rows)
+                            {
+                                <tr @key="@($"{row.TierId}|{row.Path}")" class="@(row.IsEditable ? "" : "row-locked")">
+                                    <td class="col-path"><span class="path-label">@row.Path</span></td>
+                                    <td>@row.TierId</td>
+                                    <td class="class-@row.ClassName">@row.ClassName</td>
+                                    <td class="col-tier @(row.IsSecret ? "cell-secret" : "")">@row.CurrentDisplay</td>
+    
+                                    <td>
+                                        @if (row.IsEditable)
+                                        {
+                                            <select class="field dense" value="@row.Action"
+                                                    @onchange="e => OnAction(row, e)">
+                                                <option value="@RowAction.Keep" selected="@(row.Action == RowAction.Keep)">Keep</option>
+                                                <option value="@RowAction.Set" selected="@(row.Action == RowAction.Set)">@(row.Exists ? "Update" : "Add")</option>
+                                                <option value="@RowAction.Delete" selected="@(row.Action == RowAction.Delete)" disabled="@(!row.Exists)">Delete</option>
+                                            </select>
+                                        }
+                                        else
+                                        {
+                                            <span class="locked" title="@row.NotEditableReason">locked</span>
+                                        }
+                                    </td>
+    
+                                    <td class="col-tier">
+                                        <input class="field dense mono" type="text"
+                                               disabled="@(!row.IsEditable || row.Action != RowAction.Set)"
+                                               value="@row.NewValue"
+                                               @oninput="e => row.NewValue = e.Value?.ToString() ?? string.Empty" />
+                                    </td>
+    
+                                    <td>
+                                        <select class="field dense"
+                                                disabled="@(!row.IsEditable || row.Action != RowAction.Set)"
+                                                value="@row.Kind"
+                                                @onchange="e => OnKind(row, e)">
+                                            @foreach (var option in EditVm.KindOptions)
+                                            {
+                                                <option value="@option.Kind" selected="@(option.Kind == row.Kind)">@option.Label</option>
+                                            }
+                                        </select>
+                                    </td>
+    
+                                    <td class="col-tier @(row.IsSecret ? "cell-secret" : "")">@row.ResultDisplay</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </ChildContent>
+
+    <Footer>
+        <span class="caption inline">
+            Nothing here writes. Queue adds to the pending set; Review and write on the All tiers tab
+            is what sends it, one tier at a time.
+        </span>
+        <span class="spacer"></span>
+        <button class="btn" @onclick="OnClose">Close</button>
+        <button class="btn btn-primary" disabled="@(!Vm.CanQueue)"
+                @onclick="Queue">Queue @(Vm.Queued ? "again" : "these changes")</button>
+    </Footer>
+</Modal>
+
+@code {
+    [Parameter, EditorRequired] public EditVm Vm { get; set; } = default!;
+
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    protected override void OnInitialized()
+    {
+        Observe(Vm, Vm.Rows, Vm.Warnings);
+
+        foreach (var row in Vm.Rows)
+        {
+            Observe(row);
+        }
+    }
+
+    private static void OnAction(EditRowVm row, ChangeEventArgs e)
+    {
+        if (Enum.TryParse<RowAction>(e.Value?.ToString(), out var action))
+        {
+            row.Action = action;
+        }
+    }
+
+    private static void OnKind(EditRowVm row, ChangeEventArgs e)
+    {
+        if (Enum.TryParse<System.Text.Json.JsonValueKind>(e.Value?.ToString(), out var kind))
+        {
+            row.Kind = kind;
+        }
+    }
+
+    private void Queue() => Vm.QueueCommand.Execute(null);
+}

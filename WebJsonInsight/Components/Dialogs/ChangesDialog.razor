@@ -1,0 +1,170 @@
+@*
+    Pending changes — the queued change set, reviewed one tier at a time before it becomes a version.
+
+    Batching is not a convenience: the change that prompted the feature was one shape applied to six
+    sibling Couchbase URLs across two environments, and six sequential single-key pushes would be six
+    versions of a secret describing one change.
+
+    A queued edit records the value it was made against. If a read moves the tier underneath it, the
+    edit is marked stale and the push is blocked until it is re-based or dropped — so a batch can
+    never silently overwrite something that changed while it sat there.
+*@
+@inherits ObservingComponent
+
+<Modal Title="@Vm.Title" Subtitle="@Vm.What" OnClose="OnClose">
+    <ChildContent>
+    
+        <div class="changes">
+    
+            <div class="toolbar-row">
+                <label for="changes-tier">Tier</label>
+                <select id="changes-tier" class="field" value="@Vm.Tier?.Id"
+                        @onchange="e => Vm.Tier = Vm.Tiers.FirstOrDefault(t => t.Id == e.Value?.ToString())">
+                    @foreach (var tier in Vm.Tiers)
+                    {
+                        <option value="@tier.Id" selected="@(tier.Id == Vm.Tier?.Id)">@tier.Label</option>
+                    }
+                </select>
+    
+                <button class="btn btn-primary" @onclick="() => Vm.PreviewCommand.Execute(null)">Preview</button>
+                <button class="btn btn-small" @onclick="() => Vm.DiscardTierCommand.Execute(null)"
+                        title="Drop every queued change for this tier.">Discard this tier's</button>
+            </div>
+    
+            @if (Vm.HasStale)
+            {
+                <div class="notice notice-warn">
+                    <Icon Name="warn" />
+                    <div>
+                        <div>
+                            One or more of these was made against a value the source no longer holds —
+                            somebody changed it in between. The push is blocked until each is re-based onto
+                            what is there now, or dropped.
+                        </div>
+                        <button class="btn btn-small" @onclick="() => Vm.RebaseCommand.Execute(null)">Re-base onto what is there now</button>
+                    </div>
+                </div>
+            }
+    
+            @foreach (var warning in Vm.Warnings)
+            {
+                <div class="notice notice-warn"><Icon Name="warn" /> <span>@warning</span></div>
+            }
+    
+            @if (!string.IsNullOrEmpty(Vm.Message))
+            {
+                <div class="notice notice-info">@Vm.Message</div>
+            }
+    
+            <div class="changes-body">
+                <div class="card card-flush grid-card">
+                    <div class="grid-scroll">
+                        <table class="grid">
+                            <thead>
+                                <tr>
+                                    <th class="col-path">KEY</th>
+                                    <th style="width:74px">TIER</th>
+                                    <th style="width:66px">KIND</th>
+                                    <th class="col-tier">WAS</th>
+                                    <th class="col-tier">BECOMES</th>
+                                    <th style="width:76px"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var change in Vm.Changes)
+                                {
+                                    <tr @key="@($"{change.TierId}|{change.Path}")" class="@(change.IsStale ? "row-stale" : "")"
+                                        title="@change.StaleReason">
+                                        <td class="col-path"><span class="path-label">@change.Path</span></td>
+                                        <td>@change.TierId</td>
+                                        <td>@change.KindName</td>
+                                        <td class="col-tier @SecretClass(change)">@change.BaseDisplay</td>
+                                        <td class="col-tier @SecretClass(change)">@change.NewDisplay</td>
+                                        <td>
+                                            <button class="btn btn-small" @onclick="() => Vm.DiscardCommand.Execute(change)"
+                                                    title="Drop this one change.">Discard</button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+    
+                <div class="card card-flush grid-card">
+                    <div class="difflines-head">
+                        <div class="dl-num"></div>
+                        <div class="dl-text">AS IT IS</div>
+                        <div class="dl-num"></div>
+                        <div class="dl-text">WITH THESE APPLIED</div>
+                    </div>
+                    <div class="difflines">
+                        @foreach (var line in Vm.PreviewLines)
+                        {
+                            <div class="dl-row @LineClass(line)">
+                                <div class="dl-num">@line.LeftNumber</div>
+                                <div class="dl-text dl-left">@line.LeftText</div>
+                                <div class="dl-num">@line.RightNumber</div>
+                                <div class="dl-text dl-right">@line.RightText</div>
+                            </div>
+                        }
+    
+                        @if (Vm.PreviewLines.Count == 0)
+                        {
+                            <div class="grid-empty">Press Preview.</div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </ChildContent>
+
+    <Footer>
+        <span class="caption inline">
+            One tier per press — one secret, one version, one typed confirmation — but every key for
+            that tier in a single version.
+        </span>
+        <span class="spacer"></span>
+        <button class="btn" @onclick="OnClose">Close</button>
+        <button class="btn btn-danger" disabled="@(!Vm.CanPush)" @onclick="Push">
+            <Icon Name="push" Size="13" /> <span>Push to Vault or disk…</span>
+        </button>
+    </Footer>
+</Modal>
+
+@code {
+    [Parameter, EditorRequired] public ChangesVm Vm { get; set; } = default!;
+
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    [Parameter] public EventCallback<(JsonInsight.Model.TierDocument Tier, System.Text.Json.Nodes.JsonNode Updated, string What)> OnPush { get; set; }
+
+    protected override void OnInitialized()
+    {
+        Observe(Vm, Vm.Changes, Vm.PreviewLines, Vm.Warnings, Vm.Tiers);
+
+        foreach (var change in Vm.Changes)
+        {
+            Observe(change);
+        }
+    }
+
+    private static string SecretClass(ChangeRowVm change) =>
+        change.Class == JsonInsight.Model.ValueClass.Secret ? "cell-secret" : string.Empty;
+
+    private async Task Push()
+    {
+        if (Vm.Tier is { } tier && Vm.BuildUpdated() is { } updated)
+        {
+            await OnPush.InvokeAsync((tier, updated, Vm.What));
+        }
+    }
+
+    private static string LineClass(DiffLineVm line) => line.Type switch
+    {
+        DiffPlex.DiffBuilder.Model.ChangeType.Inserted => "dl-added",
+        DiffPlex.DiffBuilder.Model.ChangeType.Deleted => "dl-removed",
+        DiffPlex.DiffBuilder.Model.ChangeType.Modified => "dl-modified",
+        _ => string.Empty,
+    };
+}

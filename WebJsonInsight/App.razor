@@ -1,0 +1,272 @@
+@*
+    The window, laid out as MainWindow.xaml lays it out: a header, the content, a status bar.
+
+    There is no Router. The WPF app has no navigation either - it has a projects screen that stands
+    in for the tabs, and five tabs - and a URL would be a second way to describe a state MainVm
+    already describes. What the header shows and which screen fills the window both come off the same
+    HasProjectOpen / ShowingProjects pair the WPF window binds to.
+*@
+@inherits ObservingComponent
+@inject MainVm Main
+@inject IJSRuntime Js
+@implements IAsyncDisposable
+
+<div class="app">
+
+    @* ============================== Header ============================== *@
+    <header class="app-header">
+        <div class="brand">
+            <div class="brand-mark"><Icon Name="vault" Size="18" /></div>
+            <div class="brand-text">
+                <div class="brand-line">
+                    <span class="brand-name">JsonInsight</span>
+                    @if (Main.HasProjectOpen)
+                    {
+                        @* The project beside the app's name, not instead of it: a project is often
+                           named after a file, so putting one where the title goes reads as the app
+                           having been renamed to a file. *@
+                        <span class="pill pill-accent" title="The project that is open. Press Projects to switch.">
+                            @Main.ProjectChip
+                        </span>
+                    }
+                </div>
+                <div class="brand-caption" title="What this project compares, and how many of its sources loaded.">
+                    @Main.DocumentCaption
+                </div>
+            </div>
+        </div>
+
+        <div class="header-actions">
+            @if (!Main.ShowingProjectList)
+            {
+                <button class="btn btn-secondary" @onclick="() => Main.ShowProjectListCommand.Execute(null)"
+                        title="Switch project, or create one. Nothing here is closed by looking — the tiers, the queued edits and the tab you are on are all still here when you come back.">
+                    <Icon Name="list" /> <span>Projects</span>
+                </button>
+            }
+
+            @if (Main.ShowingProjects && Main.HasProjectOpen)
+            {
+                <button class="btn btn-secondary" @onclick="() => Main.BackToProjectCommand.Execute(null)"
+                        title="Back to the project you were in. Nothing was closed.">
+                    <Icon Name="back" /> <span>Back to <strong>@Main.ActiveProject</strong></span>
+                </button>
+            }
+
+            <button class="btn btn-icon" @onclick="ToggleTheme" title="@Main.ThemeTooltip">
+                <Icon Name="@(Theme.Current == AppTheme.Dark ? "sun" : "moon")" Size="16" />
+            </button>
+
+            @if (!Main.ShowingProjectList)
+            {
+                @* Disabled and spinning while a read is in flight, the startup one included: a button
+                   that still looks pressable during a network call is a button that gets pressed
+                   again, and the read nobody asked for is the one that most needs to say so. *@
+                <button class="btn btn-primary" disabled="@Main.VaultBusy"
+                        @onclick="Pull"
+                        title="Read every configured source again, from Vault or from disk. Nothing is written: a pull replaces what is in memory, and what is in memory is all there is.">
+                    <Icon Name="@(Main.VaultBusy ? "refresh" : "pull")" Class="@(Main.VaultBusy ? "spinning" : "")" />
+                    <span>@(Main.VaultBusy ? "Pulling…" : "Pull from Vault or disk")</span>
+                </button>
+
+                <button class="btn btn-secondary" @onclick="() => Main.ReloadCommand.Execute(null)"
+                        title="Start again (F5): re-read the config files, rebuild every tab, and read every source. Pull, beside it, is the narrower half — it re-reads the sources alone.">
+                    <Icon Name="refresh" /> <span>Reload everything</span>
+                </button>
+            }
+        </div>
+    </header>
+
+    @* ============================== Content ============================= *@
+    <main class="app-content">
+
+        @if (!Main.ShowingProjectList)
+        {
+            <div class="notice notice-warn">
+                <Icon Name="warn" />
+                <span>
+                    These values are only as fresh as the last pull from Vault or disk, and they hold
+                    live credentials — re-read before trusting a value, and never paste one into a report.
+                </span>
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(Main.VaultNote))
+        {
+            @* Said whether or not anything went wrong. Reporting only failures left "it worked" and
+               "nothing has happened yet" looking identical. *@
+            <div class="notice @(Main.VaultNoteIsGood ? "notice-ok" : "notice-warn")">
+                <Icon Name="@(Main.VaultNoteIsGood ? "ok" : "warn")" />
+                <span>@Main.VaultNote</span>
+            </div>
+        }
+
+        @* Findings used to be a banner here. They are on the Logs tab now — see LogVm for why. *@
+
+        @if (Main.ShowingProjectList)
+        {
+            @* The projects screen stands in for the tabs rather than sitting beside them: with no
+               project open there are no sources to compare, so every tab would be an empty grid with
+               no way to explain itself. *@
+            <ProjectsScreen Vm="Main.Projects" />
+        }
+        else
+        {
+            <div class="tabs">
+                <div class="tab-strip" role="tablist">
+                    @foreach (var tab in Tabs)
+                    {
+                        <button class="tab @(_active == tab.Key ? "active" : "")"
+                                role="tab" aria-selected="@(_active == tab.Key)"
+                                title="@tab.Hint"
+                                @onclick="() => _active = tab.Key">
+                            @tab.Label
+                            @* The findings no longer have a banner shouting them, so the tab has to
+                               carry the count - otherwise a failed read is silent. *@
+                            @if (tab.Key == "logs" && Main.Log.HasProblems)
+                            {
+                                <span class="tab-badge">@Main.Log.Badge</span>
+                            }
+                        </button>
+                    }
+                </div>
+
+                <div class="tab-body" role="tabpanel">
+                    @switch (_active)
+                    {
+                        case "editor":
+                            <TierEditorTab Vm="Main.JsonEditor" />
+                            break;
+
+                        case "tiers":
+                            <AllTiersTab Vm="Main.Tiers" />
+                            break;
+
+                        case "textdiff":
+                            <TextDiffTab Vm="Main.RawDiff" />
+                            break;
+
+                        case "files":
+                            <CompareFilesTab Vm="Main.JsonCompare" />
+                            break;
+
+                        case "sources":
+                            <SourcesTab Vm="Main.Vault" />
+                            break;
+
+                        case "logs":
+                            <LogsTab Vm="Main.Log" />
+                            break;
+                    }
+                </div>
+            </div>
+        }
+    </main>
+
+    @* ============================= Status bar =========================== *@
+    <footer class="app-status">
+        <span class="status-text">@Main.Status</span>
+        <span class="status-root">@Main.ContentRoot</span>
+    </footer>
+</div>
+
+@* Above everything, and empty until something opens it. *@
+<DialogHost />
+
+@code {
+    private DotNetObjectReference<App>? _self;
+    private string _active = "tiers";
+
+    private PhotinoWebviewTheme Theme => PhotinoPlatform.Theme;
+
+    /// <summary>
+    /// Named for what you go there to do rather than for the format involved: three of them read
+    /// JSON, so "JSON compare" beside "Raw diff" said nothing about which one answers the question
+    /// you actually have.
+    /// </summary>
+    private static readonly (string Key, string Label, string Hint)[] Tabs =
+    [
+        ("editor", "Tier editor", "Edit one tier's document as JSON, a node at a time."),
+        ("tiers", "All tiers", "Every tier side by side, key by key. Where promoting and batch editing start."),
+        ("textdiff", "Text diff", "Two tiers as text, line by line — the view that shows ordering and formatting."),
+        ("files", "Compare files", "Key by key against any two JSON files on disk, not only the configured sources."),
+        ("sources", "Sources", "Where each environment's JSON comes from, which are being compared, and the credentials used to read them."),
+        ("logs", "Logs", "Everything the app has said — warnings, read failures and status, oldest at the bottom."),
+    ];
+
+    protected override void OnInitialized()
+    {
+        // Everything the header and the shell read. The tab bodies observe their own view models, so
+        // a change inside the grid does not re-render the window around it.
+        // Main.Log as well, for the tab badge: it is the only thing left in the shell that reports a
+        // finding, now that the banner is gone.
+        Observe(Main, Main.Problems, Main.Log);
+        Theme.Changed += OnThemeChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool first)
+    {
+        if (!first)
+        {
+            return;
+        }
+
+        // The OS theme, which the webview knows the same way on all three platforms - the WPF app
+        // reads a Windows registry key for this and has nothing to read anywhere else.
+        var dark = await Js.InvokeAsync<bool>("jsonInsight.prefersDark");
+        Theme.Apply(dark ? AppTheme.Dark : AppTheme.Light);
+        await Js.InvokeVoidAsync("jsonInsight.setTheme", Theme.Attribute);
+
+        // Copy goes through the page, because the browser clipboard API is asynchronous and
+        // IClipboard.SetText is not.
+        PhotinoClipboard.Writer = text => Js.InvokeAsync<bool>("jsonInsight.copyText", text).AsTask();
+
+        _self = DotNetObjectReference.Create(this);
+        await Js.InvokeVoidAsync("jsonInsight.registerShortcuts", _self);
+    }
+
+    private async Task ToggleTheme()
+    {
+        Main.ToggleThemeCommand.Execute(null);
+        await Js.InvokeVoidAsync("jsonInsight.setTheme", Theme.Attribute);
+    }
+
+    private void OnThemeChanged(AppTheme theme) => _ = InvokeAsync(StateHasChanged);
+
+    private async Task Pull()
+    {
+        if (Main.Tiers is { } tiers)
+        {
+            await tiers.PullFromVaultCommand.ExecuteAsync(null);
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnToggleTheme() => await ToggleTheme();
+
+    [JSInvokable]
+    public void OnReload() => Main.ReloadCommand.Execute(null);
+
+    /// <summary>Ctrl+F belongs to the editor pane; every other tab lets the webview keep it.</summary>
+    [JSInvokable]
+    public bool OnFind()
+    {
+        if (_active != "editor" || Main.JsonEditor is null)
+        {
+            return false;
+        }
+
+        Main.JsonEditor.FindOpen = true;
+        _ = InvokeAsync(StateHasChanged);
+        return true;
+    }
+
+    protected override void Disposing() => Theme.Changed -= OnThemeChanged;
+
+    public async ValueTask DisposeAsync()
+    {
+        _self?.Dispose();
+        Dispose();
+        await ValueTask.CompletedTask;
+    }
+}

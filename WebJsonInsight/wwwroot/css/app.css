@@ -1,0 +1,1288 @@
+/*
+ * The layout and the controls.
+ *
+ * The rule from Controls.xaml carries over intact: nothing in this file names a colour. Every one is
+ * a var(--brush-*) defined in theme.css, which is what makes flipping data-theme repaint the window
+ * with no component re-rendering and nothing reloaded.
+ *
+ * The other rule that carries over is the two control heights. --size-control and
+ * --size-control-dense are set on the button and field bases below rather than spelled into each
+ * rule, so a button and the field beside it line up by construction rather than by coincidence.
+ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;               /* the app scrolls its panes, never the window */
+    font-family: var(--font-ui);
+    font-size: var(--font-size-base);
+    color: var(--brush-text);
+    background: var(--brush-window);
+    -webkit-font-smoothing: antialiased;
+}
+
+#app, .app { height: 100%; }
+
+.boot {
+    display: grid;
+    place-items: center;
+    height: 100%;
+    color: var(--brush-text-tertiary);
+}
+
+.app {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+}
+
+/* ================================ Header ================================= */
+
+.app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 18px;
+    background: var(--brush-surface);
+    border-bottom: 1px solid var(--brush-border-subtle);
+}
+
+.brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+
+.brand-mark {
+    display: grid;
+    place-items: center;
+    width: 34px; height: 34px;
+    border-radius: 9px;
+    background: var(--brush-accent);
+    color: var(--brush-on-accent);
+    flex: none;
+}
+
+.brand-text { min-width: 0; }
+.brand-line { display: flex; align-items: center; gap: 10px; }
+
+.brand-name {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.brand-caption {
+    font-size: var(--font-size-caption);
+    color: var(--brush-text-tertiary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 520px;
+}
+
+.header-actions { display: flex; align-items: center; gap: 8px; flex: none; }
+
+.pill {
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: var(--font-size-small);
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 260px;
+}
+
+.pill-accent { background: var(--brush-accent-soft); color: var(--brush-accent); }
+
+/* ================================ Buttons ================================ */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: var(--size-control);
+    padding: 0 12px;                /* padding sets horizontal room only; height is the token */
+    border-radius: var(--radius-control);
+    border: 1px solid var(--brush-border);
+    background: var(--brush-surface);
+    color: var(--brush-text);
+    font-family: var(--font-ui);
+    font-size: var(--font-size-base);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .12s, border-color .12s;
+}
+
+.btn:hover:not(:disabled) { background: var(--brush-hover); }
+.btn:disabled { opacity: .5; cursor: default; }
+
+.btn-primary {
+    background: var(--brush-accent);
+    border-color: var(--brush-accent);
+    color: var(--brush-on-accent);
+}
+.btn-primary:hover:not(:disabled) { background: var(--brush-accent-hover); border-color: var(--brush-accent-hover); }
+.btn-primary:active:not(:disabled) { background: var(--brush-accent-pressed); }
+
+.btn-secondary { /* the implicit default; .btn alone already is one */ }
+
+/* The writes, and only those. Soft until hover. */
+.btn-danger { background: var(--brush-danger-soft); border-color: transparent; color: var(--brush-danger); }
+.btn-danger:hover:not(:disabled) { background: var(--brush-danger); color: var(--brush-on-accent); }
+
+.btn-small { height: var(--size-control-dense); padding: 0 9px; font-size: var(--font-size-small); }
+
+.btn-icon { width: var(--size-control); padding: 0; justify-content: center; }
+
+/* The clear affordance inside a field: sized to the text rather than to a button. */
+.btn-ghost-tiny {
+    display: inline-grid;
+    place-items: center;
+    width: 18px; height: 18px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-small);
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    opacity: .65;
+}
+.btn-ghost-tiny:hover { opacity: 1; background: var(--brush-hover); }
+
+.icon { flex: none; }
+
+.spinning { animation: spin 1.1s linear infinite; }
+@keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+
+/* ================================ Content ================================ */
+
+.app-content {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 14px 0;
+    min-height: 0;                  /* lets the tab body scroll instead of the page */
+}
+
+.notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    padding: 8px 12px;
+    border-radius: 9px;
+    font-size: var(--font-size-small);
+    line-height: 1.45;
+    flex: none;
+}
+
+.notice-warn   { background: var(--brush-shape-soft);  color: var(--brush-shape); }
+.notice-ok     { background: var(--brush-ok-soft);     color: var(--brush-ok); }
+.notice-danger { background: var(--brush-danger-soft); color: var(--brush-danger); }
+
+/* ================================== Logs ================================= */
+
+.logs { display: flex; flex-direction: column; }
+
+.log-list { display: flex; flex-direction: column; }
+
+/* Fixed columns for time and level so the messages line up and can be read down the page;
+   the text wraps within its own column rather than under the timestamp. */
+.log-row {
+    display: grid;
+    grid-template-columns: 68px 52px 1fr;
+    gap: 10px;
+    align-items: baseline;
+    padding: 5px 14px;
+    border-bottom: 1px solid var(--brush-border-subtle);
+    font-size: var(--font-size-small);
+    line-height: 1.5;
+}
+
+.log-row:hover { background: var(--brush-hover); }
+
+.log-time {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-caption);
+    color: var(--brush-text-tertiary);
+}
+
+.log-level {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .05em;
+    color: var(--brush-text-tertiary);
+}
+
+.log-text { overflow-wrap: anywhere; }
+
+.log-warn  .log-level { color: var(--brush-shape); }
+.log-error .log-level { color: var(--brush-danger); }
+.log-error .log-text  { color: var(--brush-danger); }
+
+/* The count the banner used to shout. Without it a failed read is silent. */
+.tab-badge {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--brush-danger-soft);
+    color: var(--brush-danger);
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 16px;
+    vertical-align: middle;
+}
+
+/* ================================== Tabs ================================= */
+
+.tabs { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+
+.tab-strip {
+    display: flex;
+    gap: 2px;
+    border-bottom: 1px solid var(--brush-border);
+    flex: none;
+}
+
+.tab {
+    height: 32px;
+    padding: 0 14px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--brush-text-secondary);
+    font-family: var(--font-ui);
+    font-size: var(--font-size-base);
+    cursor: pointer;
+}
+
+.tab:hover { color: var(--brush-text); background: var(--brush-hover); }
+.tab.active { color: var(--brush-accent); border-bottom-color: var(--brush-accent); font-weight: 600; }
+
+.tab-body { flex: 1; min-height: 0; overflow: auto; padding-top: 12px; }
+
+.empty {
+    display: grid;
+    place-items: center;
+    height: 100%;
+    color: var(--brush-text-tertiary);
+}
+
+/* ================================= Cards ================================= */
+
+.card {
+    background: var(--brush-card);
+    border: 1px solid var(--brush-border);
+    border-radius: var(--radius-card);
+    padding: 14px;
+}
+
+/* A card whose content runs to its own edges — a list, a table. */
+.card-flush { padding: 0; overflow: hidden; }
+
+.card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+}
+
+.section-label {
+    font-size: var(--font-size-caption);
+    font-weight: 700;
+    letter-spacing: .07em;
+    color: var(--brush-text-tertiary);
+}
+
+.caption {
+    margin: 6px 0 0;
+    font-size: var(--font-size-caption);
+    line-height: 1.55;
+    color: var(--brush-text-tertiary);
+}
+
+.caption code, .project-summary code {
+    font-family: var(--font-mono);
+    font-size: .95em;
+    color: var(--brush-text-secondary);
+}
+
+/* ================================= Fields ================================ */
+
+.field {
+    height: var(--size-control);
+    padding: 0 9px;
+    border: 1px solid var(--brush-border);
+    border-radius: var(--radius-control);
+    background: var(--brush-surface);
+    color: var(--brush-text);
+    font-family: var(--font-ui);
+    font-size: var(--font-size-base);
+    min-width: 0;
+}
+
+.field:focus { outline: none; border-color: var(--brush-accent); }
+.field::placeholder { color: var(--brush-text-tertiary); }
+
+select.field { cursor: pointer; }
+
+.check { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; font-size: var(--font-size-small); }
+.check input { accent-color: var(--brush-accent); cursor: pointer; }
+
+/* ================================ Projects =============================== */
+
+.projects {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-bottom: 14px;
+}
+
+.new-project-row {
+    display: grid;
+    grid-template-columns: auto 2fr auto 1fr auto;
+    align-items: center;
+    gap: 9px;
+    margin-top: 10px;
+}
+
+.new-project-row label { font-size: var(--font-size-base); white-space: nowrap; }
+.new-project-row label:nth-of-type(2) { margin-left: 7px; }
+
+.row-status {
+    margin: 0 14px 10px;
+    font-size: var(--font-size-small);
+    color: var(--brush-text-secondary);
+}
+
+.empty-note { margin: 0 14px 16px; }
+
+.project-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 14px;
+    border-top: 1px solid var(--brush-border-subtle);
+}
+
+.project-row:hover { background: var(--brush-hover); }
+
+.project-body { min-width: 0; flex: 1; }
+
+.project-name-line { display: flex; align-items: center; gap: 10px; }
+
+.project-name {
+    font-size: 15px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pill-ok { background: var(--brush-ok-soft); color: var(--brush-ok); }
+
+.project-summary {
+    margin-top: 4px;
+    font-size: var(--font-size-caption);
+    color: var(--brush-text-tertiary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.delete-prompt {
+    margin-top: 6px;
+    font-size: var(--font-size-small);
+    line-height: 1.45;
+    color: var(--brush-missing);
+}
+
+.project-actions { display: flex; align-items: center; gap: 6px; flex: none; }
+
+.rename-field { max-width: 420px; width: 100%; }
+
+/* ================================= Sources =============================== */
+
+.sources { display: flex; flex-direction: column; gap: 10px; padding-bottom: 14px; }
+
+.head-right { display: flex; align-items: center; gap: 9px; }
+.caption.inline { margin: 0; }
+
+.field.dense { height: var(--size-control-dense); font-size: var(--font-size-small); }
+.field.mono { font-family: var(--font-mono); }
+.check.dense { font-size: var(--font-size-caption); }
+
+/*
+ * One grid for the header strip and every row, so the columns line up without either knowing the
+ * other's widths. The JSON path gets the room because it is the longest thing here and the one most
+ * worth reading in full - which is also why Namespace has no column: it is empty on every row in
+ * these deployments and would have taken width from this.
+ */
+.src-head, .src-row {
+    display: grid;
+    grid-template-columns: 32px 88px 92px minmax(230px, 2.1fr) minmax(140px, 1fr) 120px 128px;
+    gap: 8px;
+    align-items: center;
+    padding: 7px 14px;
+}
+
+.src-head {
+    font-size: var(--font-size-caption);
+    font-weight: 700;
+    letter-spacing: .06em;
+    color: var(--brush-text-tertiary);
+    background: var(--brush-surface-alt);
+    border-top: 1px solid var(--brush-border-subtle);
+    border-bottom: 1px solid var(--brush-border-subtle);
+}
+
+.src-row { border-bottom: 1px solid var(--brush-border-subtle); }
+.src-row:hover { background: var(--brush-hover); }
+
+/* A ticked row is one of the columns every other tab is comparing; that is worth seeing at a glance. */
+.src-row.is-active { background: var(--brush-accent-soft); }
+.src-row.is-active:hover { background: var(--brush-selected); }
+
+.src-c-on { display: flex; justify-content: center; }
+.src-c-on input { accent-color: var(--brush-accent); cursor: pointer; }
+.src-c-on input:disabled { cursor: not-allowed; opacity: .4; }
+
+.src-c-env { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.src-env { font-weight: 600; font-size: var(--font-size-small); }
+.pill-warn { background: var(--brush-shape-soft); color: var(--brush-shape); font-size: 10px; padding: 1px 6px; }
+
+.src-c-path { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.src-c-path input { flex: 1; min-width: 0; }
+
+/* ------------------------------- Path picker ------------------------------ */
+
+.pathpicker { position: relative; display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
+
+.pathpicker-field {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    border: 1px solid var(--brush-border);
+    border-radius: var(--radius-control);
+    background: var(--brush-surface);
+    height: var(--size-control-dense);
+}
+
+.pathpicker-field:focus-within { border-color: var(--brush-accent); }
+
+/* The field's own border carries the frame, so the input inside drops its. */
+.pathpicker-field input {
+    border: none;
+    background: transparent;
+    height: 100%;
+    flex: 1;
+    min-width: 0;
+}
+
+.pathpicker-toggle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 100%;
+    padding: 0 7px;
+    border: none;
+    border-left: 1px solid var(--brush-border);
+    border-radius: 0 var(--radius-control) var(--radius-control) 0;
+    background: transparent;
+    color: var(--brush-text-secondary);
+    cursor: pointer;
+    flex: none;
+}
+
+.pathpicker-toggle:hover:not(:disabled) { background: var(--brush-hover); color: var(--brush-text); }
+.pathpicker-toggle:disabled { opacity: .4; cursor: default; }
+.pathpicker-toggle.open { background: var(--brush-accent-soft); color: var(--brush-accent); }
+
+/* The answer to "did the search find anything", on the control rather than only in the status line. */
+.pathpicker-count { font-size: var(--font-size-caption); font-variant-numeric: tabular-nums; }
+
+/* Covers the window so a click anywhere dismisses. Under the menu, over everything else. */
+.pathpicker-veil { position: fixed; inset: 0; z-index: 40; }
+
+.pathpicker-menu {
+    position: absolute;
+    z-index: 41;
+    top: calc(var(--size-control-dense) + 4px);
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    max-height: 340px;
+    border: 1px solid var(--brush-border);
+    border-radius: var(--radius-control);
+    background: var(--brush-surface);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, .28);
+    overflow: hidden;
+}
+
+.pathpicker-search { padding: 7px; border-bottom: 1px solid var(--brush-border-subtle); }
+.pathpicker-search .searchbox { min-width: 0; max-width: none; width: 100%; }
+
+.pathpicker-head {
+    padding: 5px 10px;
+    background: var(--brush-surface-alt);
+    border-bottom: 1px solid var(--brush-border-subtle);
+    font-size: var(--font-size-caption);
+    color: var(--brush-text-tertiary);
+}
+
+.pathpicker-list { overflow-y: auto; flex: 1; min-height: 0; }
+
+.pathpicker-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    padding: 5px 10px;
+    border: none;
+    background: transparent;
+    color: var(--brush-text);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-caption);
+    text-align: left;
+    cursor: pointer;
+}
+
+.pathpicker-item:hover { background: var(--brush-hover); }
+.pathpicker-item.current { background: var(--brush-selected); color: var(--brush-accent); }
+.pp-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.pp-tag {
+    flex: none;
+    padding: 0 5px;
+    border-radius: var(--radius-small);
+    background: var(--brush-accent-soft);
+    color: var(--brush-accent);
+    font-family: var(--font-ui);
+    font-size: 10px;
+}
+
+.pathpicker-empty { padding: 14px 10px; text-align: center; color: var(--brush-text-tertiary); font-size: var(--font-size-caption); }
+
+.src-c-kind select, .src-c-tok input { width: 100%; }
+
+/* Flex rather than a full-width input: the address shares its cell with the TLS-off pill. */
+.src-c-addr { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.src-c-addr input { flex: 1; min-width: 0; }
+.src-c-addr.src-na { display: block; }
+
+.src-c-act { display: flex; justify-content: flex-end; align-items: center; gap: 4px; }
+
+/* ---------------------------- Row overflow menu --------------------------- */
+
+.rowmenu { position: relative; display: flex; }
+
+.btn-icon { padding: 4px 7px; min-width: 0; line-height: 1; }
+.btn-icon.is-open { background: var(--brush-selected); }
+
+/* Sits under the popup and over everything else, so the next click anywhere dismisses the menu. */
+.rowmenu-scrim { position: fixed; inset: 0; z-index: 40; }
+
+.rowmenu-pop {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    z-index: 41;
+    min-width: 186px;
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--brush-surface);
+    border: 1px solid var(--brush-border);
+    border-radius: 9px;
+    box-shadow: 0 10px 26px rgb(0 0 0 / .22);
+}
+
+.rowmenu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 7px 9px;
+    border: 0;
+    border-radius: 6px;
+    background: none;
+    color: var(--brush-text);
+    font-family: var(--font-ui);
+    font-size: var(--font-size-small);
+    text-align: left;
+    cursor: pointer;
+}
+
+.rowmenu-item:hover:not(:disabled) { background: var(--brush-hover); }
+.rowmenu-item:disabled { opacity: .45; cursor: not-allowed; }
+.rowmenu-item input { accent-color: var(--brush-accent); cursor: pointer; margin: 0; }
+
+/* Coloured only once there is somewhere to send it: the colour should mean "this restarts
+   something", not "this item exists". */
+.rowmenu-item.is-danger { color: var(--brush-danger); }
+.rowmenu-item.is-danger:hover:not(:disabled) { background: var(--brush-danger-soft); }
+
+.rowmenu-sep { height: 1px; margin: 3px 1px; background: var(--brush-border-subtle); }
+
+/* A menu toggle says its state twice — a tick and the word — because a bare checkbox beside
+   "Insecure TLS" required knowing that ticked meant certificate checking was off. */
+.rowmenu-tick { display: inline-flex; justify-content: center; width: 13px; flex: none; }
+
+.rowmenu-state {
+    margin-left: auto;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: var(--brush-shape-soft);
+    color: var(--brush-text-tertiary);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .05em;
+}
+
+.rowmenu-toggle.is-on .rowmenu-state { background: var(--brush-shape-soft); color: var(--brush-shape); }
+
+/* ------------------------------ Restart dialogs --------------------------- */
+
+.restart-config, .restart-call { display: flex; flex-direction: column; gap: 11px; }
+
+.field-row { display: grid; grid-template-columns: 96px 1fr; align-items: center; gap: 10px; }
+.field-row.top { align-items: start; }
+.field-row > span { font-size: var(--font-size-small); }
+
+.restart-body { padding: 8px; line-height: 1.5; resize: vertical; height: auto; }
+
+.restart-body-preview summary { cursor: pointer; font-size: var(--font-size-small); color: var(--brush-text-secondary); }
+
+.restart-body-preview pre {
+    margin: 7px 0 0;
+    padding: 9px;
+    border-radius: 8px;
+    background: var(--brush-surface-alt);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-caption);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+/* A local file has no server and no token; an empty box claiming otherwise would be a field that can
+   never be filled in. */
+.src-na { color: var(--brush-text-tertiary); text-align: center; }
+
+/* Spans the whole grid so a long message wraps under the row rather than inside one cell. */
+.src-row-status {
+    grid-column: 1 / -1;
+    margin-top: 5px;
+    font-size: var(--font-size-caption);
+    line-height: 1.45;
+    color: var(--brush-text-secondary);
+}
+
+.notice-info { background: var(--brush-accent-soft); color: var(--brush-accent); }
+
+/* =============================== Search box ============================== */
+
+.searchbox {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: var(--size-control);
+    padding: 0 6px 0 9px;
+    border: 1px solid var(--brush-border);
+    border-radius: var(--radius-control);
+    background: var(--brush-surface);
+    min-width: 300px;
+    max-width: 460px;
+    width: 100%;
+}
+
+.searchbox.dense { height: var(--size-control-dense); min-width: 200px; }
+.searchbox:focus-within { border-color: var(--brush-accent); }
+.searchbox-icon { display: flex; color: var(--brush-text-tertiary); flex: none; }
+
+.searchbox-input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    background: transparent;
+    color: var(--brush-text);
+    font-family: var(--font-ui);
+    font-size: var(--font-size-base);
+    outline: none;
+}
+
+.searchbox-input::placeholder { color: var(--brush-text-tertiary); }
+.searchbox-clear { flex: none; }
+
+/* ================================ All tiers ============================== */
+
+.tiers { display: grid; grid-template-columns: 238px 1fr; gap: 12px; height: 100%; min-height: 0; }
+
+.tiers-rail { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.rail-card { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.rail-list { overflow-y: auto; flex: 1; }
+
+.rail-item {
+    display: block;
+    width: 100%;
+    padding: 7px 14px;
+    border: none;
+    border-left: 2px solid transparent;
+    background: transparent;
+    color: var(--brush-text);
+    text-align: left;
+    cursor: pointer;
+    font-family: var(--font-ui);
+}
+
+.rail-item:hover { background: var(--brush-hover); }
+.rail-item.selected { background: var(--brush-selected); border-left-color: var(--brush-accent); }
+
+.rail-name {
+    font-size: var(--font-size-base);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.rail-counts { margin-top: 1px; font-size: var(--font-size-caption); color: var(--brush-text-tertiary); }
+.rail-counts.has-findings { color: var(--brush-missing); font-weight: 600; }
+
+.pull-line {
+    margin-top: 2px;
+    font-family: var(--font-mono);
+    font-size: var(--font-size-caption);
+    color: var(--brush-text-secondary);
+    word-break: break-word;
+}
+
+.tiers-main { display: flex; flex-direction: column; gap: 10px; min-height: 0; min-width: 0; }
+
+.tiers-toolbar { display: flex; flex-direction: column; gap: 11px; flex: none; }
+.toolbar-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+.pill-quiet { background: var(--brush-surface-alt); color: var(--brush-text-secondary); }
+
+.pending-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 11px;
+    border-radius: 8px;
+    background: var(--brush-differs-soft);
+}
+
+.pending-text { color: var(--brush-differs); font-size: var(--font-size-small); font-weight: 600; }
+
+/* --------------------------------- The grid -------------------------------- */
+
+.grid-card { flex: 1; min-height: 0; display: flex; }
+.grid-scroll { overflow: auto; flex: 1; min-height: 0; }
+
+.grid { width: 100%; border-collapse: collapse; font-size: var(--font-size-small); }
+
+.grid thead th {
+    position: sticky;                /* the columns stay named while a 400-row grid scrolls */
+    top: 0;
+    z-index: 1;
+    padding: 6px 10px;
+    text-align: left;
+    background: var(--brush-surface-alt);
+    border-bottom: 1px solid var(--brush-border);
+    font-size: var(--font-size-caption);
+    font-weight: 700;
+    letter-spacing: .05em;
+    color: var(--brush-text-tertiary);
+    white-space: nowrap;
+}
+
+.grid thead th.unavailable { color: var(--brush-shape); }
+.th-name { font-size: var(--font-size-small); color: var(--brush-text); }
+.grid thead th.unavailable .th-name { color: var(--brush-shape); }
+.th-sub { font-weight: 500; letter-spacing: 0; }
+
+.grid td { padding: 5px 10px; border-bottom: 1px solid var(--brush-border-subtle); vertical-align: middle; }
+
+.grid tr:hover td { background: var(--brush-hover); }
+.grid tr.selected td { background: var(--brush-selected); }
+
+/* A rolled-up subtree is the unit a promote acts on, so it is set apart from the leaves under it. */
+.grid tr.is-group td { background: var(--brush-surface-alt); font-weight: 600; }
+.grid tr.is-group:hover td { background: var(--brush-hover); }
+
+/* Last wins, so an uncommitted edit shows through on a group row too. */
+.grid tr.has-pending td { background: var(--brush-differs-soft); }
+
+.col-path { min-width: 320px; }
+.col-tier { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); }
+.col-actions { width: 150px; white-space: nowrap; text-align: right; }
+
+.path-cell { display: flex; align-items: center; gap: 4px; }
+
+.twisty {
+    display: inline-grid;
+    place-items: center;
+    width: 16px; height: 16px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--brush-text-tertiary);
+    cursor: pointer;
+    flex: none;
+}
+
+.twisty:hover { color: var(--brush-text); }
+.twisty-spacer { width: 16px; flex: none; }
+
+.path-label { font-family: var(--font-mono); }
+.path-summary { margin-left: 6px; font-size: var(--font-size-caption); color: var(--brush-text-tertiary); font-weight: 400; }
+.pending-dot { margin-left: 6px; color: var(--brush-differs); font-size: 9px; }
+
+/*
+ * The four findings colours. Red = a key this tier does not have, amber = a shape too different to
+ * compare, blue = present on both sides but not equal, and "?" for a source that could not be read
+ * at all — which is deliberately not red, because "I could not ask" is the absence of a finding
+ * rather than one.
+ */
+.cell-missing { color: var(--brush-missing); background: var(--brush-missing-soft); text-align: center; }
+.cell-shape { color: var(--brush-shape); background: var(--brush-shape-soft); }
+.cell-unavailable { color: var(--brush-text-tertiary); background: var(--brush-track); text-align: center; }
+.cell-secret { color: var(--brush-secret); }
+
+.grid-empty { padding: 28px; text-align: center; color: var(--brush-text-tertiary); }
+
+.detail-strip { flex: none; }
+.detail-path { font-family: var(--font-mono); font-weight: 600; word-break: break-all; }
+.detail-note { margin-top: 5px; font-size: var(--font-size-small); color: var(--brush-text-secondary); }
+
+.detail-secret {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 5px;
+    font-size: var(--font-size-small);
+    color: var(--brush-secret);
+}
+
+/* ================================ Text diff ============================== */
+
+.rawdiff, .compare { display: flex; flex-direction: column; gap: 10px; height: 100%; min-height: 0; }
+.rawdiff-toolbar, .compare-toolbar { flex: none; display: flex; flex-direction: column; gap: 10px; }
+.rawdiff-toolbar label, .compare-picker label { font-size: var(--font-size-base); white-space: nowrap; }
+
+.difflines-card { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+/*
+ * Four columns: a line number and its text for each side. The number columns are fixed and the two
+ * text columns share what is left equally, so neither side can be squeezed out by the other's
+ * content — which is what a PEM block did to the right-hand column before the layout was a grid.
+ */
+.difflines-head, .dl-row { display: grid; grid-template-columns: 52px 1fr 52px 1fr; }
+
+.difflines-head {
+    flex: none;
+    background: var(--brush-surface-alt);
+    border-bottom: 1px solid var(--brush-border);
+    padding: 6px 0;
+    font-size: var(--font-size-caption);
+    font-weight: 700;
+    letter-spacing: .05em;
+    color: var(--brush-text-tertiary);
+}
+
+.difflines { overflow: auto; flex: 1; min-height: 0; }
+
+.dl-row { font-family: var(--font-mono); font-size: var(--font-size-small); line-height: 1.5; }
+.dl-row:hover { background: var(--brush-hover); }
+
+.dl-num {
+    padding: 0 8px;
+    text-align: right;
+    color: var(--brush-text-tertiary);
+    user-select: none;
+    border-right: 1px solid var(--brush-border-subtle);
+}
+
+/* Wrapping rather than scrolling sideways: reading a 900-character token a screen-width at a time is
+   not reading it, and it used to carry the other column off the screen with it. */
+.dl-text { padding: 0 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.dl-added .dl-right { background: var(--brush-added-soft); color: var(--brush-added); }
+.dl-removed .dl-left { background: var(--brush-removed-soft); color: var(--brush-removed); }
+.dl-modified .dl-left { background: var(--brush-edited-soft); color: var(--brush-edited); }
+.dl-modified .dl-right { background: var(--brush-edited-soft); color: var(--brush-edited); }
+.dl-imaginary .dl-text { background: var(--brush-track); }
+
+/* ============================== Compare files ============================ */
+
+.compare-picker {
+    display: grid;
+    grid-template-columns: auto minmax(200px, 1fr) auto auto auto minmax(200px, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+}
+
+.col-status { width: 92px; white-space: nowrap; }
+.cell-differs { color: var(--brush-differs); background: var(--brush-differs-soft); }
+.cell-same { color: var(--brush-text-tertiary); }
+
+/* ================================ Switches =============================== */
+
+/*
+ * A switch rather than a button, matching the WPF app: these are states you leave set, and a button
+ * labelled with its own current state has to be read before it can be pressed — and reads as an
+ * action whichever way round it is labelled.
+ */
+.switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: var(--size-control);
+    padding: 0 9px 0 6px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-control);
+    background: transparent;
+    color: var(--brush-text-secondary);
+    font-family: var(--font-ui);
+    font-size: var(--font-size-base);
+    cursor: pointer;
+}
+
+.switch.small { height: var(--size-control-dense); font-size: var(--font-size-small); }
+.switch:hover { background: var(--brush-hover); }
+.switch.on { color: var(--brush-accent); }
+
+.switch-track {
+    position: relative;
+    width: 26px; height: 15px;
+    border-radius: 8px;
+    background: var(--brush-track);
+    flex: none;
+    transition: background .13s;
+}
+
+.switch.on .switch-track { background: var(--brush-accent); }
+
+.switch-knob {
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 11px; height: 11px;
+    border-radius: 50%;
+    background: var(--brush-surface);
+    transition: transform .13s;
+}
+
+.switch.on .switch-knob { transform: translateX(11px); background: var(--brush-on-accent); }
+
+.btn.toggled { background: var(--brush-accent-soft); border-color: var(--brush-accent); color: var(--brush-accent); }
+
+/* =============================== Tier editor ============================= */
+
+.editor { display: flex; flex-direction: column; gap: 10px; height: 100%; min-height: 0; }
+.editor-toolbar { flex: none; display: flex; flex-direction: column; gap: 10px; }
+.editor-toolbar label { font-size: var(--font-size-base); }
+.spacer { flex: 1; }
+
+.editor-body { display: grid; grid-template-columns: 400px 1fr; gap: 10px; flex: 1; min-height: 0; }
+
+/* --------------------------------- Tree ---------------------------------- */
+
+.editor-tree { display: flex; flex-direction: column; min-height: 0; }
+
+.tree-filter {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--brush-border-subtle);
+    flex: none;
+}
+
+.tree-filter .searchbox { min-width: 0; flex: 1; }
+
+.tree-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--brush-border-subtle);
+    flex: none;
+}
+
+.tree-list { overflow: auto; flex: 1; min-height: 0; }
+
+.tree-row {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    padding-top: 3px;
+    padding-bottom: 3px;
+    padding-right: 8px;
+    cursor: pointer;
+    font-size: var(--font-size-small);
+    white-space: nowrap;
+}
+
+.tree-row:hover { background: var(--brush-hover); }
+.tree-row.selected { background: var(--brush-selected); }
+
+/* A removed node stays in the tree until you save, rendered from the document as it was opened —
+   dropping it out the moment it was deleted would make the one edit you cannot see also the one you
+   cannot take back. */
+.tree-row.removed .tree-name,
+.tree-row.removed .tree-preview { text-decoration: line-through; opacity: .7; }
+
+.tree-name { font-family: var(--font-mono); }
+
+.tree-summary, .tree-preview {
+    margin-left: 6px;
+    font-size: var(--font-size-caption);
+    color: var(--brush-text-tertiary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tree-preview.is-secret { color: var(--brush-secret); }
+
+/*
+ * The four marks. Green added, amber edited, red struck-through removed, blue "holds changes" — and
+ * the last is the point of having four: a parent is not an edit, and labelling it as one would be a
+ * lie told at exactly the level you are scanning.
+ */
+.mark { width: 12px; text-align: center; font-weight: 700; flex: none; font-size: 11px; }
+.mark-spacer { width: 12px; flex: none; }
+.mark-added { color: var(--brush-added); }
+.mark-edited { color: var(--brush-edited); }
+.mark-removed { color: var(--brush-removed); }
+.mark-mixed { color: var(--brush-holds); }
+
+/* --------------------------------- Pane ---------------------------------- */
+
+.editor-pane { display: flex; flex-direction: column; min-height: 0; }
+
+.pane-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--brush-border-subtle);
+    flex: none;
+}
+
+.pane-head .section-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pane-head-actions { display: flex; align-items: center; gap: 2px; flex: none; }
+
+.findbar {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 10px;
+    background: var(--brush-surface-alt);
+    border-bottom: 1px solid var(--brush-border-subtle);
+    flex: none;
+}
+
+.findbar .field { min-width: 0; flex: 1; }
+
+/* A fixed-width slot, so a count changing as you type does not shove the row sideways. */
+.find-count {
+    width: 78px;
+    flex: none;
+    text-align: center;
+    font-size: var(--font-size-caption);
+    color: var(--brush-text-tertiary);
+}
+
+.pane-text {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    padding: 10px;
+    border: none;
+    resize: none;
+    outline: none;
+    background: var(--brush-surface);
+    color: var(--brush-text);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-small);
+    line-height: 1.5;
+    tab-size: 2;
+}
+
+.pane-text.wrap { white-space: pre-wrap; overflow-wrap: anywhere; }
+.pane-text.nowrap { white-space: pre; overflow-x: auto; }
+.pane-text[readonly] { background: var(--brush-surface-alt); color: var(--brush-text-secondary); }
+
+.pane-strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 7px 10px;
+    border-top: 1px solid var(--brush-border-subtle);
+    flex: none;
+    flex-wrap: wrap;
+}
+
+/* The pane says which way it commits rather than leaving it to be inferred from whether a button
+   greyed itself out. */
+.commit-hint { font-size: var(--font-size-caption); color: var(--brush-text-tertiary); flex: 1; min-width: 200px; }
+.pane-actions { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+
+.editor-pane .difflines { flex: 1; min-height: 0; }
+
+/* ================================= Dialogs =============================== */
+
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    display: grid;
+    place-items: center;
+    padding: 28px;
+    background: rgba(0, 0, 0, .55);
+    outline: none;
+}
+
+.modal {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 720px;
+    max-height: 100%;
+    border: 1px solid var(--brush-border);
+    border-radius: var(--radius-card);
+    background: var(--brush-window);
+    box-shadow: 0 18px 48px rgba(0, 0, 0, .38);
+    overflow: hidden;
+}
+
+.modal.wide { max-width: 1240px; }
+
+.modal-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 13px 16px;
+    background: var(--brush-surface);
+    border-bottom: 1px solid var(--brush-border-subtle);
+    flex: none;
+}
+
+.modal-title { font-family: var(--font-display); font-size: 15px; font-weight: 600; }
+.modal-subtitle { margin-top: 2px; font-size: var(--font-size-caption); color: var(--brush-text-tertiary); }
+
+.modal-body { padding: 14px 16px; overflow: auto; flex: 1; min-height: 0; }
+
+.modal-foot {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 11px 16px;
+    background: var(--brush-surface);
+    border-top: 1px solid var(--brush-border-subtle);
+    flex: none;
+    flex-wrap: wrap;
+}
+
+.refusal { margin: 0; line-height: 1.55; }
+
+/* ---------------------------------- Push --------------------------------- */
+
+.push, .promote, .changes, .editrows { display: flex; flex-direction: column; gap: 10px; }
+
+/* The address in full, because it is the one thing a confirmation must not leave to be assumed. */
+.push-destination {
+    padding: 9px 11px;
+    border-radius: 8px;
+    background: var(--brush-surface-alt);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-small);
+    word-break: break-all;
+}
+
+.push-note {
+    padding: 6px 11px;
+    border-left: 2px solid var(--brush-accent);
+    background: var(--brush-surface-alt);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-caption);
+    word-break: break-word;
+}
+
+.push-diff { height: 340px; display: flex; flex-direction: column; }
+.push-diff .difflines { flex: 1; min-height: 0; }
+
+.push-confirm { display: flex; align-items: center; gap: 9px; }
+.push-confirm label { font-size: var(--font-size-small); white-space: nowrap; }
+.push-confirm input { width: 180px; font-family: var(--font-mono); }
+
+/* ------------------------------ Promote / changes ------------------------ */
+
+.promote-body, .changes-body { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; height: 380px; }
+.promote-body .grid-card, .changes-body .grid-card { display: flex; flex-direction: column; min-height: 0; }
+.promote-body .difflines, .changes-body .difflines { flex: 1; min-height: 0; }
+
+.editrows .grid-card { max-height: 460px; display: flex; }
+
+/* The three classifications, which drive the promote defaults and the new-key warnings. */
+.class-secret { color: var(--brush-secret); }
+.class-infra { color: var(--brush-shape); }
+.class-business { color: var(--brush-text-tertiary); }
+
+.row-locked td { opacity: .6; }
+.locked { font-size: var(--font-size-caption); color: var(--brush-text-tertiary); font-style: italic; }
+
+/* A queued edit the source has moved out from under. It blocks its own push until reviewed. */
+.row-stale td { background: var(--brush-shape-soft); }
+
+/* =============================== Status bar ============================== */
+
+.app-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 8px 18px;
+    margin-top: 12px;
+    background: var(--brush-surface);
+    border-top: 1px solid var(--brush-border-subtle);
+    font-size: var(--font-size-small);
+    color: var(--brush-text-secondary);
+}
+
+.status-text, .status-root { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.status-root { color: var(--brush-text-tertiary); font-size: var(--font-size-caption); max-width: 520px; }
+
+/* ============================== Scrollbars =============================== */
+
+* { scrollbar-color: var(--brush-scroll) var(--brush-track); scrollbar-width: thin; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--brush-track); }
+::-webkit-scrollbar-thumb { background: var(--brush-scroll); border-radius: 5px; border: 2px solid var(--brush-track); }
+
+/* ========================== Blazor's error strip ========================= */
+
+#blazor-error-ui {
+    display: none;
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 1000;
+    padding: 10px 16px;
+    background: var(--brush-danger);
+    color: #FFFFFF;
+    font-size: var(--font-size-small);
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, .3);
+}
+
+#blazor-error-ui .reload { color: #FFFFFF; text-decoration: underline; margin-left: 10px; }
+#blazor-error-ui .dismiss { float: right; cursor: pointer; }

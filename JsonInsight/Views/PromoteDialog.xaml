@@ -1,0 +1,164 @@
+<Window x:Class="JsonInsight.Views.PromoteDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:JsonInsight.ViewModels;assembly=JsonInsight.Presentation"
+        xmlns:promote="clr-namespace:JsonInsight.Promote;assembly=JsonInsight.Core"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        d:DataContext="{d:DesignInstance Type=vm:PromoteVm}"
+        mc:Ignorable="d"
+        Title="Promote" Height="780" Width="1220"
+        WindowStartupLocation="CenterOwner"
+        UseLayoutRounding="True"
+        FontFamily="{StaticResource Font.Ui}"
+        Foreground="{DynamicResource Brush.Text}"
+        Background="{DynamicResource Brush.Window}">
+
+    <Window.Resources>
+        <ObjectDataProvider x:Key="Actions" MethodName="GetValues" ObjectType="{x:Type sys:Enum}"
+                            xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+            <ObjectDataProvider.MethodParameters>
+                <x:Type TypeName="promote:PromotionAction" />
+            </ObjectDataProvider.MethodParameters>
+        </ObjectDataProvider>
+    </Window.Resources>
+
+    <DockPanel Margin="16">
+        <Border DockPanel.Dock="Top" Style="{StaticResource Card}" Margin="0,0,0,10">
+            <StackPanel>
+                <TextBlock Text="{Binding Title}" Style="{StaticResource Text.Heading}" />
+                <TextBlock Text="{Binding Subtitle}" Style="{StaticResource Text.Caption}" Margin="0,3,0,0" />
+
+                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                    <TextBlock Text="Destination" Style="{StaticResource Text.Base}"
+                               VerticalAlignment="Center" Margin="0,0,9,0" />
+                    <ComboBox ItemsSource="{Binding Destinations}" SelectedItem="{Binding Destination}"
+                              DisplayMemberPath="Label" MinWidth="250" />
+                    <TextBlock Style="{StaticResource Text.Caption}" VerticalAlignment="Center"
+                               Margin="14,0,0,0" TextWrapping="Wrap"
+                               Text="Read-only tiers are not offered — appsettings.json cannot be written without destroying its comments." />
+                </StackPanel>
+
+                <TextBlock Text="{Binding Message}" Style="{StaticResource Text.Secondary}"
+                           FontSize="12" TextWrapping="Wrap" Margin="0,10,0,0"
+                           Visibility="{Binding Message, Converter={StaticResource NotEmptyVis}}" />
+            </StackPanel>
+        </Border>
+
+        <!-- Action bar. The confirmation lives on the push screen, with the diff against the live
+             secret: this screen is where the plan is decided, not where it is committed. -->
+        <Border DockPanel.Dock="Bottom" Style="{StaticResource Card}" Margin="0,10,0,0">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Style="{StaticResource Button.Danger}"
+                        MinWidth="170" Click="OnPushClick"
+                        IsEnabled="{Binding CanPush}" Margin="8,0,0,0"
+                        ToolTip="Opens the push screen: the destination with this subtree added, diffed against what that source holds now.">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE898;" FontFamily="{StaticResource Font.Icons}" FontSize="13"
+                                   VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <TextBlock Text="Push to Vault or disk…" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <Button DockPanel.Dock="Right" Style="{StaticResource Button.Primary}" Content="Preview"
+                        MinWidth="118" Command="{Binding PreviewCommand}" />
+
+                <TextBlock Style="{StaticResource Text.Caption}" VerticalAlignment="Center"
+                           TextWrapping="Wrap" MaxWidth="700"
+                           Text="A placeholder value fails loudly at startup rather than quietly working — which is the point of it. The push screen lists the keys that carry one." />
+            </DockPanel>
+        </Border>
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.15*" />
+                <ColumnDefinition Width="10" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- What each key will become -->
+            <Border Grid.Column="0" Style="{StaticResource Card.Flush}">
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Style="{StaticResource TableHeader}">
+                        <TextBlock Text="KEYS" Style="{StaticResource Text.SectionLabel}" />
+                    </Border>
+                    <!-- 34 because the ACTION column holds a real field, and a field is one height
+                         everywhere in this app. A row shorter than the control it carries clips it. -->
+                    <DataGrid ItemsSource="{Binding Leaves}" RowHeight="34">
+                        <DataGrid.Columns>
+                            <!-- These paths share a long prefix and differ in the last segment, so
+                                 the column is given what room there is and the full path is on the
+                                 tooltip rather than being trimmed away silently. -->
+                            <DataGridTextColumn Header="KEY" Binding="{Binding Path}" Width="*">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource Text.Mono}">
+                                        <Setter Property="ToolTip" Value="{Binding Path}" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTextColumn Header="CLASS" Binding="{Binding ClassName}" Width="66">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource Text.ByLeafClass}" />
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTemplateColumn Header="ACTION" Width="140">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <!-- Source={StaticResource} rather than the resource directly:
+                                             an ObjectDataProvider assigned straight to ItemsSource
+                                             throws when the row is realised, because the provider
+                                             is not itself the collection. -->
+                                        <ComboBox ItemsSource="{Binding Source={StaticResource Actions}}"
+                                                  SelectedItem="{Binding Action, UpdateSourceTrigger=PropertyChanged}"
+                                                  Margin="0,2" VerticalAlignment="Center"
+                                                  ToolTip="{Binding Reason}" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTextColumn Header="VALUE WRITTEN" Binding="{Binding ResultDisplay}" Width="176">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource Text.Mono}" />
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </Border>
+
+            <GridSplitter Grid.Column="1" Width="10" HorizontalAlignment="Stretch" />
+
+            <!-- The real bytes, produced by the same writer that performs the write -->
+            <Border Grid.Column="2" Style="{StaticResource Card.Flush}">
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Style="{StaticResource TableHeader}">
+                        <TextBlock Style="{StaticResource Text.SectionLabel}"
+                                   Text="PREVIEW — THE ACTUAL FILE DIFF, NOT A SUMMARY" />
+                    </Border>
+                    <ListBox Style="{StaticResource LineList}"
+                             ItemsSource="{Binding PreviewLines}" Padding="4"
+                             ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource Row.DiffLine}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="44" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding RightNumber}"
+                                                   Style="{StaticResource Text.MonoCaption}"
+                                                   TextAlignment="Right" Margin="0,0,10,0" />
+                                        <TextBlock Grid.Column="1" Text="{Binding RightText}"
+                                                   Style="{StaticResource Text.Mono}" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Border>
+        </Grid>
+    </DockPanel>
+</Window>

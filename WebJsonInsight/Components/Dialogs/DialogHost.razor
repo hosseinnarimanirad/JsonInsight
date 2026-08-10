@@ -1,0 +1,63 @@
+@*
+    Renders whichever dialog DialogService has open, and nothing when none is.
+
+    One host rather than a modal per tab, for the same reason WPF puts ShowDialog in the window's
+    code-behind: Promote and Pending changes both hand off to the push screen, so the thing that
+    closes one and opens the other has to be able to see both.
+*@
+@inherits ObservingComponent
+@inject DialogService Dialogs
+
+@if (Dialogs.Refusal is { } refusal)
+{
+    <Modal Title="Not possible" Wide="false" OnClose="Close">
+        <ChildContent>
+            <p class="refusal">@refusal</p>
+        </ChildContent>
+        <Footer>
+            <span class="spacer"></span>
+            <button class="btn btn-primary" @onclick="Close">OK</button>
+        </Footer>
+    </Modal>
+}
+else if (Dialogs.Push is { } push)
+{
+    <PushDialog Vm="push" OnClose="Close" />
+}
+else if (Dialogs.Edit is { } edit)
+{
+    <EditDialog Vm="edit" OnClose="Close" />
+}
+else if (Dialogs.Promote is { } promote)
+{
+    <PromoteDialog Vm="promote" OnClose="Close" OnPush="HandOff" />
+}
+else if (Dialogs.Changes is { } changes)
+{
+    <ChangesDialog Vm="changes" OnClose="Close" OnPush="HandOff" />
+}
+else if (Dialogs.RestartConfig is { } configuring)
+{
+    <RestartConfigDialog Row="configuring" OnClose="Close" />
+}
+else if (Dialogs.Restart is { } restart)
+{
+    <RestartCallDialog Vm="restart" OnClose="Close" />
+}
+
+@code {
+    protected override void OnInitialized() => Dialogs.Changed += OnDialogsChanged;
+
+    private void OnDialogsChanged() => _ = InvokeAsync(StateHasChanged);
+
+    protected override void Disposing() => Dialogs.Changed -= OnDialogsChanged;
+
+    private void Close() => Dialogs.CloseAndRefresh();
+
+    /// <summary>
+    /// Promote and Pending changes do not write — they build a document and hand it to the one push
+    /// screen, which is where the live re-read, the diff and the typed confirmation live.
+    /// </summary>
+    private void HandOff((JsonInsight.Model.TierDocument Tier, System.Text.Json.Nodes.JsonNode Updated, string What) request) =>
+        Dialogs.OpenPush(request.Tier, request.Updated, request.What);
+}

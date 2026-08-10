@@ -1,0 +1,323 @@
+@*
+    Sources — one row per environment, saying where that environment's JSON comes from and whether it
+    is one of the columns the other tabs compare.
+
+    One list, and nothing above it. A row is either a Vault secret — the whole path to one JSON, with
+    its own address, token and TLS setting — or a local file. Everything about a row is on that one
+    line, which is the arrangement that replaced a shared-credentials card plus a rule about which won.
+*@
+@inherits ObservingComponent
+@inject DialogService Dialogs
+
+@if (Vm is null)
+{
+    <div class="empty">Sources are not available.</div>
+}
+else
+{
+    <div class="sources">
+
+        @if (Vm.Problems.Count > 0)
+        {
+            <div class="notice notice-danger">
+                <Icon Name="warn" />
+                <div>
+                    @foreach (var problem in Vm.Problems)
+                    {
+                        <div>@problem</div>
+                    }
+                </div>
+            </div>
+        }
+
+        <section class="card card-flush">
+            <div class="card-head">
+                <span class="section-label">SOURCES</span>
+                <div class="head-right">
+                    <span class="caption inline">@Vm.ActiveSummary</span>
+                    <button class="btn" @onclick="() => Vm.ReloadSettingsCommand.Execute(null)"
+                            title="Throw away unsaved edits on this tab and read the settings files again.">
+                        <Icon Name="refresh" /> <span>Revert</span>
+                    </button>
+                    <button class="btn btn-primary" @onclick="() => Vm.SaveSettingsCommand.Execute(null)"
+                            title="Write the paths and addresses to appsettings.json and the tokens to user secrets. Nothing on screen moves until Reload everything (F5).">
+                        <span>Save settings</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="src-head">
+                <div class="src-c-on" title="Whether this source is one of the columns the other tabs compare. Four at a time.">ON</div>
+                <div class="src-c-env">ENVIRONMENT</div>
+                <div class="src-c-kind">KIND</div>
+                <div class="src-c-path">JSON PATH</div>
+                <div class="src-c-addr">ADDRESS</div>
+                <div class="src-c-tok">TOKEN</div>
+                <div class="src-c-act"></div>
+            </div>
+
+            @foreach (var row in Vm.Connections)
+            {
+                <div class="src-row @(row.Active ? "is-active" : "")" @key="row.TierId">
+
+                    <div class="src-c-on">
+                        <input type="checkbox" checked="@row.Active" disabled="@(!row.CanActivate)"
+                               title="@(row.CanActivate
+                                          ? "Compare this source. Four at a time; a fifth is refused with a reason."
+                                          : $"'{row.TierId}' is not one of the predefined environments, so it cannot be compared.")"
+                               @onchange="e => row.Active = (bool?)e.Value ?? false" />
+                    </div>
+
+                    <div class="src-c-env">
+                        <span class="src-env">@row.Label</span>
+                        @if (!row.CanActivate)
+                        {
+                            <span class="pill pill-warn" title="Not one of the predefined environment names, so it cannot join the comparison. Shown rather than dropped, so it can be seen and fixed.">unknown</span>
+                        }
+                    </div>
+
+                    <div class="src-c-kind">
+                        <select class="field dense" value="@row.Kind"
+                                @onchange="e => OnKindChanged(row, e)">
+                            @foreach (var kind in Vm.Kinds)
+                            {
+                                <option value="@kind.Kind" selected="@(kind.Kind == row.Kind)">@kind.Label</option>
+                            }
+                        </select>
+                    </div>
+
+                    @if (row.IsVault)
+                    {
+                        <div class="src-c-path">
+                            <PathPicker Row="row" Vm="Vm" />
+                        </div>
+
+                        <div class="src-c-addr">
+                            <input class="field dense" type="text" placeholder="https://vault.example.com:8200"
+                                   title="This row's own Vault server. Rows do not share one — beta and prod are not on the same host as stage."
+                                   value="@row.Address"
+                                   @oninput="e => row.Address = e.Value?.ToString() ?? string.Empty" />
+
+                            @* On the row, not only in the menu. Certificate checking being off is a
+                               property of this connection worth seeing without opening anything —
+                               a setting you cannot see is one you forget you turned on. *@
+                            @if (row.AllowInsecureTls)
+                            {
+                                <span class="pill pill-warn"
+                                      title="Certificate checking is off for this row. Set in the ⋮ menu.">TLS off</span>
+                            }
+                        </div>
+
+                        <div class="src-c-tok">
+                            @* type=password so a token is not left on screen. It goes only to user
+                               secrets — VaultConnection.Token is [JsonIgnore], so the serializer that
+                               writes appsettings.json cannot emit it. *@
+                            <input class="field dense" type="password" placeholder="@(row.HasToken ? "••••••••" : "hvs.…")"
+                                   title="Stored in .NET user secrets, never in appsettings.json."
+                                   value="@row.Token"
+                                   @oninput="e => row.Token = e.Value?.ToString() ?? string.Empty" />
+                        </div>
+
+                    }
+                    else
+                    {
+                        <div class="src-c-path">
+                            <input class="field dense mono" type="text" placeholder="D:\snapshots\dev.json"
+                                   title="One JSON file on disk. Read live on every load and written in place — it is the environment, not a copy of one."
+                                   value="@row.LocalFilePath"
+                                   @oninput="e => row.LocalFilePath = e.Value?.ToString() ?? string.Empty" />
+                            <button class="btn btn-small" @onclick="() => Vm.BrowseLocalFileCommand.Execute(row)"
+                                    title="Pick the file this source reads.">
+                                <Icon Name="folder" Size="13" /> <span>Browse</span>
+                            </button>
+                        </div>
+
+                        @* A local file has no server and no token, and empty boxes claiming otherwise
+                           would be four fields that can never be filled in. *@
+                        <div class="src-c-addr src-na">—</div>
+                        <div class="src-c-tok src-na">—</div>
+                    }
+
+                    <div class="src-c-act">
+                        @* The one thing on a row worth a click of its own. Pull reads all four
+                           sources; this reads the one whose path you just fixed, and afterwards the
+                           other tabs are showing it - which is what you wanted Pull for. *@
+                        <button class="btn btn-small btn-primary" disabled="@row.Busy"
+                                @onclick="() => Vm.LoadRowCommand.ExecuteAsync(row)"
+                                title="Read this source now and show it on the Tier editor, All tiers and Text diff. Pull in the title bar does all of them; this does one.">
+                            @if (row.Busy)
+                            {
+                                <Icon Name="refresh" Size="13" Class="spinning" />
+                            }
+                            <span>@(row.Busy ? "Loading…" : "Load")</span>
+                        </button>
+
+                        @* Everything occasional behind one overflow: checking a row without loading
+                           it, a TLS exception set once, an endpoint configured once, and a restart
+                           that should never be one click from a list of environments that all look
+                           alike.
+
+                           Call restart stays a separate item from Restart config for the reason the
+                           two buttons were always separate: one is a configuration act, the other is
+                           destructive, and a single item that sometimes opens a form and sometimes
+                           restarts production would be the wrong one to press by habit. *@
+                        <div class="rowmenu">
+                            <button class="btn btn-small btn-icon @(row.MenuOpen ? "is-open" : "")"
+                                    @onclick="() => Vm.ToggleMenuCommand.Execute(row)"
+                                    aria-haspopup="menu" aria-expanded="@row.MenuOpen"
+                                    title="More options for this source.">
+                                <Icon Name="more" Size="14" />
+                            </button>
+
+                            @if (row.MenuOpen)
+                            {
+                                @* Catches the next click anywhere else so the menu dismisses the
+                                   way every other menu does, without a document-level handler. *@
+                                <div class="rowmenu-scrim" @onclick="() => Vm.CloseMenusCommand.Execute(null)"></div>
+
+                                <div class="rowmenu-pop" role="menu">
+                                    <button class="rowmenu-item" role="menuitem" disabled="@row.Busy"
+                                            @onclick="() => Test(row)"
+                                            title="Read what this row points at and report what is there — version and key count. Keeps nothing and changes nothing on the other tabs.">
+                                        <Icon Name="ok" Size="13" /> <span>Test connection…</span>
+                                    </button>
+
+                                    @* Vault-only below: a local file has no certificate to trust and
+                                       nothing running behind it to restart. *@
+                                    @if (row.IsVault)
+                                    {
+                                        <div class="rowmenu-sep"></div>
+
+                                        @* A toggle, not a checkbox in a menu. It says which state it
+                                           is in twice - a tick and the word - because the previous
+                                           version said it once, in a bare checkbox, and reading it
+                                           meant knowing that ticked meant "checking is off". *@
+                                        <button class="rowmenu-item rowmenu-toggle @(row.AllowInsecureTls ? "is-on" : "")"
+                                                role="menuitemcheckbox" aria-checked="@row.AllowInsecureTls"
+                                                @onclick="() => row.AllowInsecureTls = !row.AllowInsecureTls"
+                                                title="Accept any certificate from this row's Vault. Only for an internal server behind a self-signed cert.">
+                                            <span class="rowmenu-tick">
+                                                @if (row.AllowInsecureTls)
+                                                {
+                                                    <Icon Name="ok" Size="13" />
+                                                }
+                                            </span>
+                                            <span>Insecure TLS</span>
+                                            <span class="rowmenu-state">@(row.AllowInsecureTls ? "ON" : "OFF")</span>
+                                        </button>
+
+                                        <div class="rowmenu-sep"></div>
+
+                                        <button class="rowmenu-item" role="menuitem"
+                                                @onclick="() => OpenRestartConfig(row)"
+                                                title="Set the endpoint that restarts whatever reads this source. Saved with the row; the bearer token is not.">
+                                            <Icon Name="edit" Size="13" /> <span>Restart config…</span>
+                                        </button>
+
+                                        <button class="rowmenu-item @(row.HasRestart ? "is-danger" : "")"
+                                                role="menuitem" disabled="@(!row.HasRestart)"
+                                                @onclick="() => OpenRestart(row)"
+                                                title="@row.RestartSummary">
+                                            <Icon Name="refresh" Size="13" /> <span>Call restart…</span>
+                                        </button>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(row.Status))
+                    {
+                        <div class="src-row-status">@row.Status</div>
+                    }
+                </div>
+            }
+        </section>
+
+        @if (!string.IsNullOrEmpty(Vm.Status))
+        {
+            <div class="notice notice-info">@Vm.Status</div>
+        }
+
+        <p class="caption">
+            Paths, addresses and the active set persist to <code>appsettings.json</code> under the open
+            project. Tokens go only to .NET user secrets — <code>@Vm.SecretsFile</code> — enforced
+            structurally: the token properties are <code>[JsonIgnore]</code>, so the serializer that
+            produces appsettings.json cannot emit them.
+        </p>
+    </div>
+}
+
+@code {
+    [Parameter] public VaultVm? Vm { get; set; }
+
+    private VaultVm? _observed;
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_observed, Vm))
+        {
+            return;
+        }
+
+        StopObserving();
+        _observed = Vm;
+        Observe(Vm, Vm?.Connections, Vm?.Problems);
+        ObserveRows();
+    }
+
+    protected override void OnAfterRender(bool first) => ObserveRows();
+
+    private void ObserveRows()
+    {
+        if (Vm is null)
+        {
+            return;
+        }
+
+        foreach (var row in Vm.Connections)
+        {
+            // The row and its found-paths list: a Search replaces KnownPaths, and the datalist has to
+            // be re-rendered for the new entries to be offered.
+            Observe(row, row.KnownPaths);
+        }
+    }
+
+    /// <summary>
+    /// Closes the menu before opening a dialog. Without this it is still open behind the modal and
+    /// still there when the dialog is dismissed, which reads as a menu that failed to respond.
+    /// </summary>
+    private void OpenRestartConfig(VaultConnectionVm row)
+    {
+        Vm?.CloseMenusCommand.Execute(null);
+        Dialogs.OpenRestartConfig(row);
+    }
+
+    private void OpenRestart(VaultConnectionVm row)
+    {
+        Vm?.CloseMenusCommand.Execute(null);
+        Dialogs.OpenRestart(row);
+    }
+
+    /// <summary>
+    /// Test closes the menu too: its answer lands in the row's status line underneath, which the
+    /// open menu would be covering.
+    /// </summary>
+    private Task Test(VaultConnectionVm row)
+    {
+        Vm?.CloseMenusCommand.Execute(null);
+        return Vm?.TestCommand.ExecuteAsync(row) ?? Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// The select hands back the enum's name; the row wants the enum. Parsed rather than bound
+    /// directly because switching kind changes which half of the row is even shown.
+    /// </summary>
+    private static void OnKindChanged(VaultConnectionVm row, ChangeEventArgs e)
+    {
+        if (Enum.TryParse<SourceKind>(e.Value?.ToString(), out var kind))
+        {
+            row.Kind = kind;
+        }
+    }
+}

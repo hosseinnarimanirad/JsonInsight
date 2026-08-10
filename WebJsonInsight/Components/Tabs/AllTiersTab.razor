@@ -1,0 +1,322 @@
+@*
+    All tiers — one row per configuration path, one column per source.
+
+    A subtree missing wholesale from the same tiers collapses to a single row
+    ("AccountSettings:NightlyApprovalJob — 11 keys, only in dev"), and that rolled-up node is exactly
+    what Promote acts on. Identical rows are hidden by default; deployment-specific differences are
+    shown separately so a misclassified key can never quietly vanish.
+
+    The columns are generated from Diff.TierIds at render time, so adding a source grows a column with
+    no change here.
+*@
+@inherits ObservingComponent
+@inject DialogService Dialogs
+
+@if (Vm is null)
+{
+    <div class="empty">No project is open.</div>
+}
+else
+{
+    <div class="tiers">
+
+        @* ------------------------------- Section rail -------------------------------- *@
+        <aside class="tiers-rail">
+            <div class="card card-flush rail-card">
+                <div class="card-head">
+                    <span class="section-label">SECTIONS</span>
+                    <button class="btn btn-small" @onclick="() => Vm.ClearSectionCommand.Execute(null)"
+                            title="Clear the section filter">all</button>
+                </div>
+
+                <div class="rail-list">
+                    @foreach (var section in Vm.Sections)
+                    {
+                        <button class="rail-item @(section.Name == Vm.SectionFilter ? "selected" : "")"
+                                @key="section.Name"
+                                @onclick="() => Vm.SectionFilter = section.Name">
+                            <div class="rail-name">@section.Name</div>
+                            <div class="rail-counts @(section.HasFindings ? "has-findings" : "")">@section.Counts</div>
+                        </button>
+                    }
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(Vm.PullStatus))
+            {
+                @* Under the rail rather than in a popup: "identical, skipped" is the normal answer and
+                   wants to stay readable while you look at the grid. *@
+                <div class="card">
+                    <div class="section-label">LAST PULL</div>
+                    <p class="caption">@Vm.PullStatus</p>
+                    @foreach (var line in Vm.PullReport)
+                    {
+                        <div class="pull-line">@line</div>
+                    }
+                </div>
+            }
+        </aside>
+
+        @* ---------------------------------- Main ------------------------------------- *@
+        <div class="tiers-main">
+
+            <div class="card tiers-toolbar">
+                <SearchBox Value="@Vm.Filter"
+                           ValueChanged="v => Vm.Filter = v"
+                           Placeholder="Filter by path — or a glob, e.g. ConnectionStrings:*:Url" />
+
+                <div class="toolbar-row">
+                    <label class="check">
+                        <input type="checkbox" checked="@Vm.ShowIdentical"
+                               @onchange="e => Vm.ShowIdentical = (bool?)e.Value ?? false" />
+                        <span>Show identical</span>
+                    </label>
+                    <label class="check">
+                        <input type="checkbox" checked="@Vm.ShowExpected"
+                               @onchange="e => Vm.ShowExpected = (bool?)e.Value ?? false" />
+                        <span>Show expected (deployment-specific)</span>
+                    </label>
+                    <button class="btn btn-small" @onclick="() => Vm.ExpandAllCommand.Execute(null)">Expand all</button>
+                    <button class="btn btn-small" @onclick="() => Vm.CollapseAllCommand.Execute(null)">Collapse all</button>
+                    <span class="caption inline">@Vm.ShownLabel</span>
+                </div>
+
+                <div class="toolbar-row">
+                    <span class="pill pill-quiet">@Vm.SourceLabel</span>
+
+                    @* Beside the pill that says where these values came from, because that is the
+                       sentence it completes: read from Vault, changed here, written back. No tier is
+                       named — this tab is about all of them at once, so the dialog opens on its own
+                       picker. *@
+                    <button class="btn btn-small btn-danger" @onclick="() => Dialogs.OpenPush()"
+                            title="Upload a source with any changes queued against it applied, after reviewing it against what that source holds right now. This is the write half of Pull.">
+                        <Icon Name="push" Size="13" /> <span>Push a tier…</span>
+                    </button>
+                </div>
+
+                @if (Vm.HasPendingEdits)
+                {
+                    @* Loud on purpose: an unwritten change set is easy to walk away from, and the
+                       whole point of batching is that it sits there until reviewed as a whole. *@
+                    <div class="pending-bar">
+                        <span class="pending-text">@Vm.PendingLabel</span>
+                        <button class="btn btn-primary" @onclick="() => Dialogs.OpenChanges()">Review and write</button>
+                    </div>
+                }
+            </div>
+
+            <div class="card card-flush grid-card">
+                <div class="grid-scroll">
+                    <table class="grid" style="--tier-count:@Vm.Diff.TierIds.Count">
+                        <thead>
+                            <tr>
+                                <th class="col-path">PATH</th>
+                                @foreach (var tierId in Vm.Diff.TierIds)
+                                {
+                                    var reason = Vm.UnavailableReason(tierId);
+                                    <th class="col-tier @(reason is null ? "" : "unavailable")"
+                                        title="@(reason ?? SourceOf(tierId))">
+                                        <div class="th-name">@tierId</div>
+                                        <div class="th-sub">@(reason is null ? SourceOf(tierId) : "UNAVAILABLE")</div>
+                                    </th>
+                                }
+                                <th class="col-actions"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in Vm.Rows)
+                            {
+                                <tr class="@RowClass(row)" @key="row.Path"
+                                    @onclick="() => Vm.SelectedRow = row">
+
+                                    <td class="col-path">
+                                        <div class="path-cell" style="padding-left:@(row.Depth * 14)px">
+                                            @if (row.IsGroup)
+                                            {
+                                                <button class="twisty" @onclick:stopPropagation="true"
+                                                        @onclick="() => Toggle(row)">
+                                                    <Icon Name="@(row.IsExpanded ? "chevron-down" : "chevron-right")" Size="12" />
+                                                </button>
+                                            }
+                                            else
+                                            {
+                                                <span class="twisty-spacer"></span>
+                                            }
+
+                                            <span class="path-label">@row.Label</span>
+
+                                            @if (!string.IsNullOrEmpty(row.Summary))
+                                            {
+                                                <span class="path-summary">@row.Summary</span>
+                                            }
+
+                                            @if (row.HasPendingEdit)
+                                            {
+                                                <span class="pending-dot" title="This key has an uncommitted change queued against it">●</span>
+                                            }
+                                        </div>
+                                    </td>
+
+                                    @foreach (var cell in row.Cells)
+                                    {
+                                        <td class="col-tier cell-@cell.State.ToString().ToLowerInvariant() @(row.IsSecret ? "cell-secret" : "")"
+                                            title="@CellTitle(cell, row)">@cell.Display</td>
+                                    }
+
+                                    @* Editing starts from the row rather than from a toolbar button,
+                                       because a button acting on "whatever is selected" is the one
+                                       that eventually gets pressed against the wrong row. *@
+                                    <td class="col-actions" @onclick:stopPropagation="true">
+                                        @if (row.CanEdit)
+                                        {
+                                            <button class="btn btn-small" @onclick="() => Dialogs.OpenEdit(row.LeafPaths)"
+                                                    title="Change or remove this key across the tiers.">Edit</button>
+                                        }
+                                        @if (row.CanPromote)
+                                        {
+                                            <button class="btn btn-small" @onclick="() => Dialogs.OpenPromote(row)"
+                                                    title="Copy this subtree into a tier that does not have it.">Promote →</button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+
+                    @if (Vm.Rows.Count == 0)
+                    {
+                        <div class="grid-empty">
+                            @(string.IsNullOrEmpty(Vm.Filter) && Vm.SectionFilter is null
+                                ? "Nothing to compare yet — pull the sources, or tick some on the Sources tab."
+                                : "Nothing matches. Every row that agrees across all sources is hidden unless Show identical is ticked.")
+                        </div>
+                    }
+                </div>
+            </div>
+
+            @if (Vm.SelectedRow is { } selected)
+            {
+                <div class="card detail-strip">
+                    <div class="detail-path">@selected.Path</div>
+                    @if (!string.IsNullOrEmpty(selected.Detail))
+                    {
+                        <div class="detail-note">@selected.Detail</div>
+                    }
+                    @if (selected.IsSecret)
+                    {
+                        <div class="detail-secret">
+                            <Icon Name="vault" Size="12" />
+                            <span>
+                                Secret — the value is never shown. The short hash lets you tell whether
+                                two tiers hold the same secret.
+                            </span>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public TiersVm? Vm { get; set; }
+
+    private TiersVm? _observed;
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_observed, Vm))
+        {
+            return;
+        }
+
+        StopObserving();
+        _observed = Vm;
+
+        // DocumentsChanged fires when a pull replaces the whole document set, which changes the
+        // columns rather than the rows - the header is built from Diff.TierIds and would otherwise
+        // keep claiming the previous set.
+        if (_observed is not null)
+        {
+            _observed.DocumentsChanged += OnDocumentsChanged;
+        }
+
+        Observe(Vm, Vm?.Rows, Vm?.Sections, Vm?.PullReport);
+    }
+
+    private void OnDocumentsChanged(object? sender, EventArgs e) => _ = InvokeAsync(StateHasChanged);
+
+    protected override void Disposing()
+    {
+        if (_observed is not null)
+        {
+            _observed.DocumentsChanged -= OnDocumentsChanged;
+        }
+    }
+
+    /// <summary>
+    /// A rollup toggles its own children; an ordinary group collapses. Two different things in the
+    /// view model, and the row knows which it is by carrying a Summary.
+    /// </summary>
+    private void Toggle(TierRowVm row)
+    {
+        if (row.Summary.Contains("only in", StringComparison.Ordinal))
+        {
+            Vm?.ToggleRollup(row);
+        }
+        else
+        {
+            Vm?.ToggleRowCommand.Execute(row);
+        }
+    }
+
+    private string RowClass(TierRowVm row)
+    {
+        var classes = new List<string>(3);
+
+        if (row.IsGroup)
+        {
+            classes.Add("is-group");
+        }
+
+        if (row.HasPendingEdit)
+        {
+            classes.Add("has-pending");
+        }
+
+        if (ReferenceEquals(row, Vm?.SelectedRow))
+        {
+            classes.Add("selected");
+        }
+
+        return string.Join(' ', classes);
+    }
+
+    /// <summary>Where a column's values came from, for its header and its tooltip.</summary>
+    private string SourceOf(string tierId)
+    {
+        var document = Vm?.Documents.FirstOrDefault(d =>
+            d.Id.Equals(tierId, StringComparison.OrdinalIgnoreCase));
+
+        if (document is null)
+        {
+            return string.Empty;
+        }
+
+        return document.IsFromVault ? "Vault" : "file";
+    }
+
+    /// <summary>
+    /// The full value on hover — except for a secret, which is never rendered anywhere but the Tier
+    /// editor's text pane, and an unavailable cell, where the honest tooltip is why it could not be
+    /// read rather than a value nobody has.
+    /// </summary>
+    private string CellTitle(MultiCell cell, TierRowVm row) => cell.State switch
+    {
+        CellState.Unavailable => Vm?.UnavailableReason(cell.TierId) ?? "This source could not be read.",
+        CellState.Missing => $"{cell.TierId} does not have this key.",
+        CellState.Shape => "Held in an incomparable shape here — see config/aliases.json.",
+        _ when row.IsSecret => "Secret — the value is never shown.",
+        _ => cell.Leaf?.DisplayValue ?? string.Empty,
+    };
+}

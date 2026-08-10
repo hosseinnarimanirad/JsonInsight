@@ -1,0 +1,163 @@
+@*
+    The push screen — the other half of Pull, and the only way anything leaves this app.
+
+    Four places open it and all four hand over the same shape of thing: a document and the tier it
+    belongs to. They differ only in which document, which is why there is one push screen rather than
+    four write buttons that each grew their own idea of what a confirmation is.
+
+    Every fence below belongs to PushVm and the provider behind it, not to this markup. What this
+    component contributes is that none of them can be skipped by pressing something: Push stays
+    disabled until CanPush is true, and CanPush wants a live read, a real difference, and the tier's
+    name typed out.
+*@
+@inherits ObservingComponent
+
+<Modal Title="Push to Vault or disk" Subtitle="@Vm.SourceLine" OnClose="OnClose">
+    <ChildContent>
+    
+        <div class="push">
+    
+            @* The address is the one thing a confirmation must not leave to be assumed. *@
+            <div class="push-destination">@Vm.Destination</div>
+    
+            <div class="toolbar-row">
+                @if (!Vm.IsTierFixed)
+                {
+                    <label for="push-tier">Tier</label>
+                    <select id="push-tier" class="field" value="@Vm.Tier?.Id" disabled="@Vm.Busy"
+                            @onchange="e => Vm.Tier = Vm.Tiers.FirstOrDefault(t => t.Id == e.Value?.ToString())">
+                        @foreach (var tier in Vm.Tiers)
+                        {
+                            <option value="@tier.Id" selected="@(tier.Id == Vm.Tier?.Id)">@tier.Label</option>
+                        }
+                    </select>
+                }
+                else
+                {
+                    @* A promote plan or an edited document belongs to the tier it was built against, and a
+                       picker beside it would offer to push one tier's changes into another. *@
+                    <span class="pill pill-quiet">@Vm.Tier?.Id</span>
+                }
+    
+                <button class="btn btn-primary" disabled="@Vm.Busy"
+                        @onclick="() => Vm.CheckVaultCommand.ExecuteAsync(null)"
+                        title="Read what this would replace, right now, and diff against it. The version this read returns is what the write carries as a check-and-set.">
+                    <Icon Name="@(Vm.Busy ? "refresh" : "pull")" Class="@(Vm.Busy ? "spinning" : "")" />
+                    <span>@(Vm.Busy ? "Reading…" : "Check")</span>
+                </button>
+    
+                <label class="check">
+                    <input type="checkbox" checked="@Vm.ShowUnchanged"
+                           @onchange="e => Vm.ShowUnchanged = (bool?)e.Value ?? false" />
+                    <span>Show unchanged</span>
+                </label>
+    
+                <span class="caption inline">@Vm.What</span>
+            </div>
+    
+            @if (!string.IsNullOrEmpty(Vm.Problem))
+            {
+                <div class="notice notice-danger"><Icon Name="warn" /> <span>@Vm.Problem</span></div>
+            }
+    
+            @foreach (var warning in Vm.Warnings)
+            {
+                <div class="notice notice-warn"><Icon Name="warn" /> <span>@warning</span></div>
+            }
+    
+            @if (!string.IsNullOrEmpty(Vm.Message))
+            {
+                <div class="notice notice-info">@Vm.Message</div>
+            }
+    
+            @* It is the only screen that can fail AFTER doing something, so it reports each step rather
+               than one verdict — the new version number, the read-back check, and anything that went
+               wrong after the write landed. *@
+            @foreach (var note in Vm.Notes)
+            {
+                <div class="push-note">@note</div>
+            }
+    
+            <div class="card card-flush push-diff">
+                <div class="difflines-head">
+                    <div class="dl-num"></div>
+                    <div class="dl-text">@Vm.LeftHeader</div>
+                    <div class="dl-num"></div>
+                    <div class="dl-text">@Vm.RightHeader</div>
+                </div>
+    
+                <div class="difflines">
+                    @foreach (var line in Vm.Lines)
+                    {
+                        <div class="dl-row @LineClass(line)">
+                            <div class="dl-num">@line.LeftNumber</div>
+                            <div class="dl-text dl-left">@line.LeftText</div>
+                            <div class="dl-num">@line.RightNumber</div>
+                            <div class="dl-text dl-right">@line.RightText</div>
+                        </div>
+                    }
+    
+                    @if (Vm.Lines.Count == 0)
+                    {
+                        <div class="grid-empty">
+                            @(Vm.HasChecked
+                                ? "Nothing differs. A payload byte-identical to what is already there is refused rather than uploaded — a version that changes nothing is noise in a history whose whole value is that every entry means something."
+                                : "Press Check to read what this would replace and diff against it.")
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </ChildContent>
+
+    <Footer>
+        <div class="push-confirm">
+            <label for="push-confirm">
+                Type <strong>@Vm.Tier?.Id</strong> to confirm
+            </label>
+            <input id="push-confirm" class="field" type="text" autocomplete="off"
+                   disabled="@(!Vm.HasChecked || Vm.Completed)"
+                   value="@Vm.ConfirmText"
+                   @oninput="e => Vm.ConfirmText = e.Value?.ToString() ?? string.Empty" />
+        </div>
+
+        <span class="spacer"></span>
+
+        <button class="btn" @onclick="OnClose">@(Vm.Completed ? "Close" : "Cancel")</button>
+
+        <button class="btn btn-danger" disabled="@(!Vm.CanPush)"
+                @onclick="() => Vm.PushCommand.ExecuteAsync(null)"
+                title="Write it. The payload is re-parsed before it leaves, the write carries the version read a moment ago as a check-and-set, and the result is read back and compared.">
+            <Icon Name="push" Size="13" /> <span>@(Vm.TierIsFile ? "Write to disk" : "Push to Vault")</span>
+        </button>
+    </Footer>
+</Modal>
+
+@code {
+    [Parameter, EditorRequired] public PushVm Vm { get; set; } = default!;
+
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    protected override void OnInitialized() => Observe(Vm, Vm.Lines, Vm.Warnings, Vm.Notes, Vm.Tiers);
+
+    /// <summary>
+    /// The push screen reads the secret live as it opens, because the comparison being confirmed has
+    /// to be against the current version rather than against whatever was on screen.
+    /// </summary>
+    protected override async Task OnAfterRenderAsync(bool first)
+    {
+        if (first && Vm.ChecksOnOpen && !Vm.HasChecked && !Vm.Busy)
+        {
+            await Vm.CheckVaultAsync();
+        }
+    }
+
+    private static string LineClass(DiffLineVm line) => line.Type switch
+    {
+        DiffPlex.DiffBuilder.Model.ChangeType.Inserted => "dl-added",
+        DiffPlex.DiffBuilder.Model.ChangeType.Deleted => "dl-removed",
+        DiffPlex.DiffBuilder.Model.ChangeType.Modified => "dl-modified",
+        DiffPlex.DiffBuilder.Model.ChangeType.Imaginary => "dl-imaginary",
+        _ => string.Empty,
+    };
+}

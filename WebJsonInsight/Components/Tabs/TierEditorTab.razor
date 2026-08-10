@@ -1,0 +1,489 @@
+@*
+    Tier editor — one tier's whole document, as a searchable hierarchy on the left and replaceable
+    JSON text on the right.
+
+    The escape hatch for changes the key-by-key editor cannot express: restructuring a section,
+    pasting in a block someone sent you, retyping a subtree wholesale.
+
+    Two behaviours here are load-bearing and easy to lose in a port:
+
+      * A single value is applied AS YOU TYPE, a section is not. JsonEditorVm decides which by
+        SelectedIsScalar; this component just forwards every keystroke to EditorText and lets the view
+        model do the rest. Text that does not parse yet is not an error - it is a value on its way in.
+
+      * The tree is RE-MARKED IN PLACE rather than rebuilt. That is the view model's doing too, and it
+        is why the caret survives a keystroke. The @key on each row is what keeps Blazor from throwing
+        the <textarea> away and taking the caret with it.
+*@
+@inherits ObservingComponent
+@inject IJSRuntime Js
+@inject DialogService Dialogs
+
+@if (Vm is null)
+{
+    <div class="empty">No project is open.</div>
+}
+else
+{
+    <div class="editor">
+
+        @* ------------------------------- Toolbar --------------------------------- *@
+        <div class="card editor-toolbar">
+            <div class="toolbar-row">
+                <label for="ed-tier">Tier</label>
+                <select id="ed-tier" class="field" value="@Vm.Tier?.Id"
+                        @onchange="e => Vm.Tier = Vm.Tiers.FirstOrDefault(t => t.Id == e.Value?.ToString())">
+                    @foreach (var tier in Vm.Tiers)
+                    {
+                        <option value="@tier.Id" selected="@(tier.Id == Vm.Tier?.Id)">@tier.Label</option>
+                    }
+                </select>
+
+                <button class="btn btn-small" disabled="@(!Vm.CanUndo)"
+                        @onclick="() => Vm.UndoCommand.Execute(null)" title="Undo (Ctrl+Z)">
+                    <Icon Name="undo" Size="13" /> <span>Undo</span>
+                </button>
+                <button class="btn btn-small" disabled="@(!Vm.CanRedo)"
+                        @onclick="() => Vm.RedoCommand.Execute(null)" title="Redo (Ctrl+Y)">
+                    <Icon Name="redo" Size="13" /> <span>Redo</span>
+                </button>
+                <button class="btn btn-small" disabled="@(!Vm.IsModified)"
+                        @onclick="() => Vm.RevertAllCommand.Execute(null)"
+                        title="Back to the state this tier was opened in. Itself undoable.">
+                    Revert all
+                </button>
+
+                <button class="btn btn-small @(Vm.ShowingComparison ? "toggled" : "")"
+                        disabled="@(!Vm.CanCompare)"
+                        @onclick="() => Vm.ToggleComparisonCommand.Execute(null)"
+                        title="Swap the pane for a diff against the state this tier was opened in, scoped to the selection.">
+                    Compare with original
+                </button>
+
+                <span class="spacer"></span>
+
+                @* The only way an edit leaves this window. There is no Save, because there is nowhere
+                   to save to. This tab is looking at exactly one tier, so it passes that one rather
+                   than letting the push screen offer a picker. *@
+                <button class="btn btn-small btn-danger" disabled="@(!Vm.CanEdit)"
+                        @onclick="OpenPush"
+                        title="Upload this document, after reviewing it against what that source holds right now.">
+                    <Icon Name="push" Size="13" /> <span>Push to Vault or disk…</span>
+                </button>
+            </div>
+
+            @if (!Vm.CanEdit && !string.IsNullOrEmpty(Vm.ReadOnlyReason))
+            {
+                <div class="notice notice-warn"><Icon Name="warn" /> <span>@Vm.ReadOnlyReason</span></div>
+            }
+
+            @if (!string.IsNullOrEmpty(Vm.Error))
+            {
+                <div class="notice notice-danger"><Icon Name="warn" /> <span>@Vm.Error</span></div>
+            }
+            else if (!string.IsNullOrEmpty(Vm.Message))
+            {
+                <div class="notice notice-ok"><Icon Name="ok" /> <span>@Vm.Message</span></div>
+            }
+        </div>
+
+        <div class="editor-body">
+
+            @* ------------------------------ Hierarchy ----------------------------- *@
+            <div class="card card-flush editor-tree">
+                <div class="tree-filter">
+                    @* A switch rather than a tick box: it is a mode you leave on, and one left on is
+                       why the tree looks half empty an hour later. It sits in FRONT of the search box
+                       and composes with it rather than replacing it. *@
+                    <button class="switch @(Vm.ShowChangedOnly ? "on" : "")"
+                            @onclick="() => Vm.ShowChangedOnly = !Vm.ShowChangedOnly"
+                            title="Narrow the tree to what has been changed. Ancestors come along, so it stays a tree you can navigate.">
+                        <span class="switch-track"><span class="switch-knob"></span></span>
+                        <span>Changed</span>
+                    </button>
+
+                    <SearchBox Value="@Vm.Filter" ValueChanged="v => Vm.Filter = v"
+                               Placeholder="Path substring, or a glob with *" Dense="true" />
+                </div>
+
+                <div class="tree-actions">
+                    <button class="btn btn-small" @onclick="() => Vm.ExpandAllCommand.Execute(null)">Expand all</button>
+                    <button class="btn btn-small" @onclick="() => Vm.CollapseAllCommand.Execute(null)">Collapse all</button>
+                    <span class="caption inline">@Vm.Nodes.Count rows</span>
+                </div>
+
+                <div class="tree-list">
+                    @foreach (var node in Vm.Nodes)
+                    {
+                        <div class="tree-row @(ReferenceEquals(node, Vm.SelectedNode) ? "selected" : "") @(node.IsRemoved ? "removed" : "")"
+                             @key="node.Path"
+                             style="padding-left:@(6 + node.Depth * 14)px"
+                             @onclick="() => Vm.SelectedNode = node">
+
+                            @if (node.IsContainer)
+                            {
+                                <button class="twisty" @onclick:stopPropagation="true"
+                                        @onclick="() => Vm.ToggleNodeCommand.Execute(node)">
+                                    <Icon Name="@(node.IsExpanded ? "chevron-down" : "chevron-right")" Size="12" />
+                                </button>
+                            }
+                            else
+                            {
+                                <span class="twisty-spacer"></span>
+                            }
+
+                            @* The mark says WHICH KIND of change it is, because "changed" is three
+                               different things and a tree that renders them identically makes you open
+                               every marked node to find out which. A parent that merely holds changes
+                               is the fourth, and is deliberately not labelled as an edit. *@
+                            @if (node.Change != NodeChange.None)
+                            {
+                                <span class="mark mark-@node.Change.ToString().ToLowerInvariant()"
+                                      title="@node.ChangedTooltip">@MarkGlyph(node.Change)</span>
+                            }
+                            else
+                            {
+                                <span class="mark-spacer"></span>
+                            }
+
+                            <span class="tree-name">@node.Name</span>
+
+                            @if (node.IsContainer)
+                            {
+                                <span class="tree-summary">@node.Summary</span>
+                            }
+                            else
+                            {
+                                <span class="tree-preview @(node.ContainsSecret ? "is-secret" : "")">@node.Preview</span>
+                            }
+                        </div>
+                    }
+
+                    @if (Vm.Nodes.Count == 0)
+                    {
+                        @* When it finds nothing it says which of the two reasons applies. *@
+                        <div class="grid-empty">
+                            @(Vm.ShowChangedOnly && !Vm.IsModified
+                                ? "Nothing has been changed yet."
+                                : "Nothing matches.")
+                        </div>
+                    }
+                </div>
+            </div>
+
+            @* -------------------------------- Pane -------------------------------- *@
+            <div class="card card-flush editor-pane">
+                <div class="pane-head">
+                    <span class="section-label" title="Replace this node wholesale. Any valid JSON is accepted, including a different shape.">
+                        @Vm.PaneHeader
+                    </span>
+
+                    <div class="pane-head-actions">
+                        <button class="switch small @(Vm.CompactJson ? "on" : "")"
+                                @onclick="() => Vm.CompactJson = !Vm.CompactJson"
+                                title="Display only — nothing compact is ever written. Switching mid-edit reformats what is in the pane rather than reloading the node, so an edit in progress survives it.">
+                            <span class="switch-track"><span class="switch-knob"></span></span>
+                            <span>Compact</span>
+                        </button>
+                        <button class="switch small @(Vm.WordWrap ? "on" : "")"
+                                @onclick="() => Vm.WordWrap = !Vm.WordWrap"
+                                title="On by default: some of these values are tokens and PEM blocks hundreds of characters long, and reading one a screen-width at a time is not reading it.">
+                            <span class="switch-track"><span class="switch-knob"></span></span>
+                            <span>Wrap</span>
+                        </button>
+                    </div>
+                </div>
+
+                @if (Vm.ShowingComparison)
+                {
+                    @* Laid out as opened | as edited, so a removed line has somewhere to appear and a
+                       changed one shows what it changed from. Its three colours are the tree's —
+                       green added, red removed, amber edited — rather than the blue that elsewhere in
+                       this app means "these two tiers differ". *@
+                    <div class="difflines">
+                        @foreach (var line in Vm.ComparisonLines)
+                        {
+                            <div class="dl-row @ComparisonClass(line)">
+                                <div class="dl-num">@line.LeftNumber</div>
+                                <div class="dl-text dl-left">@line.LeftText</div>
+                                <div class="dl-num">@line.RightNumber</div>
+                                <div class="dl-text dl-right">@line.RightText</div>
+                            </div>
+                        }
+
+                        @if (Vm.ComparisonLines.Count == 0)
+                        {
+                            <div class="grid-empty">No difference here.</div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    @if (Vm.FindOpen)
+                    {
+                        @* One row with replace beside it rather than under it: it is open most of the
+                           time it is in use, and a second row pushes the text down by a whole field. *@
+                        <div class="findbar">
+                            <input class="field dense" type="text" placeholder="Find" @ref="_findInput"
+                                   value="@Vm.FindText"
+                                   @oninput="e => { Vm.FindText = e.Value?.ToString() ?? string.Empty; UpdateFindStatus(); }"
+                                   @onkeydown="OnFindKey" />
+
+                            <button class="btn btn-small @(Vm.MatchCase ? "toggled" : "")"
+                                    @onclick="() => { Vm.MatchCase = !Vm.MatchCase; UpdateFindStatus(); }"
+                                    title="Match case. Worth having: this file's ordinal key order treats Url and URL as two keys.">Aa</button>
+
+                            @* A fixed-width slot, so a count changing as you type does not shove the
+                               row sideways. *@
+                            <span class="find-count">@Vm.FindStatus</span>
+
+                            <button class="btn btn-small" @onclick="() => Step(forward: false)" title="Previous (Shift+Enter)">↑</button>
+                            <button class="btn btn-small" @onclick="() => Step(forward: true)" title="Next (Enter)">↓</button>
+
+                            <input class="field dense" type="text" placeholder="Replace with"
+                                   value="@Vm.ReplaceText"
+                                   @oninput="e => Vm.ReplaceText = e.Value?.ToString() ?? string.Empty" />
+
+                            <button class="btn btn-small" @onclick="ReplaceOne">Replace</button>
+                            <button class="btn btn-small" @onclick="ReplaceAll">Replace all</button>
+
+                            <button class="btn-ghost-tiny" @onclick="() => Vm.CloseFindCommand.Execute(null)" title="Close (Esc)">
+                                <Icon Name="close" Size="12" />
+                            </button>
+                        </div>
+                    }
+
+                    @* ⚠ This pane renders values in clear, credentials included. It is the one screen
+                       in the app that does, and it has to be: a subtree cannot be retyped without
+                       being read. The hierarchy beside it still shows secrets masked. *@
+                    <textarea class="pane-text @(Vm.WordWrap ? "wrap" : "nowrap")"
+                              @ref="_paneInput"
+                              readonly="@Vm.IsEditorReadOnly"
+                              spellcheck="false"
+                              value="@Vm.EditorText"
+                              @oninput="e => Vm.EditorText = e.Value?.ToString() ?? string.Empty"></textarea>
+
+                    <div class="pane-strip">
+                        <span class="commit-hint">@Vm.CommitHint</span>
+
+                        <div class="pane-actions">
+                            <button class="btn btn-small" disabled="@(!Vm.CanApply)"
+                                    @onclick="() => Vm.ApplyCommand.Execute(null)"
+                                    title="Apply the pane to this node. Any valid JSON is accepted, including a different shape.">
+                                Update node
+                            </button>
+                            <button class="btn btn-small" @onclick="() => Vm.ReloadNodeCommand.Execute(null)"
+                                    title="Forget what is typed here and show the node as the document currently has it. Changes nothing.">
+                                Reload node
+                            </button>
+                            <button class="btn btn-small" disabled="@(!Vm.CanRevertNode)"
+                                    @onclick="() => Vm.RevertNodeCommand.Execute(null)"
+                                    title="Forget the changes already applied to this node, leaving every other edit alone.">
+                                @Vm.RevertNodeLabel
+                            </button>
+                            <button class="btn btn-small" @onclick="() => Vm.CopyNodeCommand.Execute(null)"
+                                    title="Copy exactly what is on screen, edits included.">
+                                <Icon Name="copy" Size="13" /> <span>Copy</span>
+                            </button>
+                            <button class="btn btn-small" disabled="@(!Vm.CanRemoveNode)"
+                                    @onclick="() => Vm.RemoveNodeCommand.Execute(null)"
+                                    title="Delete this node. It stays in the tree as a tombstone until the tier is saved, so it can be put back.">
+                                <Icon Name="trash" Size="13" /> <span>Remove node</span>
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public JsonEditorVm? Vm { get; set; }
+
+    private JsonEditorVm? _observed;
+    private ElementReference _findInput;
+    private ElementReference _paneInput;
+    private bool _findWasOpen;
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_observed, Vm))
+        {
+            return;
+        }
+
+        StopObserving();
+        _observed = Vm;
+        Observe(Vm, Vm?.Nodes, Vm?.Tiers, Vm?.ComparisonLines);
+        ObserveNodes();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool first)
+    {
+        ObserveNodes();
+
+        // The find bar is focused the moment it appears; opening one you then have to click into is
+        // a shortcut that saved nothing.
+        if (Vm is { FindOpen: true } && !_findWasOpen)
+        {
+            await Js.InvokeVoidAsync("jsonInsight.focus", _findInput);
+        }
+
+        _findWasOpen = Vm?.FindOpen ?? false;
+    }
+
+    /// <summary>
+    /// Each row individually: Change and Preview live on the node, and a scalar applied as you type
+    /// re-marks its own row in place rather than rebuilding the tree — which is exactly the update a
+    /// component watching only the collection would miss.
+    /// </summary>
+    private void ObserveNodes()
+    {
+        if (Vm is null)
+        {
+            return;
+        }
+
+        foreach (var node in Vm.Nodes)
+        {
+            Observe(node);
+        }
+    }
+
+    /// <summary>
+    /// Hands the document as edited in the pane to the push screen. The edited tree, not the tier's
+    /// own — the whole point of this tab is the difference between the two.
+    /// </summary>
+    private void OpenPush()
+    {
+        if (Vm?.Tier is { } tier)
+        {
+            Dialogs.OpenPush(tier, Vm.Editor?.Working, "the document as edited on the Tier editor tab");
+        }
+    }
+
+    private static string MarkGlyph(NodeChange change) => change switch
+    {
+        NodeChange.Added => "+",
+        NodeChange.Edited => "✏",
+        NodeChange.Removed => "−",
+        NodeChange.Mixed => "*",
+        _ => string.Empty,
+    };
+
+    private static string ComparisonClass(DiffLineVm line) => line.Type switch
+    {
+        DiffPlex.DiffBuilder.Model.ChangeType.Inserted => "dl-added",
+        DiffPlex.DiffBuilder.Model.ChangeType.Deleted => "dl-removed",
+        DiffPlex.DiffBuilder.Model.ChangeType.Modified => "dl-modified",
+        DiffPlex.DiffBuilder.Model.ChangeType.Imaginary => "dl-imaginary",
+        _ => string.Empty,
+    };
+
+    // ------------------------------------------------------------------ find
+
+    /// <summary>
+    /// Enter steps forward, Shift+Enter back, Escape closes — the three answers the field can have.
+    /// Both directions wrap, which TextFinder does rather than this.
+    /// </summary>
+    private async Task OnFindKey(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "Enter":
+                await Step(forward: !e.ShiftKey);
+                break;
+
+            case "Escape":
+                Vm?.CloseFindCommand.Execute(null);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// The next or previous match, selected in the pane. TextFinder does the searching — the same
+    /// code the WPF view calls, so a wrap or a case rule cannot differ between the two front ends.
+    /// </summary>
+    private async Task Step(bool forward)
+    {
+        if (Vm is null || Vm.FindText.Length == 0)
+        {
+            return;
+        }
+
+        var text = Vm.EditorText;
+        var caret = await CaretAsync();
+
+        var hit = forward
+            ? JsonInsight.Editing.TextFinder.Next(text, Vm.FindText, caret, Vm.MatchCase)
+            : JsonInsight.Editing.TextFinder.Previous(text, Vm.FindText, caret, Vm.MatchCase);
+
+        if (hit < 0)
+        {
+            Vm.FindStatus = "not found";
+            return;
+        }
+
+        await Js.InvokeVoidAsync("jsonInsight.select", _paneInput, hit, Vm.FindText.Length);
+
+        var ordinal = JsonInsight.Editing.TextFinder.Ordinal(text, Vm.FindText, hit, Vm.MatchCase);
+        var total = JsonInsight.Editing.TextFinder.Count(text, Vm.FindText, Vm.MatchCase);
+        Vm.FindStatus = $"{ordinal} of {total}";
+    }
+
+    private void UpdateFindStatus()
+    {
+        if (Vm is null)
+        {
+            return;
+        }
+
+        var total = JsonInsight.Editing.TextFinder.Count(Vm.EditorText, Vm.FindText, Vm.MatchCase);
+        Vm.FindStatus = Vm.FindText.Length == 0 ? string.Empty : total == 0 ? "not found" : $"{total} found";
+    }
+
+    /// <summary>
+    /// Replace and Replace all edit the PANE, not the document — for a section, Update node still has
+    /// to follow, which is what keeps a bulk replace reviewable before it lands.
+    /// </summary>
+    private async Task ReplaceOne()
+    {
+        if (Vm is null || Vm.FindText.Length == 0)
+        {
+            return;
+        }
+
+        var caret = await CaretAsync();
+        var hit = JsonInsight.Editing.TextFinder.Next(Vm.EditorText, Vm.FindText, caret, Vm.MatchCase);
+        if (hit < 0)
+        {
+            Vm.FindStatus = "not found";
+            return;
+        }
+
+        Vm.EditorText = string.Concat(
+            Vm.EditorText.AsSpan(0, hit),
+            Vm.ReplaceText,
+            Vm.EditorText.AsSpan(hit + Vm.FindText.Length));
+
+        await Js.InvokeVoidAsync("jsonInsight.select", _paneInput, hit + Vm.ReplaceText.Length, 0);
+        UpdateFindStatus();
+    }
+
+    private void ReplaceAll()
+    {
+        if (Vm is null || Vm.FindText.Length == 0)
+        {
+            return;
+        }
+
+        var (text, count) = JsonInsight.Editing.TextFinder.ReplaceAll(
+            Vm.EditorText, Vm.FindText, Vm.ReplaceText, Vm.MatchCase);
+
+        Vm.EditorText = text;
+        Vm.FindStatus = count == 0 ? "not found" : $"{count} replaced";
+    }
+
+    private async Task<int> CaretAsync() => await Js.InvokeAsync<int>("jsonInsight.caret", _paneInput);
+}

@@ -1,0 +1,138 @@
+<UserControl x:Class="JsonInsight.Views.JsonCompareView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:JsonInsight.ViewModels;assembly=JsonInsight.Presentation"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             d:DataContext="{d:DesignInstance Type=vm:JsonCompareVm}"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <!-- Row.DiffKind supplies the wash and Text.DiffKind the status word, both from the row's
+             Kind, so the two can never disagree about what colour a difference is. -->
+        <DataTemplate x:Key="CompareRow">
+            <Border Style="{StaticResource Row.DiffKind}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="74" />
+                        <ColumnDefinition Width="2*" MinWidth="200" />
+                        <ColumnDefinition Width="3*" />
+                        <ColumnDefinition Width="3*" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Column="0" Text="{Binding Status}"
+                               Style="{StaticResource Text.DiffKind}" VerticalAlignment="Top" />
+
+                    <StackPanel Grid.Column="1" Margin="0,0,10,0">
+                        <TextBlock Text="{Binding Path}" Style="{StaticResource Text.Mono}"
+                                   TextTrimming="None" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding Detail}" Style="{StaticResource Text.Caption}"
+                                   TextWrapping="Wrap"
+                                   Visibility="{Binding Detail, Converter={StaticResource NotEmptyVis}}" />
+                    </StackPanel>
+
+                    <TextBlock Grid.Column="2" Text="{Binding LeftValue}"
+                               Style="{StaticResource Text.Mono.ByClass}"
+                               TextTrimming="None" TextWrapping="Wrap" Margin="0,0,10,0" />
+
+                    <TextBlock Grid.Column="3" Text="{Binding RightValue}"
+                               Style="{StaticResource Text.Mono.ByClass}"
+                               TextTrimming="None" TextWrapping="Wrap" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <DockPanel>
+        <Border DockPanel.Dock="Top" Style="{StaticResource Card}" Margin="0,0,0,10">
+            <StackPanel>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Inline rather than Mono: a path field that stretches takes the height of the
+                         Browse button beside it and reads as the loudest thing on the row. -->
+                    <DockPanel Grid.Column="0">
+                        <Button DockPanel.Dock="Right" Style="{StaticResource Button.Secondary}"
+                                Content="Browse" Command="{Binding BrowseLeftCommand}" Margin="6,0,0,0" />
+                        <TextBox Style="{StaticResource TextBox.Inline}"
+                                 Text="{Binding LeftPath, UpdateSourceTrigger=LostFocus}"
+                                 ToolTip="{Binding LeftPath}" />
+                    </DockPanel>
+
+                    <Button Grid.Column="1" Style="{StaticResource Button.Icon}" Content="&#xE8AB;"
+                            Margin="8,0" Command="{Binding SwapCommand}" ToolTip="Swap sides" />
+
+                    <DockPanel Grid.Column="2">
+                        <Button DockPanel.Dock="Right" Style="{StaticResource Button.Secondary}"
+                                Content="Browse" Command="{Binding BrowseRightCommand}" Margin="6,0,0,0" />
+                        <TextBox Style="{StaticResource TextBox.Inline}"
+                                 Text="{Binding RightPath, UpdateSourceTrigger=LostFocus}"
+                                 ToolTip="{Binding RightPath}" />
+                    </DockPanel>
+                </Grid>
+
+                <DockPanel Margin="0,10,0,0">
+                    <Button DockPanel.Dock="Right" Style="{StaticResource Button.Secondary}"
+                            Content="Re-read files" Command="{Binding ReloadCommand}" Margin="10,0,0,0" />
+                    <CheckBox DockPanel.Dock="Right" Content="Show identical values"
+                              IsChecked="{Binding ShowIdentical}" VerticalAlignment="Center"
+                              Margin="14,0,0,0"
+                              ToolTip="Off: only keys that differ, are missing on one side, or have an incomparable shape. On: every key in either file." />
+                    <TextBox Style="{StaticResource TextBox.Search}"
+                             Tag="Filter by key path"
+                             Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
+                             MinWidth="280" MaxWidth="420" HorizontalAlignment="Left"
+                             ToolTip="Case-insensitive substring match on the key path." />
+                </DockPanel>
+
+                <TextBlock Text="{Binding Summary}" Style="{StaticResource Text.Base}"
+                           FontWeight="SemiBold" Margin="0,10,0,0" TextWrapping="Wrap" />
+
+                <TextBlock Text="{Binding Error}" Style="{StaticResource Text.Missing}"
+                           TextWrapping="Wrap" Margin="0,5,0,0"
+                           Visibility="{Binding Error, Converter={StaticResource NotEmptyVis}}" />
+
+                <ItemsControl ItemsSource="{Binding Warnings}" Margin="0,5,0,0"
+                              Visibility="{Binding Warnings.Count, Converter={StaticResource NotEmptyVis}}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding}" Style="{StaticResource Text.Shape}"
+                                       FontSize="11.5" TextWrapping="Wrap" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,7,0,0"
+                           Text="Any two JSON files, compared by key path rather than by line — so reordered keys are not reported as changes. Secrets show a length and fingerprint instead of their value; two sides sharing a fingerprint hold the same secret." />
+            </StackPanel>
+        </Border>
+
+        <Border Style="{StaticResource Card.Flush}">
+            <DockPanel>
+                <Border DockPanel.Dock="Top" Style="{StaticResource TableHeader}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="74" />
+                            <ColumnDefinition Width="2*" MinWidth="200" />
+                            <ColumnDefinition Width="3*" />
+                            <ColumnDefinition Width="3*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="1" Text="KEY" Style="{StaticResource Text.SectionLabel}" />
+                        <TextBlock Grid.Column="2" Text="LEFT" Style="{StaticResource Text.SectionLabel}" />
+                        <TextBlock Grid.Column="3" Text="RIGHT" Style="{StaticResource Text.SectionLabel}" />
+                    </Grid>
+                </Border>
+
+                <ListBox Style="{StaticResource LineList}"
+                         ItemsSource="{Binding Rows}" ItemTemplate="{StaticResource CompareRow}"
+                         Padding="2"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto" />
+            </DockPanel>
+        </Border>
+    </DockPanel>
+</UserControl>

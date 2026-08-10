@@ -1,0 +1,214 @@
+@*
+    What the app opens on.
+
+    A project is a set of sources — one whole path per environment — so switching project changes
+    which secrets get read and on which servers. That is why this is a screen rather than a dropdown,
+    and why nothing is read until a row here is pressed.
+
+    Every command below is ProjectsVm's own, so creating, renaming and deleting a project do exactly
+    what they do in the WPF app: the same two-press delete, the same token migration on rename, the
+    same refusal of a duplicate name.
+*@
+@inherits ObservingComponent
+
+@if (Vm is null)
+{
+    <div class="empty">Projects are not available.</div>
+}
+else
+{
+    <div class="projects">
+
+        @* ---------------------------------- New project ---------------------------------- *@
+        <section class="card">
+            <div class="section-label">NEW PROJECT</div>
+
+            <p class="caption">
+                One project per thing you compare: the appsettings root in one,
+                <code>resources/config/config.json</code> in another, <code>ui.json</code> in a third.
+                Each keeps its own sources, so a project can read stage and prod from Vault while
+                another reads a file on disk.
+            </p>
+
+            <div class="new-project-row">
+                <label for="new-project-name">Name</label>
+                <input id="new-project-name" class="field" type="text"
+                       placeholder="appsettings, config, ui…"
+                       title="What to call it. The name is how its saved tokens are filed, so renaming it later carries them across."
+                       value="@Vm.NewProjectName"
+                       @oninput="e => Vm.NewProjectName = e.Value?.ToString() ?? string.Empty"
+                       @onkeydown="OnCreateKey" />
+
+                @* The usual second project is the same environments looking at a different document,
+                   so copying is the difference between typing one path and five. *@
+                <label for="copy-from">Copy sources from</label>
+                <select id="copy-from" class="field"
+                        title="Start with another project's sources already filled in, then point the copy at a different document. The copy is its own from that moment: editing stage in one does not touch the other."
+                        value="@Vm.CopySourcesFrom"
+                        @onchange="e => Vm.CopySourcesFrom = e.Value?.ToString()">
+                    @foreach (var choice in Vm.CopyChoices)
+                    {
+                        <option value="@choice" selected="@(choice == Vm.CopySourcesFrom)">@choice</option>
+                    }
+                </select>
+
+                <button class="btn btn-primary" @onclick="() => Vm.CreateCommand.Execute(null)">
+                    <Icon Name="plus" /> <span>Create project</span>
+                </button>
+            </div>
+        </section>
+
+        @* ----------------------------------- Recents ------------------------------------ *@
+        <section class="card card-flush">
+            <div class="card-head">
+                <span class="section-label">RECENT PROJECTS</span>
+
+                <label class="check"
+                       title="Skip this screen and reopen whichever project was open last. Off by default: opening on the list costs one click, where opening on the wrong project costs a read against the wrong secrets.">
+                    <input type="checkbox" checked="@Vm.AlwaysOpenLastProject"
+                           @onchange="e => Vm.AlwaysOpenLastProject = (bool?)e.Value ?? false" />
+                    <span>Always open the last project</span>
+                </label>
+            </div>
+
+            @if (!string.IsNullOrEmpty(Vm.Status))
+            {
+                <p class="row-status">@Vm.Status</p>
+            }
+
+            @if (Vm.Items.Count == 0)
+            {
+                @* Nothing yet: say what a project is for rather than showing an empty box. *@
+                <p class="caption empty-note">
+                    No projects yet. Create one above — if you had sources configured before this
+                    version, they are already here as a project called <code>appsettings</code>.
+                </p>
+            }
+
+            @foreach (var row in Vm.Items)
+            {
+                <div class="project-row" @key="row.Name">
+                    <div class="project-body">
+                        @if (row.Renaming)
+                        {
+                            <input class="field rename-field" type="text"
+                                   value="@row.NewName"
+                                   @oninput="e => row.NewName = e.Value?.ToString() ?? string.Empty"
+                                   @onkeydown="e => OnRenameKey(e, row)" />
+                        }
+                        else
+                        {
+                            <div class="project-name-line">
+                                <span class="project-name">@row.Name</span>
+                                @if (row.IsActive)
+                                {
+                                    @* Beside the name, not out by the buttons: it says something
+                                       about this project, not about what pressing anything would do. *@
+                                    <span class="pill pill-ok">open</span>
+                                }
+                            </div>
+                        }
+
+                        <div class="project-summary">@row.Summary</div>
+
+                        @if (row.ConfirmingDelete)
+                        {
+                            <div class="delete-prompt">@row.DeletePrompt</div>
+                        }
+                    </div>
+
+                    <div class="project-actions">
+                        @if (row.Renaming)
+                        {
+                            <button class="btn btn-primary" @onclick="() => Vm.CommitRenameCommand.Execute(row)">Save name</button>
+                            <button class="btn" @onclick="() => Vm.CancelRenameCommand.Execute(row)">Cancel</button>
+                        }
+                        else if (row.ConfirmingDelete)
+                        {
+                            <button class="btn" @onclick="() => Vm.CancelDeleteCommand.Execute(row)">Cancel</button>
+                            <button class="btn btn-danger" @onclick="() => Vm.DeleteCommand.Execute(row)">Delete for good</button>
+                        }
+                        else
+                        {
+                            <button class="btn btn-primary" @onclick="() => Vm.OpenCommand.Execute(row)"
+                                    title="Open this project: its document goes on screen and its sources are read.">
+                                <Icon Name="open" /> <span>Open</span>
+                            </button>
+                            <button class="btn" @onclick="() => Vm.StartRenameCommand.Execute(row)">Rename</button>
+                            <button class="btn" @onclick="() => Vm.DeleteCommand.Execute(row)"
+                                    title="Remove this project, its source paths and its saved tokens. Asks once first.">
+                                Delete
+                            </button>
+                        }
+                    </div>
+                </div>
+            }
+        </section>
+    </div>
+}
+
+@code {
+    [Parameter] public ProjectsVm? Vm { get; set; }
+
+    private ProjectsVm? _observed;
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_observed, Vm))
+        {
+            return;
+        }
+
+        StopObserving();
+        _observed = Vm;
+
+        // The rows too, and each row individually: Renaming and ConfirmingDelete live on the row, and
+        // a screen watching only the collection would not re-render when Delete was pressed once.
+        Observe(Vm, Vm?.Items, Vm?.CopyChoices);
+        ObserveRows();
+    }
+
+    protected override void OnAfterRender(bool first)
+    {
+        // Items is replaced wholesale by Refresh(), so a row created after the last pass needs
+        // subscribing to as well. Observe() ignores anything already watched.
+        ObserveRows();
+    }
+
+    private void ObserveRows()
+    {
+        if (Vm is null)
+        {
+            return;
+        }
+
+        foreach (var row in Vm.Items)
+        {
+            Observe(row);
+        }
+    }
+
+    /// <summary>Enter creates, so a name can be typed and committed without reaching for the mouse.</summary>
+    private void OnCreateKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            Vm?.CreateCommand.Execute(null);
+        }
+    }
+
+    /// <summary>Enter commits a rename, Escape abandons it — the two answers the field can have.</summary>
+    private void OnRenameKey(KeyboardEventArgs e, ProjectRowVm row)
+    {
+        switch (e.Key)
+        {
+            case "Enter":
+                Vm?.CommitRenameCommand.Execute(row);
+                break;
+
+            case "Escape":
+                Vm?.CancelRenameCommand.Execute(row);
+                break;
+        }
+    }
+}

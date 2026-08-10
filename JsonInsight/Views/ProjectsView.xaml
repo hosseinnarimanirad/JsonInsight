@@ -1,0 +1,178 @@
+<UserControl x:Class="JsonInsight.Views.ProjectsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:JsonInsight.ViewModels;assembly=JsonInsight.Presentation"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             d:DataContext="{d:DesignInstance Type=vm:ProjectsVm}"
+             mc:Ignorable="d">
+
+    <!--
+        What the app opens on. A project is a document plus the sources to compare it across, so
+        switching project changes which secrets are read - which is why this is a screen rather than a
+        dropdown, and why nothing is read from Vault until a row here is pressed.
+    -->
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                  Padding="0,0,4,0">
+        <DockPanel>
+
+            <!-- New project -->
+            <Border DockPanel.Dock="Top" Style="{StaticResource Card}" Margin="0,0,0,10">
+                <StackPanel>
+                    <TextBlock Text="NEW PROJECT" Style="{StaticResource Text.SectionLabel}" />
+
+                    <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,6,0,0"
+                               Text="One project per thing you compare: the appsettings root in one, resources/config/config.json in another, ui.json in a third. Each keeps its own sources, so a project can read stage and prod from Vault while another reads a file on disk. The Vault address and default token are shared by all of them." />
+
+                    <Grid Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="2*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0" Text="Name" Style="{StaticResource Text.Base}"
+                                   VerticalAlignment="Center" Margin="0,0,9,0" />
+                        <TextBox Grid.Column="1" Style="{StaticResource TextBox.Inline}"
+                                 Text="{Binding NewProjectName, UpdateSourceTrigger=PropertyChanged}"
+                                 ToolTip="What to call it &#8212; appsettings, config, ui. The name is how its saved tokens are filed, so renaming it later carries them across." />
+
+                        <!-- The usual second project is the same environments looking at a different
+                             document, so copying is the difference between typing one path and five. -->
+                        <TextBlock Grid.Column="2" Text="Copy sources from" Style="{StaticResource Text.Base}"
+                                   VerticalAlignment="Center" Margin="16,0,9,0" />
+                        <ComboBox Grid.Column="3" ItemsSource="{Binding CopyChoices}"
+                                  SelectedItem="{Binding CopySourcesFrom, Mode=TwoWay}"
+                                  ToolTip="Start with another project's sources already filled in, then point the copy at a different document. The copy is its own from that moment: editing stage in one does not touch the other." />
+
+                        <Button Grid.Column="4" Style="{StaticResource Button.Primary}" Margin="12,0,0,0"
+                                Content="Create project" Command="{Binding CreateCommand}" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Recents -->
+            <Border Style="{StaticResource Card.Flush}">
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Padding="12,10">
+                        <DockPanel>
+                            <CheckBox DockPanel.Dock="Right" Content="Always open the last project"
+                                      IsChecked="{Binding AlwaysOpenLastProject}"
+                                      VerticalAlignment="Center"
+                                      ToolTip="Skip this screen and reopen whichever project was open last. Off by default: opening on the list costs one click, where opening on the wrong project costs a read against the wrong secrets." />
+                            <TextBlock Text="RECENT PROJECTS" Style="{StaticResource Text.SectionLabel}"
+                                       VerticalAlignment="Center" />
+                        </DockPanel>
+                    </Border>
+
+                    <TextBlock DockPanel.Dock="Top" Style="{StaticResource Text.Secondary}" FontSize="12"
+                               TextWrapping="Wrap" Margin="12,0,12,10"
+                               Text="{Binding Status}"
+                               Visibility="{Binding Status, Converter={StaticResource NotEmptyVis}}" />
+
+                    <!-- Nothing yet: say what a project is for rather than showing an empty box. -->
+                    <TextBlock DockPanel.Dock="Top" Style="{StaticResource Text.Caption}" TextWrapping="Wrap"
+                               Margin="12,0,12,16"
+                               Text="No projects yet. Create one above &#8212; if you had sources configured before this version, they are already here as a project called appsettings."
+                               Visibility="{Binding Items.Count, Converter={StaticResource NotEmptyVis}, ConverterParameter=invert}" />
+
+                    <ItemsControl ItemsSource="{Binding Items}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="{DynamicResource Brush.BorderSubtle}"
+                                        BorderThickness="0,0,0,1" Padding="12,12">
+                                    <DockPanel>
+
+                                        <!-- Row actions -->
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                                                    VerticalAlignment="Center"
+                                                    Visibility="{Binding Renaming, Converter={StaticResource BoolVis}, ConverterParameter=invert}">
+
+                                            <StackPanel Orientation="Horizontal"
+                                                        Visibility="{Binding ConfirmingDelete, Converter={StaticResource BoolVis}, ConverterParameter=invert}">
+                                                <Button Style="{StaticResource Button.Primary}" Content="Open"
+                                                        Margin="0,0,6,0"
+                                                        Command="{Binding DataContext.OpenCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                        CommandParameter="{Binding}"
+                                                        ToolTip="Open this project: its document goes on screen and its sources are read." />
+                                                <Button Style="{StaticResource Button.Secondary}" Content="Rename"
+                                                        Margin="0,0,6,0"
+                                                        Command="{Binding DataContext.StartRenameCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                        CommandParameter="{Binding}" />
+                                                <Button Style="{StaticResource Button.Secondary}" Content="Delete"
+                                                        Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                        CommandParameter="{Binding}"
+                                                        ToolTip="Remove this project, its source paths and its saved tokens. Asks once first." />
+                                            </StackPanel>
+
+                                            <StackPanel Orientation="Horizontal"
+                                                        Visibility="{Binding ConfirmingDelete, Converter={StaticResource BoolVis}}">
+                                                <Button Style="{StaticResource Button.Secondary}" Content="Cancel"
+                                                        Margin="0,0,6,0"
+                                                        Command="{Binding DataContext.CancelDeleteCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                        CommandParameter="{Binding}" />
+                                                <Button Style="{StaticResource Button.Danger}" Content="Delete for good"
+                                                        Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                        CommandParameter="{Binding}" />
+                                            </StackPanel>
+                                        </StackPanel>
+
+                                        <!-- Renaming -->
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                                                    VerticalAlignment="Center"
+                                                    Visibility="{Binding Renaming, Converter={StaticResource BoolVis}}">
+                                            <Button Style="{StaticResource Button.Primary}" Content="Save name"
+                                                    Margin="0,0,6,0"
+                                                    Command="{Binding DataContext.CommitRenameCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    CommandParameter="{Binding}" />
+                                            <Button Style="{StaticResource Button.Secondary}" Content="Cancel"
+                                                    Command="{Binding DataContext.CancelRenameCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    CommandParameter="{Binding}" />
+                                        </StackPanel>
+
+                                        <!-- Body -->
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal"
+                                                        Visibility="{Binding Renaming, Converter={StaticResource BoolVis}, ConverterParameter=invert}">
+                                                <TextBlock Text="{Binding Name}" Style="{StaticResource Text.Base}"
+                                                           FontWeight="SemiBold" FontSize="15"
+                                                           VerticalAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis" />
+                                                <!-- Beside the name, not out by the buttons: it says
+                                                     something about this project, not about what
+                                                     pressing anything would do. -->
+                                                <Border Style="{StaticResource Pill}"
+                                                        Background="{DynamicResource Brush.OkSoft}"
+                                                        Margin="10,0,0,0" VerticalAlignment="Center"
+                                                        Visibility="{Binding IsActive, Converter={StaticResource BoolVis}}">
+                                                    <TextBlock Text="open" FontSize="11"
+                                                               Foreground="{DynamicResource Brush.Ok}" />
+                                                </Border>
+                                            </StackPanel>
+
+                                            <TextBox Style="{StaticResource TextBox.Inline}" MaxWidth="420"
+                                                     HorizontalAlignment="Left"
+                                                     Visibility="{Binding Renaming, Converter={StaticResource BoolVis}}"
+                                                     Text="{Binding NewName, UpdateSourceTrigger=PropertyChanged}" />
+
+                                            <TextBlock Style="{StaticResource Text.Caption}" Margin="0,4,0,0"
+                                                       Text="{Binding Summary}"
+                                                       TextTrimming="CharacterEllipsis" />
+
+                                            <TextBlock Style="{StaticResource Text.Missing}" TextWrapping="Wrap"
+                                                       Margin="0,6,0,0" FontSize="12"
+                                                       Text="{Binding DeletePrompt}"
+                                                       Visibility="{Binding ConfirmingDelete, Converter={StaticResource BoolVis}}" />
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </DockPanel>
+            </Border>
+        </DockPanel>
+    </ScrollViewer>
+</UserControl>
