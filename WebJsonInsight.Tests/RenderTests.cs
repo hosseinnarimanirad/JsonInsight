@@ -191,6 +191,73 @@ public sealed class RenderTests : TestContext
     }
 
     /// <summary>
+    /// Each column says which Vault version it is showing, not merely that it came from Vault.
+    ///
+    /// <para>
+    /// The number is the whole point of it: which KV version a column holds is the difference between
+    /// "stage does not have this key" and "stage did not have it an hour ago", and it is what the
+    /// push screen refuses on when somebody has uploaded in between.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void All_tiers_headers_name_the_vault_version_each_column_is_showing()
+    {
+        var main = Seeded();
+
+        var page = RenderComponent<AllTiersTab>(p => p.Add(c => c.Vm, main.Tiers));
+
+        var subs = page.FindAll("thead .th-sub").Select(e => e.TextContent.Trim()).ToArray();
+
+        // The fixtures are read at v12, v34 and v08 — see Fixtures.Dev/Stage/Beta.
+        Assert.Contains("Vault v12", subs);
+        Assert.Contains("Vault v34", subs);
+        Assert.Contains("Vault v08", subs);
+    }
+
+    /// <summary>
+    /// The picker names every tier's version in the list, not just the selected one's beside it.
+    ///
+    /// <para>
+    /// Which version you are about to edit is part of choosing what to edit — an edit is built
+    /// against a version, and a push is refused when somebody has replaced it since — so it belongs
+    /// in the options rather than in a chip that can only ever describe one of them.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void The_tier_picker_names_every_tiers_version()
+    {
+        var main = Seeded();
+        var editor = main.JsonEditor!;
+
+        var page = RenderComponent<TierEditorTab>(p => p.Add(c => c.Vm, editor));
+
+        var options = page.FindAll("#ed-tier option").Select(o => o.TextContent.Trim()).ToArray();
+
+        // The fixtures are read at v12, v34 and v08 — see Fixtures.Dev/Stage/Beta.
+        Assert.Contains("dev v12", options);
+        Assert.Contains("stage v34", options);
+        Assert.Contains("beta v08", options);
+    }
+
+    /// <summary>A local-file tier has no version to name, and says so rather than inventing one.</summary>
+    [Fact]
+    public void A_local_file_tier_is_named_as_a_file_rather_than_a_version()
+    {
+        var document = Fixtures.AsTier("dev", 1, """{"A":1}""");
+
+        var local = new JsonInsight.Model.TierDocument
+        {
+            Definition = document.Definition,
+            Root = document.Root,
+            Flat = document.Flat,
+            Origin = JsonInsight.Model.TierOrigin.LocalFile,
+            FilePath = @"C:\snapshots\dev.json",
+        };
+
+        Assert.Equal("dev (file)", local.PickerLabel);
+    }
+
+    /// <summary>
     /// The tab opens with nothing selected, because the first row is the whole document and landing on
     /// it would fill the pane with 28 KB of JSON before anyone had asked for anything.
     /// </summary>
@@ -350,6 +417,87 @@ public sealed class RenderTests : TestContext
         page.Render();
         Assert.Empty(page.FindAll(".findbar"));
     }
+
+    /// <summary>
+    /// A switch opens it, so the bar is reachable without knowing Ctrl+F. A shortcut is not a
+    /// control, and nothing on the toolbar said the find bar existed.
+    /// </summary>
+    [Fact]
+    public void A_switch_on_the_toolbar_opens_the_find_bar()
+    {
+        var main = Seeded();
+        var editor = main.JsonEditor!;
+
+        var page = RenderComponent<TierEditorTab>(p => p.Add(c => c.Vm, editor));
+        Assert.Empty(page.FindAll(".findbar"));
+
+        FindSwitch(page).Click();
+
+        Assert.True(editor.FindOpen);
+        Assert.NotEmpty(page.FindAll(".findbar"));
+
+        FindSwitch(page).Click();
+        Assert.False(editor.FindOpen);
+    }
+
+    /// <summary>
+    /// Every match is highlighted and the current one is marked apart from the rest.
+    ///
+    /// <para>
+    /// A textarea cannot colour part of its own content and an unfocused one paints no selection at
+    /// all, so stepping through matches could either steal the caret from the find box or show
+    /// nothing. The layer behind it is what makes both unnecessary.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void Every_match_is_highlighted_and_the_current_one_stands_out()
+    {
+        var main = Seeded();
+        var editor = main.JsonEditor!;
+        editor.SelectedNode = editor.Nodes.First(n => n.Path == "PaymentSettings:Hub");
+        editor.FindOpen = true;
+
+        var page = RenderComponent<TierEditorTab>(p => p.Add(c => c.Vm, editor));
+        Assert.Empty(page.FindAll(".pane-highlights"));
+
+        editor.EditorText = """{ "a": 1, "b": 1, "c": 1 }""";
+        editor.FindText = "1";
+        page.Render();
+
+        Assert.Single(page.FindAll(".pane-highlights"));
+        Assert.Equal(3, page.FindAll(".pane-highlights .hl").Count);
+
+        // Nothing stepped to yet, so none of them is the current one.
+        Assert.Empty(page.FindAll(".hl-current"));
+
+        editor.StepMatch(forward: true);
+        page.Render();
+        Assert.Single(page.FindAll(".hl-current"));
+    }
+
+    /// <summary>
+    /// The layer holds the whole string, not only the matches — it lines up with the text in front of
+    /// it only if it holds the same characters. A layer of just the hits would put the first mark at
+    /// the top-left corner of the pane.
+    /// </summary>
+    [Fact]
+    public void The_highlight_layer_reproduces_the_whole_pane()
+    {
+        var main = Seeded();
+        var editor = main.JsonEditor!;
+        editor.SelectedNode = editor.Nodes.First(n => n.Path == "PaymentSettings:Hub");
+        editor.FindOpen = true;
+        editor.EditorText = """{ "a": 1, "b": 2 }""";
+        editor.FindText = "1";
+
+        var page = RenderComponent<TierEditorTab>(p => p.Add(c => c.Vm, editor));
+
+        Assert.Equal(editor.EditorText, page.Find(".pane-highlights").TextContent.TrimEnd('\n'));
+    }
+
+    private static AngleSharp.Dom.IElement FindSwitch(IRenderedComponent<TierEditorTab> page) =>
+        page.FindAll(".editor-toolbar .switch")
+            .Single(b => b.TextContent.Contains("Find", StringComparison.Ordinal));
 
     /// <summary>Every tab, including the states reached only by toggling something.</summary>
     [Fact]

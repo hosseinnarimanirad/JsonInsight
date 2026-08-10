@@ -88,9 +88,8 @@ window.jsonInsight = {
         return element ? (element.selectionStart || 0) : 0;
     },
 
-    // Select a range in the pane, which is how a find result is shown. Scrolled into view first,
-    // because a match selected 400 lines below the fold is a match nobody can see - and the browser
-    // only scrolls to a selection on focus, not on setSelectionRange.
+    // Select a range in the pane and put it on screen. Used by Replace, which does want the caret in
+    // the text afterwards.
     select: function (element, start, length) {
         if (!element) {
             return;
@@ -98,11 +97,69 @@ window.jsonInsight = {
 
         element.focus();
         element.setSelectionRange(start, start + length);
+        window.jsonInsight.scrollTo(element, start);
+    },
 
-        // Rough but effective: put the matched line near the middle rather than at the very bottom.
-        const before = element.value.slice(0, start);
+    // The same, without stealing focus - which is what stepping through matches needs.
+    //
+    // The find box has to keep the caret or the second Enter goes into the JSON instead of finding
+    // the next match, which is exactly the defect this replaced. The selection is still set, so the
+    // pane opens on the match when it is clicked into; what shows the match meanwhile is the
+    // highlight layer, not the browser's selection - an unfocused textarea does not paint one.
+    reveal: function (element, start, length) {
+        if (!element) {
+            return;
+        }
+
+        element.setSelectionRange(start, start + length);
+        window.jsonInsight.scrollTo(element, start);
+    },
+
+    // Puts the line an offset falls on near the middle of the pane rather than at the very bottom.
+    // Rough - it assumes unwrapped lines - and good enough: being off by a line or two still leaves
+    // the match on screen, which is the whole requirement.
+    scrollTo: function (element, offset) {
+        const before = element.value.slice(0, offset);
         const line = before.split('\n').length - 1;
         const lineHeight = parseFloat(getComputedStyle(element).lineHeight) || 18;
+
         element.scrollTop = Math.max(0, (line * lineHeight) - (element.clientHeight / 2));
+        window.jsonInsight.syncHighlights(element);
+    },
+
+    // Keeps the highlight layer lined up with the text it sits behind.
+    //
+    // The layer is a separate element holding the same string with <mark>s in it, so the only thing
+    // that can put the two out of register is scroll position. Registered once per pane; re-calling
+    // it replaces the previous handler rather than stacking a second one.
+    trackScroll: function (element, layer) {
+        if (!element) {
+            return;
+        }
+
+        // A null layer detaches: the highlight element is only rendered while there is something to
+        // highlight, and writing to the one that was there before it went is writing to a node that
+        // is no longer in the document.
+        element._hlLayer = layer || null;
+
+        if (!element._hlBound) {
+            element._hlBound = function () {
+                const target = element._hlLayer;
+                if (target) {
+                    target.scrollTop = element.scrollTop;
+                    target.scrollLeft = element.scrollLeft;
+                }
+            };
+
+            element.addEventListener('scroll', element._hlBound, { passive: true });
+        }
+
+        element._hlBound();
+    },
+
+    syncHighlights: function (element) {
+        if (element && element._hlBound) {
+            element._hlBound();
+        }
     },
 };

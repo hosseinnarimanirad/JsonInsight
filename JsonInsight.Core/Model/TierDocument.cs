@@ -77,6 +77,34 @@ public sealed class TierDocument
         ? $"v{VaultVersion:00}"
         : System.IO.Path.GetFileName(FilePath ?? "(no file)");
 
+    /// <summary>
+    /// The shortest true thing about where this came from, for somewhere with one line to spare — a
+    /// grid column header, a chip beside a tier picker.
+    ///
+    /// <para>
+    /// The version is the point of it. Which KV version a column is showing is the difference between
+    /// "stage does not have this key" and "stage did not have it an hour ago", and a header that said
+    /// only "Vault" left that unanswerable without opening the push screen. A file has no version, so
+    /// it says so rather than printing a number it would have to invent.
+    /// </para>
+    /// </summary>
+    public string SourceBadge => Origin == TierOrigin.Vault
+        ? VaultVersion is { } version ? $"Vault v{version:00}" : "Vault"
+        : "file";
+
+    /// <summary>
+    /// How a tier picker names this: <c>dev v39</c>, <c>prod v11</c>, or <c>dev (file)</c>.
+    ///
+    /// <para>
+    /// The version belongs in the list rather than beside it. A picker is read while choosing which
+    /// tier to work on, and which version of it you are about to edit is part of that choice — an
+    /// edit is built against a version, and a push is refused when somebody has replaced it since.
+    /// </para>
+    /// </summary>
+    public string PickerLabel => Origin == TierOrigin.Vault
+        ? VaultVersion is { } version ? $"{Label} v{version:00}" : Label
+        : $"{Label} (file)";
+
     /// <summary>One line naming the source, for the column header under the tier name.</summary>
     public string SourceLine => Origin == TierOrigin.Vault
         ? $"Vault v{VaultVersion:00}" +

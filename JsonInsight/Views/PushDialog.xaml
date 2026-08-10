@@ -64,10 +64,22 @@
         <!-- Action bar: the typed confirmation, then the one button that leaves this machine. -->
         <Border DockPanel.Dock="Bottom" Style="{StaticResource Card}" Margin="0,10,0,0">
             <DockPanel>
-                <Button DockPanel.Dock="Right" Style="{StaticResource Button.Danger}"
+                <!-- ShowOnDisabled, because a refused push is the state this most needs to explain:
+                     when the source has moved, the tooltip carries the whole sentence saying so. -->
+                <Button DockPanel.Dock="Right"
                         MinWidth="150" Command="{Binding PushCommand}"
                         IsEnabled="{Binding CanPush}" Margin="8,0,0,0"
-                        ToolTip="Uploads a new version of this secret. The version being replaced has already been saved locally.">
+                        ToolTipService.ShowOnDisabled="True">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource Button.Danger}">
+                            <Setter Property="ToolTip" Value="Write it. The payload is re-parsed before it leaves, the write carries the version read a moment ago as a check-and-set, and the result is read back and compared." />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsStale}" Value="True">
+                                    <Setter Property="ToolTip" Value="{Binding Stale}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
                     <TextBlock>
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
@@ -88,7 +100,11 @@
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Style="{StaticResource Text.Base}" VerticalAlignment="Center"
                                Margin="0,0,9,0" Text="Type the tier name to confirm:" />
+
+                    <!-- Off when the source has moved: typing the tier's name is the act of
+                         confirming, and there is nothing left here to confirm. -->
                     <TextBox Style="{StaticResource TextBox.Inline}" Width="150"
+                             IsEnabled="{Binding IsStale, Converter={StaticResource NotBool}}"
                              Text="{Binding ConfirmText, UpdateSourceTrigger=PropertyChanged}" />
                     <CheckBox Content="Show unchanged lines" IsChecked="{Binding ShowUnchanged}"
                               VerticalAlignment="Center" Margin="20,0,0,0" />

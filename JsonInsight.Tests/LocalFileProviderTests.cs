@@ -136,8 +136,13 @@ public sealed class LocalFileProviderTests(SampleFiles files) : IDisposable
         Assert.Equal(widened, reloaded.Document!.Flat.Find(EditPath)!.Value);
     }
 
+    /// <summary>
+    /// A file that moved underneath is refused rather than overwritten — and the refusal reaches the
+    /// write itself, not only the preflight, so a caller holding a plan built a moment ago cannot get
+    /// past it.
+    /// </summary>
     [Fact]
-    public async Task A_file_changed_on_disk_since_loading_is_flagged_rather_than_silently_overwritten()
+    public async Task A_file_changed_on_disk_since_loading_is_refused_rather_than_silently_overwritten()
     {
         var path = NewScratchFile(SampleFiles.Canonical(files.Beta));
         var provider = new LocalFileSourceProvider(files.Flattener);
@@ -152,10 +157,20 @@ public sealed class LocalFileProviderTests(SampleFiles files) : IDisposable
 
         Assert.True(preflight.Ok);
         Assert.False(preflight.Plan!.BaseMatchesLive);
-        Assert.Contains(preflight.Plan.Warnings, w => w.Contains("changed on disk", StringComparison.Ordinal));
+        Assert.NotNull(preflight.Plan.Stale);
+        Assert.Contains("changed on disk", preflight.Plan.Stale!, StringComparison.Ordinal);
 
         // What the diff is built from is what's actually on disk now, not the stale in-memory copy.
         Assert.Equal(SampleFiles.Canonical(files.Prod), preflight.Plan.LiveText);
+
+        var result = await provider.SaveAsync(loaded, preflight.Plan, settings);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(preflight.Plan.Stale, result.Error);
+
+        // Untouched: no write, and no backup either — a refused write leaves nothing behind.
+        Assert.Equal(SampleFiles.Canonical(files.Prod), File.ReadAllText(path).Trim());
+        Assert.Empty(Directory.GetFiles(Path.GetDirectoryName(path)!, $"{Path.GetFileName(path)}.bak-*"));
     }
 
     /// <summary>

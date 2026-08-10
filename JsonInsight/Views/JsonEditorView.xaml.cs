@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
 using JsonInsight.Editing;
 using JsonInsight.ViewModels;
@@ -21,9 +22,42 @@ public partial class JsonEditorView : UserControl
                 vm.ToggleNodeCommand.Execute(node);
             }
         };
+
+        // The view model is replaced on every reload and every pull, so the match list to paint is a
+        // different object each time. Watched here rather than bound, because what the adorner needs
+        // is a call, not a value.
+        DataContextChanged += OnViewModelReplaced;
+        Loaded += (_, _) => RefreshHighlights();
     }
 
     private JsonEditorVm? Vm => DataContext as JsonEditorVm;
+
+    private JsonEditorVm? _watched;
+
+    private void OnViewModelReplaced(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (_watched is not null)
+        {
+            _watched.PropertyChanged -= OnViewModelChanged;
+        }
+
+        _watched = Vm;
+
+        if (_watched is not null)
+        {
+            _watched.PropertyChanged += OnViewModelChanged;
+        }
+
+        RefreshHighlights();
+    }
+
+    private void OnViewModelChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(JsonEditorVm.Matches) or nameof(JsonEditorVm.MatchIndex))
+        {
+            RefreshHighlights();
+        }
+    }
 
     /// <summary>
     /// Raised with the tier to upload. The dialog is opened by the window rather than from here, for
@@ -116,56 +150,60 @@ public partial class JsonEditorView : UserControl
 
     private void OnFindPrevious(object sender, RoutedEventArgs e) => Find(forward: false);
 
+    /// <summary>
+    /// The next or previous match, revealed in the pane.
+    ///
+    /// <para>
+    /// Which match that is comes from <see cref="JsonEditorVm.StepMatch"/> — an index into the shared
+    /// match list — rather than from a fresh search starting at the caret. The caret sits <em>at</em>
+    /// the current match after a step, and a forward search from there had to be nudged past it by
+    /// hand; an index cannot land on the entry it is already on.
+    /// </para>
+    /// </summary>
     private void Find(bool forward)
     {
-        if (Vm is not { } vm || vm.FindText.Length == 0)
+        if (Vm is not { } vm)
         {
             return;
         }
 
-        var text = Editor.Text;
-
-        // Forward starts past the current match so repeated presses advance; backward starts at it,
-        // so the search window ends where the current match begins.
-        var from = forward ? Editor.SelectionStart + Math.Max(Editor.SelectionLength, 1) : Editor.SelectionStart;
-
-        var hit = forward
-            ? TextFinder.Next(text, vm.FindText, from, vm.MatchCase)
-            : TextFinder.Previous(text, vm.FindText, from, vm.MatchCase);
-
+        var hit = vm.StepMatch(forward);
         if (hit < 0)
         {
-            vm.FindStatus = "not found";
             return;
         }
 
-        Select(hit, vm.FindText.Length);
-        Report(vm, hit);
+        Reveal(hit, vm.FindText.Length);
     }
 
     private void OnReplace(object sender, RoutedEventArgs e)
     {
-        if (Vm is not { } vm || vm.FindText.Length == 0 || Editor.IsReadOnly)
+        if (Vm is not { } vm || Editor.IsReadOnly)
         {
             return;
         }
 
-        // Replace acts on the current match only when one is actually selected; otherwise it finds
-        // the next one first, so pressing it twice is find-then-replace rather than a silent skip.
-        var onMatch = Editor.SelectionLength == vm.FindText.Length &&
-                      Editor.SelectedText.Equals(vm.FindText, TextFinder.ComparisonFor(vm.MatchCase));
-
-        if (!onMatch)
+        // Whichever match is current, or the first one when nothing has been stepped to yet — so
+        // pressing Replace without having pressed Next first still replaces something.
+        var at = vm.MatchAt >= 0 ? vm.MatchAt : vm.StepMatch(forward: true);
+        if (at < 0)
         {
-            Find(forward: true);
             return;
         }
 
-        var at = Editor.SelectionStart;
+        Editor.Select(at, vm.FindText.Length);
         Editor.SelectedText = vm.ReplaceText;
         Editor.Select(at + vm.ReplaceText.Length, 0);
 
-        Find(forward: true);
+        // The list was re-found against the changed text, so the entry that was current has gone and
+        // the one that took its place is the next match. Landing there is what makes pressing Replace
+        // repeatedly walk the document.
+        vm.SyncMatchToCaret(at + vm.ReplaceText.Length);
+
+        if (vm.MatchAt >= 0)
+        {
+            Reveal(vm.MatchAt, vm.FindText.Length);
+        }
     }
 
     private void OnReplaceAll(object sender, RoutedEventArgs e)
@@ -190,20 +228,47 @@ public partial class JsonEditorView : UserControl
         vm.FindStatus = $"{count} replaced";
     }
 
-    private void Select(int at, int length)
+    /// <summary>
+    /// Puts a match on screen without taking the caret.
+    ///
+    /// <para>
+    /// It used to focus the editor, which moved the caret out of the find box — so the second Enter
+    /// went into the JSON as a newline instead of finding the next match. The adorner is what shows
+    /// the match now, so there is nothing left that needs focus to be visible, and the box keeps it.
+    /// </para>
+    /// </summary>
+    private void Reveal(int at, int length)
     {
-        Editor.Focus();
         Editor.Select(at, length);
-
-        // Without this the match can be selected off-screen, which reads as nothing having happened.
         Editor.ScrollToLine(Math.Max(0, Editor.GetLineIndexFromCharacterIndex(at) - 2));
     }
 
-    private void Report(JsonEditorVm vm, int at)
-    {
-        var total = TextFinder.Count(Editor.Text, vm.FindText, vm.MatchCase);
-        var ordinal = TextFinder.Ordinal(Editor.Text, vm.FindText, at, vm.MatchCase);
+    // ------------------------------------------------------------------ highlighting
 
-        vm.FindStatus = total == 0 ? "not found" : $"{ordinal} of {total}";
+    private FindHighlightAdorner? _highlights;
+
+    /// <summary>
+    /// Attaches the adorner the first time it is needed and keeps it fed. Late rather than in the
+    /// constructor: an adorner layer only exists once the control is in a visual tree.
+    /// </summary>
+    private void RefreshHighlights()
+    {
+        if (Vm is not { } vm)
+        {
+            return;
+        }
+
+        if (_highlights is null)
+        {
+            if (AdornerLayer.GetAdornerLayer(Editor) is not { } layer)
+            {
+                return;
+            }
+
+            _highlights = new FindHighlightAdorner(Editor);
+            layer.Add(_highlights);
+        }
+
+        _highlights.Show(vm.Matches, vm.FindText.Length, vm.MatchIndex);
     }
 }

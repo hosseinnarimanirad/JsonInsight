@@ -188,10 +188,15 @@ actually have.
 JSON text on the right. The escape hatch for changes the key-by-key editor cannot express:
 restructuring a section, pasting in a block someone sent you, retyping a subtree wholesale. See
 *Replacing JSON wholesale* below. **Push to Vault** is the only way an edit leaves this window;
-there is no Save, because there is nowhere to save to.
+there is no Save, because there is nowhere to save to. The tier picker names each tier's version in
+the list — `dev v39`, `prod v11`, or `dev (file)` — because that is the version a push is built on,
+and the one a push is refused over if somebody replaces it first. It offers every source that was
+read, not only the four being compared.
 
 **All tiers** — one row per configuration path, one column per tier, each column headed by where its
-values came from. A subtree missing wholesale from the same tiers collapses to a single row
+values came from and, for a Vault source, which version: `Vault v34`, not merely `Vault`. Which KV
+version a column holds is the difference between "stage does not have this key" and "stage did not
+have it an hour ago". A local-file column says `file`; it has no version to name. A subtree missing wholesale from the same tiers collapses to a single row
 (`AccountSettings:NightlyApprovalJob — 11 keys, only in dev`), and that rolled-up node is exactly what
 the Promote button acts on. Identical rows are hidden by default; deployment-specific differences
 are shown separately so a misclassified key can never quietly vanish.
@@ -236,6 +241,19 @@ Tick **ON** to make a row one of the compared columns; four at a time, and a fif
 with a reason rather than accepted and quietly dropped later. Until something is ticked and saved,
 `config/tiers.json` decides that instead and nothing on this tab changes what is on screen — so an
 existing install upgrades to this tab without moving.
+
+**ON decides what is compared, not what is read.** A pull reads *every* environment with a source
+configured, ticked or not, so a fifth one is available on the **Tier editor** and **Text diff**
+without a trip back here to untick something first. Only the **All tiers** grid is capped, because
+only the grid is four columns wide — it says so above itself when more was read than it is showing.
+
+**A row ticked ON with nothing behind it turns Pull off.** It used to be skipped with a note, which
+meant the honest outcome — a comparison missing the column somebody had just asked for — arrived
+looking exactly like a successful one, three columns wide. There is no reading around it and no
+default to substitute, so the button that would produce that comparison is the thing that goes off,
+and its tooltip names the environments in the way. The read the app performs when it opens follows
+the same rule: one of them going ahead while the other refused would mean the app quietly produced,
+unasked, exactly the comparison it will not produce when asked.
 
 **Test** reads what the row points at and reports what is there — a Vault secret's version and key
 count, a file's key count and details — keeping nothing and changing nothing on the other tabs. It is
@@ -389,6 +407,10 @@ skipped there is skipped by none of them.
   discovered in tomorrow's diff.
 - **What Vault holds is read immediately beforehand**, so the comparison being confirmed is against
   the current version rather than against whatever was on screen.
+- **A push built on a version that is no longer live is refused outright.** If the secret was read at
+  v34 and Vault now holds v36, nothing is sent: pull again, redo the change against v36, and push.
+  The check-and-set below cannot catch this one — the version it carries is the *current* one, so the
+  write lands cleanly on top of the other person's upload and reports success.
 - **The write carries that version as a check-and-set**, so a secret somebody else changed in between
   is refused by Vault itself rather than clobbered.
 - **The result is read back and compared.** "The POST returned 200" and "Vault holds what I sent" are
@@ -490,13 +512,27 @@ Two things follow from applying as you type, and both are load-bearing:
   find out, and made an unpressable state look exactly like a pressable one — the same button,
   offering to replace a node with something that cannot be read. The answer is on screen now, and
   the button is offered only when it would work.
-- **Find** (`Ctrl+F`) searches the pane, on one row with replace beside it rather than under it —
-  it is open most of the time it is in use, and a second row pushes the text down by a whole field.
-  `F3` and `Enter` step forward, `Shift+F3` and `Shift+Enter` back, both wrapping; `Aa` is match
-  case, worth having because this file's ordinal key order treats `Url` and `URL` as two keys. The
-  counter reads `3 of 12` in a fixed-width slot, so a count changing as you type does not shove the
-  row sideways. Replace and Replace all edit the *pane*, not the document — for a section, Update
-  node still has to follow, which is what keeps a bulk replace reviewable before it lands.
+- **Find** — a switch on the toolbar, or `Ctrl+F`. It was a shortcut alone, which is not a control:
+  nothing on screen said the bar existed. The bar is one row with replace beside it rather than under
+  it, because it is open most of the time it is in use and a second row pushes the text down by a
+  whole field. `F3` and `Enter` step forward, `Shift+F3` and `Shift+Enter` back, both wrapping; `Aa`
+  is match case, worth having because this file's ordinal key order treats `Url` and `URL` as two
+  keys. The counter reads `3 of 12` in a fixed-width slot, so a count changing as you type does not
+  shove the row sideways. Replace and Replace all edit the *pane*, not the document — for a section,
+  Update node still has to follow, which is what keeps a bulk replace reviewable before it lands.
+
+  **Every match is highlighted**, softly, and the one you are standing on more strongly. Neither pane
+  can colour part of its own content — a `<textarea>` cannot, and nor can a WPF `TextBox` — so the
+  Photino app draws a layer behind a transparent textarea holding the same string at the same
+  metrics, and the WPF app draws an adorner over the text box. Both read their marks from one list on
+  the view model, so a match is the same thing in both.
+
+  Two things this fixed rather than added. Stepping used to search from the caret — and the caret
+  sits *at* the current match after a step, so ↓ found the same one again; it walks an index into the
+  match list now, which cannot land on the entry it is already on. And revealing a match used to
+  focus the pane, which took the caret out of the find box and turned the second `Enter` into a
+  newline in the JSON; the highlight is what shows the match now, so nothing needs focus to be
+  visible and the box keeps it.
 - **Compact** and **Wrap** are switches rather than buttons, matching **Changed** on the tree. Both
   are states you leave set, and a button labelled with its own current state has to be read before it
   can be pressed — and reads as an action whichever way round it is labelled. Compact is display only
@@ -682,13 +718,32 @@ https://vault.example.com:8200  ·  kv/app/stage  ·  v34 → v35
 
 The comparison is against what Vault holds **now**, not against what the app was showing. Those are
 the same thing most of the time, and the times they are not are exactly the times this matters — so
-if the version on screen is not the one this was built from, the screen says so rather than letting
-the diff imply otherwise:
+if the version on screen is not the one this was built from, **the push is refused**. Push, and the
+confirmation box beside it, both go dead, and the screen says why:
 
-> This was built from v34, and Vault is now at v36 — somebody uploaded in between. What the push
-> replaces is v36, which is what the diff shows.
+> Nothing was sent. This was built from v34 and kv/app/stage now holds v36 — somebody uploaded in
+> between, and pushing would replace their version rather than merge with it. Save your work outside
+> this app first — pulling replaces what is in memory, and these changes are only here — then pull
+> again, redo them against v36, and push.
 
-Then the tier's name is typed out, and **Push to Vault** sends it.
+This used to be a warning that let the push through, on the reasoning that the diff showed what was
+really being replaced. That is true and it is not enough: what the diff shows is *their* version
+against *your whole document*, and the whole document is this app's unit of change — so confirming it
+does not merge their change, it deletes it, through a check-and-set that reports success. A
+concurrency guard that cannot refuse anything is a label, not a guard.
+
+The way out is deliberately manual. This app cannot merge two documents and must not pretend to, and
+the pull that gets you a fresh base **replaces what is in memory** — which is why the sentence says
+to save your work before you do it rather than leaving that to be discovered. The same fence stands
+in front of a local-file source whose file changed on disk since it was loaded, worded for a file:
+there is no version number to name, and the backup taken before an overwrite makes such a write
+recoverable, not consented to.
+
+The diff still appears on a refused push. It is what says how much of somebody else's work the push
+would have taken out — it just stops promising a version number for a write that is not going to
+happen.
+
+Otherwise the tier's name is typed out, and **Push to Vault** sends it.
 
 ### What stops it going wrong
 
@@ -697,6 +752,7 @@ Then the tier's name is typed out, and **Push to Vault** sends it.
 | A document opened for comparison rather than as a source | refused before anything is read |
 | The payload | re-parsed and re-flattened before it leaves, and refused unless it holds precisely the keys the document holds |
 | The comparison | made against a read taken moments earlier, not against what was on screen |
+| A base version that is no longer live | refused outright — nothing is sent, and the screen says to pull again and redo the change against what is there now |
 | The write itself | carries that version as a KV v2 **check-and-set**, so a secret that moved in between is refused by Vault rather than clobbered |
 | Afterwards | read back and compared — "the POST returned 200" and "Vault holds what I sent" are different claims, and only one of them is the reason to press the button |
 

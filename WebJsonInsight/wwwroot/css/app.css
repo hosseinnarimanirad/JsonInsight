@@ -1133,25 +1133,72 @@ select.field { cursor: pointer; }
     color: var(--brush-text-tertiary);
 }
 
+/*
+ * The pane and the layer that highlights it, stacked.
+ *
+ * A textarea cannot colour part of its own content, and an unfocused one paints no selection at all
+ * — so stepping through matches could either steal the caret from the find box or show nothing. The
+ * layer holds the same string with <mark>s in it and sits behind a transparent textarea; every
+ * metric below that affects where a character lands has to match on both, or the highlight drifts
+ * off the word it is marking. That is the whole contract, and it is why the two rules share a
+ * selector rather than being written out twice.
+ */
+.pane-stack { position: relative; flex: 1; min-height: 0; display: flex; }
+
+.pane-text, .pane-highlights {
+    padding: 10px;
+    border: none;
+    font-family: var(--font-mono);
+    font-size: var(--font-size-small);
+    line-height: 1.5;
+    letter-spacing: normal;
+    tab-size: 2;
+}
+
 .pane-text {
     flex: 1;
     min-height: 0;
     width: 100%;
-    padding: 10px;
-    border: none;
     resize: none;
     outline: none;
     background: var(--brush-surface);
     color: var(--brush-text);
-    font-family: var(--font-mono);
-    font-size: var(--font-size-small);
-    line-height: 1.5;
-    tab-size: 2;
 }
 
-.pane-text.wrap { white-space: pre-wrap; overflow-wrap: anywhere; }
-.pane-text.nowrap { white-space: pre; overflow-x: auto; }
+.pane-text.wrap, .pane-highlights.wrap { white-space: pre-wrap; overflow-wrap: anywhere; }
+.pane-text.nowrap, .pane-highlights.nowrap { white-space: pre; overflow-x: auto; }
 .pane-text[readonly] { background: var(--brush-surface-alt); color: var(--brush-text-secondary); }
+
+/* Transparent so the marks behind show through, and above the layer so the caret and the text are
+   the ones you interact with. */
+.pane-text.over-highlights { background: transparent; position: relative; z-index: 1; }
+
+.pane-highlights {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;              /* scrolled by JS in step with the textarea, never by itself */
+    color: transparent;            /* the visible text is the textarea's; this is only backgrounds */
+    background: var(--brush-surface);
+    pointer-events: none;
+    user-select: none;
+}
+
+/* Stamped from the markup rather than derived with a sibling selector: the layer comes first in the
+   DOM, so there is no combinator that reaches it from the textarea's own state. */
+.pane-highlights.readonly { background: var(--brush-surface-alt); }
+
+/* Every match soft, the one Enter is on strong. Twelve identical blocks say "your term is here";
+   they do not say which of them you are standing on. */
+.pane-highlights .hl {
+    border-radius: 2px;
+    background: var(--brush-find-soft);
+    box-shadow: 0 0 0 1px var(--brush-find-soft);
+}
+
+.pane-highlights .hl-current {
+    background: var(--brush-find);
+    box-shadow: 0 0 0 1px var(--brush-find);
+}
 
 .pane-strip {
     display: flex;

@@ -135,6 +135,50 @@ public sealed partial class MainVm : ObservableObject
     public ObservableCollection<TierDocument> Documents { get; } = [];
 
     /// <summary>
+    /// Which of the loaded sources the All tiers grid compares — the ones ticked <b>ON</b>, capped at
+    /// four. Empty means "all of them", which is the case before an active set has ever been saved
+    /// and the case a seeded test runs in.
+    ///
+    /// <para>
+    /// <see cref="Documents"/> is wider than this on purpose. Everything configured is read, so the
+    /// Tier editor and the Text diff can reach a fifth environment without a trip back to the Sources
+    /// tab; the cap belongs to the grid, which is four columns wide, not to the read.
+    /// </para>
+    /// </summary>
+    public IReadOnlyList<string> Compared { get; private set; } = [];
+
+    /// <summary>
+    /// Why Pull is off, or null when it may be pressed. See <see cref="SourceCatalog.Incomplete"/> —
+    /// the one arrangement that blocks it is an environment ticked ON with nothing behind it.
+    /// </summary>
+    [ObservableProperty]
+    private string? _pullBlocked;
+
+    /// <summary>Whether a read may be attempted at all — what the Pull button binds to.</summary>
+    public bool CanPull => !VaultBusy && PullBlocked is null && HasProjectOpen;
+
+    partial void OnPullBlockedChanged(string? value) => OnPropertyChanged(nameof(CanPull));
+
+    partial void OnVaultBusyChanged(bool value) => OnPropertyChanged(nameof(CanPull));
+
+    /// <summary>
+    /// Re-reads the settings to work out whether a read may be attempted. Called on load and again
+    /// whenever the Sources tab saves, so ticking the last unconfigured environment off turns Pull
+    /// back on without a full reload.
+    /// </summary>
+    public void RefreshPullState()
+    {
+        if (!HasProjectOpen)
+        {
+            PullBlocked = null;
+            return;
+        }
+
+        var (settings, _) = VaultSettingsStore.Load();
+        PullBlocked = SourceCatalog.Incomplete(settings);
+    }
+
+    /// <summary>
     /// The tiers Vault could not serve. They keep their column and say so rather than dropping out
     /// of the comparison: "I could not read beta" and "there is no beta" are different sentences,
     /// and the second one is a lie told at exactly the moment it matters.
@@ -261,6 +305,8 @@ public sealed partial class MainVm : ObservableObject
         ActiveProject = string.Empty;
         ShowingProjects = false;
         Edits.Clear();
+        Compared = [];
+        PullBlocked = null;
 
         Documents.Clear();
         Unavailable.Clear();
@@ -371,6 +417,8 @@ public sealed partial class MainVm : ObservableObject
             // complaint about something nobody has opened.
             if (!HasProjectOpen)
             {
+                Compared = [];
+                PullBlocked = null;
                 BuildTabs([]);
                 return;
             }
@@ -386,13 +434,27 @@ public sealed partial class MainVm : ObservableObject
             var (catalog, catalogProblems) = SourceCatalog.Build(settings, TiersConfig.Load());
             var (tiers, documentProblems) = DocumentTiers.For(catalog, settings, Document);
             _tiersConfig = tiers;
+            Compared = SourceCatalog.Compared(settings, tiers);
             _loadProblems.AddRange(catalogProblems);
             _loadProblems.AddRange(documentProblems);
+
+            PullBlocked = SourceCatalog.Incomplete(settings);
 
             // The tabs are built empty first so the window is usable immediately and the read has
             // somewhere to land. There is nothing on disk to fill them with: a tier is a Vault
             // secret, and until Vault answers, the honest thing to show is nothing.
             BuildTabs([]);
+
+            // Nothing is read while a ticked environment names no source. The startup read follows
+            // the same rule the Pull button does — one of them going ahead while the other refused
+            // would mean the app quietly produced, unasked, exactly the comparison it will not
+            // produce when asked.
+            if (PullBlocked is { } blocked)
+            {
+                Status = "Nothing was read — a ticked environment has no source.";
+                SetNote(false, blocked);
+                return;
+            }
 
             if (!ShouldReadVault())
             {
@@ -441,8 +503,16 @@ public sealed partial class MainVm : ObservableObject
     /// the only one.
     /// </para>
     /// </summary>
-    internal void Seed(IReadOnlyList<TierDocument> documents, IReadOnlyList<TierUnavailable>? unavailable = null)
+    /// <param name="compared">
+    /// Which of them the All tiers grid compares, or null for all of them — the arrangement every
+    /// test that does not care about the distinction runs in.
+    /// </param>
+    internal void Seed(
+        IReadOnlyList<TierDocument> documents,
+        IReadOnlyList<TierUnavailable>? unavailable = null,
+        IReadOnlyList<string>? compared = null)
     {
+        Compared = compared ?? [];
         BuildTabs(documents, unavailable);
         Status = $"{TierCount(documents.Count)} seeded for testing.";
     }
@@ -478,6 +548,15 @@ public sealed partial class MainVm : ObservableObject
         }
 
         var (settings, settingsProblems) = VaultSettingsStore.Load();
+
+        // Re-asked here rather than trusted from load time: the Sources tab can have been saved since,
+        // and this is the last point before anything is read.
+        PullBlocked = SourceCatalog.Incomplete(settings);
+        if (PullBlocked is { } blocked)
+        {
+            SetNote(false, blocked);
+            return null;
+        }
 
         VaultBusy = true;
         VaultNote = atStartup

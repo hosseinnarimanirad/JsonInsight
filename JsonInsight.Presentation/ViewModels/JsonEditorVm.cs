@@ -199,14 +199,131 @@ public sealed partial class JsonEditorVm : ObservableObject
     [ObservableProperty]
     private string _findStatus = string.Empty;
 
-    partial void OnFindTextChanged(string value) => FindStatus = string.Empty;
+    /// <summary>
+    /// Where every match starts, in order — what both panes highlight and what stepping counts
+    /// against.
+    ///
+    /// <para>
+    /// Held here rather than worked out in each view, because it is the same list for both and
+    /// because the alternative was each front end searching from wherever its own caret happened to
+    /// be. That is what made "next" land on the match already showing: the caret sits <em>at</em> the
+    /// current match, and a search from there finds it again. An index into this list cannot do that.
+    /// </para>
+    /// </summary>
+    public IReadOnlyList<int> Matches { get; private set; } = [];
 
-    partial void OnMatchCaseChanged(bool value) => FindStatus = string.Empty;
+    /// <summary>Which entry of <see cref="Matches"/> is the current one, or -1 before anything is stepped to.</summary>
+    public int MatchIndex { get; private set; } = -1;
 
-    partial void OnFindOpenChanged(bool value) => FindStatus = string.Empty;
+    /// <summary>Where the current match starts, or -1. What a view scrolls to and draws strongest.</summary>
+    public int MatchAt => MatchIndex >= 0 && MatchIndex < Matches.Count ? Matches[MatchIndex] : -1;
+
+    /// <summary>Whether there is anything to draw — for a pane that renders no highlight layer at all otherwise.</summary>
+    public bool HasMatches => Matches.Count > 0;
+
+    partial void OnFindTextChanged(string value) => RefreshMatches();
+
+    partial void OnMatchCaseChanged(bool value) => RefreshMatches();
+
+    partial void OnFindOpenChanged(bool value) => RefreshMatches();
+
+    /// <summary>
+    /// Re-finds every match and reports how many. Called whenever the term, the flags, the text or
+    /// the selected node change — anything that can make the previous list wrong.
+    ///
+    /// <para>
+    /// The current index is kept where it can be: retyping the tail of a term should not throw you
+    /// back to the first match in the document. It is clamped rather than reset, and dropped only
+    /// when there is nothing left to point at.
+    /// </para>
+    /// </summary>
+    public void RefreshMatches()
+    {
+        Matches = FindOpen && FindText.Length > 0
+            ? TextFinder.All(EditorText, FindText, MatchCase)
+            : [];
+
+        // Clamped down, never up: -1 means "nothing stepped to yet", which is a state of its own —
+        // the bar reads "12 found" rather than "1 of 12" until Enter has actually gone somewhere, and
+        // clamping into range would silently claim it had.
+        MatchIndex = Matches.Count == 0 || MatchIndex < 0
+            ? -1
+            : Math.Min(MatchIndex, Matches.Count - 1);
+
+        FindStatus = FindText.Length == 0
+            ? string.Empty
+            : Matches.Count == 0
+                ? "not found"
+                : MatchIndex < 0
+                    ? $"{Matches.Count} found"
+                    : $"{MatchIndex + 1} of {Matches.Count}";
+
+        NotifyMatches();
+    }
+
+    /// <summary>
+    /// Moves to the next or previous match and returns where it starts, or -1 when there are none.
+    /// Both directions wrap, which is what makes a search over a 28 KB document usable from the
+    /// middle of it.
+    /// </summary>
+    public int StepMatch(bool forward)
+    {
+        if (Matches.Count == 0)
+        {
+            FindStatus = FindText.Length == 0 ? string.Empty : "not found";
+            NotifyMatches();
+            return -1;
+        }
+
+        MatchIndex = MatchIndex < 0
+            // Nothing stepped to yet: forward opens on the first match, back on the last.
+            ? forward ? 0 : Matches.Count - 1
+            : (MatchIndex + (forward ? 1 : -1) + Matches.Count) % Matches.Count;
+
+        FindStatus = $"{MatchIndex + 1} of {Matches.Count}";
+        NotifyMatches();
+
+        return Matches[MatchIndex];
+    }
+
+    /// <summary>
+    /// Puts the current match on whichever one covers <paramref name="caret"/>, or the first one
+    /// after it. What a click in the pane means: the next Enter continues from where you are looking
+    /// rather than from where the search last stopped.
+    /// </summary>
+    public void SyncMatchToCaret(int caret)
+    {
+        if (Matches.Count == 0)
+        {
+            return;
+        }
+
+        var at = -1;
+        for (var i = 0; i < Matches.Count && Matches[i] <= caret; i++)
+        {
+            at = i;
+        }
+
+        MatchIndex = at;
+
+        FindStatus = MatchIndex < 0 ? $"{Matches.Count} found" : $"{MatchIndex + 1} of {Matches.Count}";
+        NotifyMatches();
+    }
+
+    private void NotifyMatches()
+    {
+        OnPropertyChanged(nameof(Matches));
+        OnPropertyChanged(nameof(MatchIndex));
+        OnPropertyChanged(nameof(MatchAt));
+        OnPropertyChanged(nameof(HasMatches));
+    }
 
     [RelayCommand]
     private void CloseFind() => FindOpen = false;
+
+    /// <summary>Opens the find bar, or closes it — what the Find switch on the toolbar flips.</summary>
+    [RelayCommand]
+    private void ToggleFind() => FindOpen = !FindOpen;
 
     [ObservableProperty]
     private bool _showingComparison;
@@ -522,6 +639,11 @@ public sealed partial class JsonEditorVm : ObservableObject
         {
             ApplyAsTyped();
         }
+
+        // The text moved, so every offset in the match list did too. Re-found rather than adjusted:
+        // a replace can change the length of the document, and an offset list quietly one character
+        // out would highlight the wrong runs.
+        RefreshMatches();
 
         OnPropertyChanged(nameof(CanApply));
     }
@@ -1061,6 +1183,13 @@ public sealed partial class JsonEditorVm : ObservableObject
         {
             _loadingText = false;
             RecomputeTextDiffers();
+
+            // A different node is a different body of text, so the previous node's match offsets do
+            // not describe it. Dropped to the start rather than kept: they pointed into something
+            // else.
+            MatchIndex = -1;
+            RefreshMatches();
+
             OnPropertyChanged(nameof(CanApply));
         }
     }

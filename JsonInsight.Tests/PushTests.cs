@@ -3,6 +3,7 @@ using System.Text.Json;
 using JsonInsight.Loading;
 using JsonInsight.Model;
 using JsonInsight.Promote;
+using JsonInsight.Sources;
 using JsonInsight.Vault;
 
 namespace JsonInsight.Tests;
@@ -175,6 +176,54 @@ public sealed class PushGateTests(SampleFiles files)
     }
 
     /// <summary>
+    /// A plan built on a version Vault has since moved past is refused by the writer itself, not only
+    /// by the dialog — and refused before a client is even constructed, so no request leaves.
+    ///
+    /// <para>
+    /// The check-and-set cannot stand in for this. It carries the version the preflight just read,
+    /// which is the current one, so the write lands cleanly on top of the other person's upload and
+    /// reports success. This app's unit of change is the whole document: confirming that push does
+    /// not merge their change, it deletes it.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task A_push_built_on_a_version_vault_has_moved_past_is_refused_before_anything_is_sent()
+    {
+        var plan = new PushPlan("stage", "https://vault.invalid:8200", "kv/app/stage",
+            LiveVersion: 36, null, "{}", """{"A":1}""", BaseVersion: 34, "3 queued key change(s)", []);
+
+        // vault.invalid would not resolve, so a request reaching the network fails the test by hanging
+        // or throwing rather than by returning this.
+        var result = await new VaultPusher(files.Flattener)
+            .PushAsync(files.Stage, plan, Configured());
+
+        Assert.False(result.Succeeded);
+        Assert.Null(result.Version);
+        Assert.Empty(result.Notes);
+
+        Assert.Equal(plan.Stale, result.Error);
+        Assert.Contains("Nothing was sent", result.Error!, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Identical wins over stale. If the upload that came in between happens to be exactly what would
+    /// be sent, there is nothing to lose and nothing to redo — "somebody uploaded, save your work"
+    /// would be a warning about a collision that did not happen.
+    /// </summary>
+    [Fact]
+    public async Task A_moved_secret_that_already_holds_this_is_reported_as_identical_rather_than_stale()
+    {
+        var plan = new PushPlan("stage", "https://vault.invalid:8200", "kv/app/stage",
+            LiveVersion: 36, null, """{"A":1}""", """{"A":1}""", BaseVersion: 34, "no change", []);
+
+        var result = await new VaultPusher(files.Flattener)
+            .PushAsync(files.Stage, plan, Configured());
+
+        Assert.False(result.Succeeded);
+        Assert.Contains("already holds exactly this", result.Error!, StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// The payload is the canonical serialization of the document being pushed, verified by
     /// re-parsing it: the leaf set that comes back off the text has to be exactly the leaf set the
     /// tree holds, which catches a serializer that dropped or invented a key.
@@ -250,18 +299,53 @@ public sealed class PushPlanTests
     }
 
     /// <summary>
-    /// Somebody uploaded after this copy was taken. The push would still succeed — the check-and-set
-    /// is against the live version — so this is a statement rather than a gate, and the dialog says
-    /// it out loud.
+    /// Somebody uploaded after this copy was taken.
+    ///
+    /// <para>
+    /// This used to be a statement the dialog said out loud while still allowing the push, on the
+    /// reasoning that the diff showed what was really being replaced. The check-and-set cannot save
+    /// anyone here: the version it carries is the live one, so the write lands cleanly on top of the
+    /// other person's upload and reports success. It is a refusal now.
+    /// </para>
     /// </summary>
     [Fact]
-    public void A_base_behind_the_live_version_is_reported_rather_than_assumed_away()
+    public void A_base_behind_the_live_version_refuses_the_push()
     {
         Assert.True(Plan("{}", """{"A":1}""", liveVersion: 34, baseVersion: 34).BaseMatchesLive);
-        Assert.False(Plan("{}", """{"A":1}""", liveVersion: 36, baseVersion: 34).BaseMatchesLive);
+        Assert.Null(Plan("{}", """{"A":1}""", liveVersion: 34, baseVersion: 34).Stale);
+
+        var moved = Plan("{}", """{"A":1}""", liveVersion: 36, baseVersion: 34);
+        Assert.False(moved.BaseMatchesLive);
+        Assert.NotNull(moved.Stale);
+
+        // It names both versions, and it says what to do — pulling is the only way forward and it
+        // discards what is in memory, which is the part worth saying before somebody does it.
+        Assert.Contains("v34", moved.Stale!, StringComparison.Ordinal);
+        Assert.Contains("v36", moved.Stale!, StringComparison.Ordinal);
+        Assert.Contains("pull again", moved.Stale!, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Save your work", moved.Stale!, StringComparison.OrdinalIgnoreCase);
 
         // A tier that never came from Vault has nothing to be behind.
         Assert.True(Plan("{}", """{"A":1}""", liveVersion: 36, baseVersion: null).BaseMatchesLive);
+        Assert.Null(Plan("{}", """{"A":1}""", liveVersion: 36, baseVersion: null).Stale);
+    }
+
+    /// <summary>
+    /// A file that moved says so in the words that fit a file. Same fence, and the same instruction
+    /// to pull again — a file has no version number to name, so it names neither.
+    /// </summary>
+    [Fact]
+    public void A_local_file_that_changed_underneath_refuses_the_write_in_its_own_words()
+    {
+        var moved = new PushPlan("stage", "local disk", @"C:\snapshots\stage.json",
+            1, null, "{}", """{"A":1}""", 0, "3 queued key change(s)", [])
+        {
+            Kind = SourceKind.LocalFile,
+        };
+
+        Assert.NotNull(moved.Stale);
+        Assert.Contains("changed on disk", moved.Stale!, StringComparison.Ordinal);
+        Assert.DoesNotContain("v01", moved.Stale!, StringComparison.Ordinal);
     }
 
     [Fact]

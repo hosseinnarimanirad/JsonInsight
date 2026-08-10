@@ -133,10 +133,36 @@ public sealed partial class TiersVm : ObservableObject
     /// </summary>
     private IReadOnlyList<TierColumn> Columns()
     {
-        var columns = _documents.Select(d => new TierColumn(d.Id, d.Flat)).ToList();
-        columns.AddRange(_unavailable.Select(u => new TierColumn(u.Id, null)));
+        var columns = Compared(_documents).Select(d => new TierColumn(d.Id, d.Flat)).ToList();
+        columns.AddRange(Compared(_unavailable).Select(u => new TierColumn(u.Id, null)));
         return columns;
     }
+
+    /// <summary>
+    /// Narrows a loaded set to the columns this grid compares.
+    ///
+    /// <para>
+    /// Everything configured is read — see <see cref="MainVm.Compared"/> — so the Tier editor and the
+    /// Text diff can reach a fifth environment without one being re-ticked. This grid is four columns
+    /// wide, so it shows what was ticked and nothing else; a document that is loaded but not compared
+    /// is not missing, it is simply not one of the four being asked about.
+    /// </para>
+    /// </summary>
+    private IEnumerable<T> Compared<T>(IEnumerable<T> loaded) where T : notnull
+    {
+        var compared = _main.Compared;
+
+        return compared.Count == 0
+            ? loaded
+            : loaded.Where(item => compared.Contains(Identify(item), StringComparer.OrdinalIgnoreCase));
+    }
+
+    private static string Identify<T>(T item) => item switch
+    {
+        TierDocument document => document.Id,
+        TierUnavailable unavailable => unavailable.Id,
+        _ => string.Empty,
+    };
 
     /// <summary>Why a tier has no values, for its column header. Empty for one that was read.</summary>
     public string? UnavailableReason(string tierId) =>
@@ -169,9 +195,17 @@ public sealed partial class TiersVm : ObservableObject
                 return missing == 0 ? "nothing loaded yet" : $"no tier could be read ({missing} unavailable)";
             }
 
-            return missing == 0
+            var head = missing == 0
                 ? $"{read} tier(s) live from Vault or disk"
                 : $"{read} live from Vault or disk, {missing} unavailable";
+
+            // More is read than is compared once a fifth environment is configured. Saying only the
+            // read count beside a four-column grid would leave the fifth looking like it failed.
+            var compared = Diff.TierIds.Count;
+
+            return compared < read + missing
+                ? $"{head} — {compared} compared here, the rest on the Tier editor and Text diff"
+                : head;
         }
     }
 

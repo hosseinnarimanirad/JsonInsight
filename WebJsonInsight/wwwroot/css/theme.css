@@ -59,6 +59,14 @@
     --brush-secret: #7A4FBF;
 
     /*
+     * Find matches in the editor pane. A rendering rule like the one above rather than a finding, so
+     * it gets its own hue: amber here would read as the "shape" finding and as the "edited" mark,
+     * and a search hit is neither. Soft on every match, strong on the one Enter is standing on.
+     */
+    --brush-find-soft: #FFF3B8;
+    --brush-find: #FFC94D;
+
+    /*
      * The editor's change marks, which are deliberately NOT the findings colours: green/amber/red
      * here mean added/edited/removed against the document as opened, where blue elsewhere means two
      * tiers differ. Rendering them in the same palette would make "I changed this" and "these
@@ -112,6 +120,11 @@
     --brush-ok-soft: #15301F;
 
     --brush-secret: #B392EE;
+
+    /* Dark tints of the same hue rather than the pale washes above, for the same reason every soft
+       findings colour is re-mixed here: a pale yellow on a #0F1216 pane hides the text on top of it. */
+    --brush-find-soft: #4A3F1B;
+    --brush-find: #8A6D1F;
 
     --brush-added: #4FC189;
     --brush-added-soft: #15301F;

@@ -265,6 +265,158 @@ public sealed class EditorPaneTests
 
     // ------------------------------------------------------------ find/replace
 
+    /// <summary>
+    /// Stepping walks the matches instead of searching from the caret.
+    ///
+    /// <para>
+    /// Searching from the caret was the defect: after a step the caret sits <em>at</em> the current
+    /// match, and a forward search from there finds the same one again. An index into the match list
+    /// cannot land on the entry it is already on.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void Stepping_advances_through_the_matches_rather_than_re_finding_one()
+    {
+        var vm = Open();
+        vm.SelectedNode = vm.Nodes.First(n => n.Path == "Redis");
+        vm.EditorText = """{ "a": 1, "b": 1, "c": 1 }""";
+
+        vm.FindOpen = true;
+        vm.FindText = "1";
+
+        Assert.Equal(3, vm.Matches.Count);
+        Assert.Equal("3 found", vm.FindStatus);
+
+        var first = vm.StepMatch(forward: true);
+        Assert.Equal(vm.Matches[0], first);
+        Assert.Equal("1 of 3", vm.FindStatus);
+
+        Assert.Equal(vm.Matches[1], vm.StepMatch(forward: true));
+        Assert.Equal(vm.Matches[2], vm.StepMatch(forward: true));
+
+        // Wraps, in both directions.
+        Assert.Equal(vm.Matches[0], vm.StepMatch(forward: true));
+        Assert.Equal(vm.Matches[2], vm.StepMatch(forward: false));
+        Assert.Equal("3 of 3", vm.FindStatus);
+    }
+
+    /// <summary>Back from a standing start opens on the last match rather than on nothing.</summary>
+    [Fact]
+    public void Stepping_backwards_first_opens_on_the_last_match()
+    {
+        var vm = Open();
+        vm.SelectedNode = vm.Nodes.First(n => n.Path == "Redis");
+        vm.EditorText = """{ "a": 1, "b": 1 }""";
+
+        vm.FindOpen = true;
+        vm.FindText = "1";
+
+        Assert.Equal(vm.Matches[^1], vm.StepMatch(forward: false));
+        Assert.Equal("2 of 2", vm.FindStatus);
+    }
+
+    /// <summary>
+    /// A term with nothing behind it, and the closed bar, both mean nothing to highlight — the pane
+    /// renders no layer at all rather than an empty one over every character.
+    /// </summary>
+    [Fact]
+    public void Nothing_is_highlighted_without_a_term_or_an_open_bar()
+    {
+        var vm = Open();
+        vm.SelectedNode = vm.Nodes.First(n => n.Path == "Redis");
+
+        vm.FindOpen = true;
+        vm.FindText = "Database";
+        Assert.True(vm.HasMatches);
+
+        vm.FindText = string.Empty;
+        Assert.False(vm.HasMatches);
+        Assert.Empty(vm.FindStatus);
+
+        vm.FindText = "Database";
+        vm.FindOpen = false;
+        Assert.False(vm.HasMatches);
+    }
+
+    /// <summary>Case is a choice, and turning it on re-finds rather than filtering what was found.</summary>
+    [Fact]
+    public void Match_case_re_finds_immediately()
+    {
+        var vm = Open();
+        vm.SelectedNode = vm.Nodes.First(n => n.Path == "Redis");
+        vm.EditorText = """{ "Url": 1, "url": 2, "URL": 3 }""";
+
+        vm.FindOpen = true;
+        vm.FindText = "url";
+
+        Assert.Equal(3, vm.Matches.Count);
+
+        vm.MatchCase = true;
+        Assert.Single(vm.Matches);
+        Assert.Equal("1 found", vm.FindStatus);
+    }
+
+    /// <summary>
+    /// Editing the pane re-finds. The offsets describe a body of text, and a replace can change its
+    /// length — a list quietly one character out would highlight the wrong runs.
+    /// </summary>
+    [Fact]
+    public void Editing_the_pane_re_finds_the_matches()
+    {
+        var vm = Open();
+        vm.SelectedNode = vm.Nodes.First(n => n.Path == "Redis");
+        vm.EditorText = """{ "a": 1 }""";
+
+        vm.FindOpen = true;
+        vm.FindText = "1";
+        Assert.Single(vm.Matches);
+
+        vm.EditorText = """{ "a": 1, "b": 1 }""";
+        Assert.Equal(2, vm.Matches.Count);
+
+        vm.EditorText = """{ "a": 0 }""";
+        Assert.Empty(vm.Matches);
+        Assert.Equal("not found", vm.FindStatus);
+    }
+
+    /// <summary>
+    /// Moving the selection drops the current match: the offsets pointed into the previous node's
+    /// text, and carrying them across would highlight whatever happened to be at those positions.
+    /// </summary>
+    [Fact]
+    public void Changing_node_drops_the_previous_panes_matches()
+    {
+        var vm = Open();
+        vm.SelectedNode = vm.Nodes.First(n => n.Path == "Redis");
+        vm.FindOpen = true;
+        vm.FindText = "Database";
+
+        vm.StepMatch(forward: true);
+        Assert.Equal(0, vm.MatchIndex);
+
+        vm.SelectedNode = vm.Nodes.First(n => n.Path == "Redis:ConnectionString");
+
+        Assert.Equal(-1, vm.MatchIndex);
+    }
+
+    /// <summary>A click in the pane moves where the next Enter continues from.</summary>
+    [Fact]
+    public void Syncing_to_the_caret_moves_the_current_match()
+    {
+        var vm = Open();
+        vm.SelectedNode = vm.Nodes.First(n => n.Path == "Redis");
+        vm.EditorText = """{ "a": 1, "b": 1, "c": 1 }""";
+
+        vm.FindOpen = true;
+        vm.FindText = "1";
+
+        vm.SyncMatchToCaret(vm.Matches[1]);
+        Assert.Equal(1, vm.MatchIndex);
+
+        // The next one forward from there is the third, not the second again.
+        Assert.Equal(vm.Matches[2], vm.StepMatch(forward: true));
+    }
+
     [Theory]
     [InlineData("aXbXc", "X", 0, 1)]
     [InlineData("aXbXc", "X", 2, 3)]

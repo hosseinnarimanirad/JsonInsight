@@ -16,8 +16,12 @@
                     <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
                         <TextBlock Text="Tier" Style="{StaticResource Text.Base}"
                                    VerticalAlignment="Center" Margin="0,0,9,0" />
+                        <!-- The version is in the list rather than beside it: which version you are
+                             about to edit is part of choosing what to edit, since an edit is built
+                             against one and a push is refused when somebody has replaced it since. -->
                         <ComboBox ItemsSource="{Binding Tiers}" SelectedItem="{Binding Tier}"
-                                  DisplayMemberPath="Label" MinWidth="230" />
+                                  DisplayMemberPath="PickerLabel" MinWidth="230"
+                                  ToolTip="Which source to edit, and which version of it is loaded." />
                     </StackPanel>
 
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">

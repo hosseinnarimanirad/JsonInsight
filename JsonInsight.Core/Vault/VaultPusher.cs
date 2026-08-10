@@ -50,12 +50,48 @@ public sealed record PushPlan(
     ///
     /// <para>
     /// False means something changed the source after this copy was read. The write would still
-    /// succeed — the concurrency check is against the source's current state, which is current by
-    /// construction — so this is not a gate but a statement: what you are about to replace is not
-    /// what you started from, and the diff beside it is where that shows up.
+    /// <em>succeed</em> — the check-and-set is against the source's current state, which is current by
+    /// construction — which is exactly the problem: it would land cleanly on top of somebody else's
+    /// version and take it out. See <see cref="Stale"/>, which is the refusal built on this.
     /// </para>
     /// </summary>
     public bool BaseMatchesLive => BaseVersion is null || BaseVersion == LiveVersion;
+
+    /// <summary>
+    /// Why this plan must not be sent, or null when it may be.
+    ///
+    /// <para>
+    /// This used to be a statement rather than a gate: the dialog said "somebody uploaded in between"
+    /// and let the push go ahead, on the reasoning that the diff beside it showed what was really
+    /// being replaced. That is true and it is not enough. What the diff shows is <em>their</em>
+    /// version against <em>your</em> whole document, and this app's unit of change is the whole
+    /// document — so confirming it does not merge their change, it deletes it, and it does so through
+    /// a check-and-set that reports success. A concurrency guard that cannot refuse anything is a
+    /// label, not a guard.
+    /// </para>
+    ///
+    /// <para>
+    /// The way out is deliberately manual, and the sentence says so: pull again and redo the change
+    /// against what is there now. This app cannot merge two documents and must not pretend to — and
+    /// pulling replaces what is in memory, which is the one thing worth warning about before somebody
+    /// does it with unsaved work in front of them.
+    /// </para>
+    /// </summary>
+    public string? Stale => BaseMatchesLive ? null : Kind switch
+    {
+        SourceKind.LocalFile =>
+            $"Nothing was written. {SecretPath} has changed on disk since this tier was loaded, so writing " +
+            "would replace whatever is there now with a document that never saw it. Save your work " +
+            "outside this app first — pulling replaces what is in memory, and these changes are only " +
+            "here — then pull again, redo them against the file as it now stands, and write.",
+
+        _ =>
+            $"Nothing was sent. This was built from v{BaseVersion:00} and {SecretPath} now holds " +
+            $"v{LiveVersion:00} — somebody uploaded in between, and pushing would replace their version " +
+            "rather than merge with it. Save your work outside this app first — pulling replaces what " +
+            $"is in memory, and these changes are only here — then pull again, redo them against " +
+            $"v{LiveVersion:00}, and push.",
+    };
 
     /// <summary>The one line naming where this goes, shown before the confirmation is typed.</summary>
     public string Destination => Kind switch
@@ -97,6 +133,9 @@ public sealed record PushResult(
 /// rather than discovered in tomorrow's diff.</item>
 /// <item>What Vault holds is read immediately beforehand, so the comparison being confirmed is
 /// against the current version rather than against whatever was on screen.</item>
+/// <item>A push whose base version is no longer the live one is refused outright — see
+/// <see cref="PushPlan.Stale"/>. The check-and-set below cannot catch this one: the version it
+/// carries is the live one, so the write lands on the other person's upload and reports success.</item>
 /// <item>The write carries that version as a check-and-set, so a secret that moved in between is
 /// refused by Vault rather than clobbered.</item>
 /// <item>The result is read back and compared, because "the POST returned 200" and "Vault holds what
@@ -210,14 +249,10 @@ public sealed class VaultPusher
                 $"Vault holds something at {secretPath} that will not parse as JSON: {ex.Message}");
         }
 
+        // A base behind the live version is not a warning any more — PushPlan.Stale refuses the push
+        // and says what to do instead, so repeating it here would be the same sentence twice, once
+        // as advice and once as a refusal.
         var warnings = new List<string>();
-
-        if (tier.VaultVersion is { } baseVersion && baseVersion != live.Version)
-        {
-            warnings.Add(
-                $"This was built from v{baseVersion:00}, and Vault is now at v{live.Version:00} — somebody " +
-                $"uploaded in between. What the push replaces is v{live.Version:00}, which is what the diff shows.");
-        }
 
         return new PushPreflight(
             new PushPlan(
@@ -259,6 +294,13 @@ public sealed class VaultPusher
             return new PushResult(false, null,
                 $"Vault already holds exactly this at v{plan.LiveVersion:00}. Nothing was sent — a version " +
                 "that changes nothing is noise in the history.", []);
+        }
+
+        // After Identical, which is the more specific answer: if the secret moved but landed on
+        // exactly what would be sent, there is nothing to lose and nothing to warn about.
+        if (plan.Stale is { } stale)
+        {
+            return new PushResult(false, null, stale, []);
         }
 
         var connection = settings.Resolve(tier.Id);

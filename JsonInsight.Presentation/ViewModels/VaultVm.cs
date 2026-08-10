@@ -601,6 +601,11 @@ public sealed partial class VaultVm : ObservableObject
             var settings = BuildSettings();
             var (appSettingsPath, secretsPath) = VaultSettingsStore.Save(settings, _main.ActiveProject);
 
+            // Pull is off while a ticked environment names no source, and this is the screen where
+            // that gets fixed. Re-asked here so unticking the last empty row turns the button back on
+            // without waiting for a full reload.
+            _main.RefreshPullState();
+
             // Saving an active set is the moment tiers.json stops being what the app compares, and it
             // is not a moment to leave anyone to infer. Nothing on screen has moved yet either — the
             // tabs were built from the old set and are rebuilt by Reload, not by this button.

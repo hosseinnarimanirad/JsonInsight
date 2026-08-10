@@ -111,12 +111,14 @@
     </ChildContent>
 
     <Footer>
+        @* Off as well when the source has moved: typing the tier's name is the act of confirming, and
+           there is nothing here left to confirm. *@
         <div class="push-confirm">
             <label for="push-confirm">
                 Type <strong>@Vm.Tier?.Id</strong> to confirm
             </label>
             <input id="push-confirm" class="field" type="text" autocomplete="off"
-                   disabled="@(!Vm.HasChecked || Vm.Completed)"
+                   disabled="@(!Vm.HasChecked || Vm.Completed || Vm.IsStale)"
                    value="@Vm.ConfirmText"
                    @oninput="e => Vm.ConfirmText = e.Value?.ToString() ?? string.Empty" />
         </div>
@@ -127,7 +129,9 @@
 
         <button class="btn btn-danger" disabled="@(!Vm.CanPush)"
                 @onclick="() => Vm.PushCommand.ExecuteAsync(null)"
-                title="Write it. The payload is re-parsed before it leaves, the write carries the version read a moment ago as a check-and-set, and the result is read back and compared.">
+                title="@(Vm.IsStale
+                           ? Vm.Stale
+                           : "Write it. The payload is re-parsed before it leaves, the write carries the version read a moment ago as a check-and-set, and the result is read back and compared.")">
             <Icon Name="push" Size="13" /> <span>@(Vm.TierIsFile ? "Write to disk" : "Push to Vault")</span>
         </button>
     </Footer>

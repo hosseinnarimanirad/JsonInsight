@@ -31,11 +31,16 @@ else
         <div class="card editor-toolbar">
             <div class="toolbar-row">
                 <label for="ed-tier">Tier</label>
+
+                @* The version is in the list rather than beside it: which version you are about to
+                   edit is part of choosing what to edit, since an edit is built against one and a
+                   push is refused when somebody has replaced it since. *@
                 <select id="ed-tier" class="field" value="@Vm.Tier?.Id"
+                        title="@(Vm.Tier?.SourceDetail ?? "Which source to edit, and which version of it is loaded.")"
                         @onchange="e => Vm.Tier = Vm.Tiers.FirstOrDefault(t => t.Id == e.Value?.ToString())">
                     @foreach (var tier in Vm.Tiers)
                     {
-                        <option value="@tier.Id" selected="@(tier.Id == Vm.Tier?.Id)">@tier.Label</option>
+                        <option value="@tier.Id" selected="@(tier.Id == Vm.Tier?.Id)">@tier.PickerLabel</option>
                     }
                 </select>
 
@@ -58,6 +63,16 @@ else
                         @onclick="() => Vm.ToggleComparisonCommand.Execute(null)"
                         title="Swap the pane for a diff against the state this tier was opened in, scoped to the selection.">
                     Compare with original
+                </button>
+
+                @* A switch rather than a button, matching Changed on the tree and Compact/Wrap below:
+                   the find bar is a state you leave on, and Ctrl+F was the only way to reach it —
+                   a shortcut is not a control, and nothing on screen said the bar existed. *@
+                <button class="switch @(Vm.FindOpen ? "on" : "")" disabled="@Vm.ShowingComparison"
+                        @onclick="() => Vm.ToggleFindCommand.Execute(null)"
+                        title="Find and replace over the pane (Ctrl+F). Every match is highlighted; Enter and Shift+Enter step through them.">
+                    <span class="switch-track"><span class="switch-knob"></span></span>
+                    <span>Find</span>
                 </button>
 
                 <span class="spacer"></span>
@@ -226,26 +241,34 @@ else
                         <div class="findbar">
                             <input class="field dense" type="text" placeholder="Find" @ref="_findInput"
                                    value="@Vm.FindText"
-                                   @oninput="e => { Vm.FindText = e.Value?.ToString() ?? string.Empty; UpdateFindStatus(); }"
+                                   @oninput="e => Vm.FindText = e.Value?.ToString() ?? string.Empty"
                                    @onkeydown="OnFindKey" />
 
                             <button class="btn btn-small @(Vm.MatchCase ? "toggled" : "")"
-                                    @onclick="() => { Vm.MatchCase = !Vm.MatchCase; UpdateFindStatus(); }"
+                                    @onclick="() => Vm.MatchCase = !Vm.MatchCase"
                                     title="Match case. Worth having: this file's ordinal key order treats Url and URL as two keys.">Aa</button>
 
                             @* A fixed-width slot, so a count changing as you type does not shove the
                                row sideways. *@
                             <span class="find-count">@Vm.FindStatus</span>
 
-                            <button class="btn btn-small" @onclick="() => Step(forward: false)" title="Previous (Shift+Enter)">↑</button>
-                            <button class="btn btn-small" @onclick="() => Step(forward: true)" title="Next (Enter)">↓</button>
+                            <button class="btn btn-small" disabled="@(!Vm.HasMatches)"
+                                    @onclick="() => Step(forward: false)" title="Previous (Shift+Enter, Shift+F3)">↑</button>
+                            <button class="btn btn-small" disabled="@(!Vm.HasMatches)"
+                                    @onclick="() => Step(forward: true)" title="Next (Enter, F3)">↓</button>
 
                             <input class="field dense" type="text" placeholder="Replace with"
+                                   disabled="@Vm.IsEditorReadOnly"
                                    value="@Vm.ReplaceText"
-                                   @oninput="e => Vm.ReplaceText = e.Value?.ToString() ?? string.Empty" />
+                                   @oninput="e => Vm.ReplaceText = e.Value?.ToString() ?? string.Empty"
+                                   @onkeydown="OnFindKey" />
 
-                            <button class="btn btn-small" @onclick="ReplaceOne">Replace</button>
-                            <button class="btn btn-small" @onclick="ReplaceAll">Replace all</button>
+                            <button class="btn btn-small" disabled="@(!Vm.HasMatches || Vm.IsEditorReadOnly)"
+                                    @onclick="ReplaceOne"
+                                    title="Replace the current match and move to the next one.">Replace</button>
+                            <button class="btn btn-small" disabled="@(!Vm.HasMatches || Vm.IsEditorReadOnly)"
+                                    @onclick="ReplaceAll"
+                                    title="Replace every match in this pane. Still only in the pane — a section needs Update node afterwards.">Replace all</button>
 
                             <button class="btn-ghost-tiny" @onclick="() => Vm.CloseFindCommand.Execute(null)" title="Close (Esc)">
                                 <Icon Name="close" Size="12" />
@@ -255,13 +278,30 @@ else
 
                     @* ⚠ This pane renders values in clear, credentials included. It is the one screen
                        in the app that does, and it has to be: a subtree cannot be retyped without
-                       being read. The hierarchy beside it still shows secrets masked. *@
-                    <textarea class="pane-text @(Vm.WordWrap ? "wrap" : "nowrap")"
-                              @ref="_paneInput"
-                              readonly="@Vm.IsEditorReadOnly"
-                              spellcheck="false"
-                              value="@Vm.EditorText"
-                              @oninput="e => Vm.EditorText = e.Value?.ToString() ?? string.Empty"></textarea>
+                       being read. The hierarchy beside it still shows secrets masked.
+
+                       The highlight layer sits BEHIND a transparent textarea holding the same string
+                       in the same font at the same metrics, so its <mark> backgrounds land exactly
+                       under the runs they mark. A textarea cannot colour part of its own content and
+                       an unfocused one paints no selection at all — which is why stepping through
+                       matches had to either steal the caret from the find box or show nothing. *@
+                    <div class="pane-stack">
+                        @if (Vm.HasMatches)
+                        {
+                            <div class="pane-highlights @(Vm.WordWrap ? "wrap" : "nowrap") @(Vm.IsEditorReadOnly ? "readonly" : "")"
+                                 @ref="_highlightLayer"
+                                 aria-hidden="true">@foreach (var run in HighlightRuns()) {<span class="@run.Class">@run.Text</span>}</div>
+                        }
+
+                        <textarea class="pane-text @(Vm.WordWrap ? "wrap" : "nowrap") @(Vm.HasMatches ? "over-highlights" : "")"
+                                  @ref="_paneInput"
+                                  readonly="@Vm.IsEditorReadOnly"
+                                  spellcheck="false"
+                                  value="@Vm.EditorText"
+                                  @onclick="SyncToCaret"
+                                  @onkeyup="OnPaneKeyUp"
+                                  @oninput="e => Vm.EditorText = e.Value?.ToString() ?? string.Empty"></textarea>
+                    </div>
 
                     <div class="pane-strip">
                         @* The reason Update is off, where the text it is about is — not in the banner
@@ -311,7 +351,9 @@ else
     private JsonEditorVm? _observed;
     private ElementReference _findInput;
     private ElementReference _paneInput;
+    private ElementReference _highlightLayer;
     private bool _findWasOpen;
+    private bool _tracking;
 
     protected override void OnParametersSet()
     {
@@ -338,6 +380,22 @@ else
         }
 
         _findWasOpen = Vm?.FindOpen ?? false;
+
+        // The layer only exists while there is something to highlight, so the scroll handler is
+        // re-attached whenever it comes back — and dropped from tracking when it goes, so a stale
+        // element reference is never written to.
+        var showing = Vm is { HasMatches: true };
+
+        if (showing)
+        {
+            await Js.InvokeVoidAsync("jsonInsight.trackScroll", _paneInput, _highlightLayer);
+        }
+        else if (_tracking)
+        {
+            await Js.InvokeVoidAsync("jsonInsight.trackScroll", _paneInput, null);
+        }
+
+        _tracking = showing;
     }
 
     /// <summary>
@@ -392,13 +450,14 @@ else
 
     /// <summary>
     /// Enter steps forward, Shift+Enter back, Escape closes — the three answers the field can have.
-    /// Both directions wrap, which TextFinder does rather than this.
+    /// F3 too, so the same key works whether the caret is in the box or in the pane.
     /// </summary>
     private async Task OnFindKey(KeyboardEventArgs e)
     {
         switch (e.Key)
         {
             case "Enter":
+            case "F3":
                 await Step(forward: !e.ShiftKey);
                 break;
 
@@ -408,46 +467,53 @@ else
         }
     }
 
-    /// <summary>
-    /// The next or previous match, selected in the pane. TextFinder does the searching — the same
-    /// code the WPF view calls, so a wrap or a case rule cannot differ between the two front ends.
-    /// </summary>
-    private async Task Step(bool forward)
+    /// <summary>F3 works from inside the pane as well, which is where it is pressed from.</summary>
+    private async Task OnPaneKeyUp(KeyboardEventArgs e)
     {
-        if (Vm is null || Vm.FindText.Length == 0)
+        if (Vm is { FindOpen: true } && e.Key == "F3")
         {
-            return;
+            await Step(forward: !e.ShiftKey);
         }
-
-        var text = Vm.EditorText;
-        var caret = await CaretAsync();
-
-        var hit = forward
-            ? JsonInsight.Editing.TextFinder.Next(text, Vm.FindText, caret, Vm.MatchCase)
-            : JsonInsight.Editing.TextFinder.Previous(text, Vm.FindText, caret, Vm.MatchCase);
-
-        if (hit < 0)
-        {
-            Vm.FindStatus = "not found";
-            return;
-        }
-
-        await Js.InvokeVoidAsync("jsonInsight.select", _paneInput, hit, Vm.FindText.Length);
-
-        var ordinal = JsonInsight.Editing.TextFinder.Ordinal(text, Vm.FindText, hit, Vm.MatchCase);
-        var total = JsonInsight.Editing.TextFinder.Count(text, Vm.FindText, Vm.MatchCase);
-        Vm.FindStatus = $"{ordinal} of {total}";
     }
 
-    private void UpdateFindStatus()
+    /// <summary>
+    /// A click in the pane moves the search's idea of "here", so the next Enter continues from where
+    /// you are looking rather than from wherever the last step stopped.
+    /// </summary>
+    private async Task SyncToCaret()
+    {
+        if (Vm is { FindOpen: true, HasMatches: true })
+        {
+            Vm.SyncMatchToCaret(await CaretAsync());
+        }
+    }
+
+    /// <summary>
+    /// The next or previous match, revealed in the pane. Which match that is comes from
+    /// <see cref="JsonEditorVm.StepMatch"/> — an index into the match list, shared with the WPF view.
+    ///
+    /// <para>
+    /// It used to search from the caret, which sits <em>at</em> the current match after a step, so ↓
+    /// found the same one again. And it focused the pane to show the selection, which took the caret
+    /// out of the find box and turned the second Enter into a newline in the JSON. Neither is
+    /// possible now: the index advances by construction, and the highlight layer shows the match
+    /// without the pane needing focus.
+    /// </para>
+    /// </summary>
+    private async Task Step(bool forward)
     {
         if (Vm is null)
         {
             return;
         }
 
-        var total = JsonInsight.Editing.TextFinder.Count(Vm.EditorText, Vm.FindText, Vm.MatchCase);
-        Vm.FindStatus = Vm.FindText.Length == 0 ? string.Empty : total == 0 ? "not found" : $"{total} found";
+        var hit = Vm.StepMatch(forward);
+        if (hit < 0)
+        {
+            return;
+        }
+
+        await Js.InvokeVoidAsync("jsonInsight.reveal", _paneInput, hit, Vm.FindText.Length);
     }
 
     /// <summary>
@@ -456,31 +522,44 @@ else
     /// </summary>
     private async Task ReplaceOne()
     {
-        if (Vm is null || Vm.FindText.Length == 0)
+        if (Vm is null || Vm.IsEditorReadOnly)
         {
             return;
         }
 
-        var caret = await CaretAsync();
-        var hit = JsonInsight.Editing.TextFinder.Next(Vm.EditorText, Vm.FindText, caret, Vm.MatchCase);
+        // Whichever match is current, or the first one when nothing has been stepped to yet.
+        var hit = Vm.MatchAt >= 0 ? Vm.MatchAt : Vm.StepMatch(forward: true);
         if (hit < 0)
         {
-            Vm.FindStatus = "not found";
             return;
         }
+
+        var index = Vm.MatchIndex;
 
         Vm.EditorText = string.Concat(
             Vm.EditorText.AsSpan(0, hit),
             Vm.ReplaceText,
             Vm.EditorText.AsSpan(hit + Vm.FindText.Length));
 
-        await Js.InvokeVoidAsync("jsonInsight.select", _paneInput, hit + Vm.ReplaceText.Length, 0);
-        UpdateFindStatus();
+        // The list was re-found against the shorter or longer text, so the entry that was current is
+        // gone and the one that took its place is the next match. Landing there is what makes
+        // pressing Replace repeatedly walk the document.
+        Vm.SyncMatchToCaret(hit + Vm.ReplaceText.Length);
+
+        if (Vm.HasMatches && Vm.MatchIndex < 0 && index >= 0)
+        {
+            Vm.StepMatch(forward: true);
+        }
+
+        if (Vm.MatchAt >= 0)
+        {
+            await Js.InvokeVoidAsync("jsonInsight.reveal", _paneInput, Vm.MatchAt, Vm.FindText.Length);
+        }
     }
 
     private void ReplaceAll()
     {
-        if (Vm is null || Vm.FindText.Length == 0)
+        if (Vm is null || Vm.IsEditorReadOnly || !Vm.HasMatches)
         {
             return;
         }
@@ -493,4 +572,55 @@ else
     }
 
     private async Task<int> CaretAsync() => await Js.InvokeAsync<int>("jsonInsight.caret", _paneInput);
+
+    // -------------------------------------------------------------- highlighting
+
+    /// <summary>One run of pane text: plain, or one of the matches.</summary>
+    private readonly record struct Run(string Text, string Class);
+
+    /// <summary>
+    /// The pane's text cut into runs — the gaps between matches, and the matches themselves — for the
+    /// layer that sits behind the textarea.
+    ///
+    /// <para>
+    /// The whole string is emitted, not just the matches: the layer only lines up with the text in
+    /// front of it if it holds the same characters, in the same font, wrapped the same way. The
+    /// current match gets its own class so it reads as the one Enter is on rather than as one of
+    /// twelve identical blocks.
+    /// </para>
+    /// </summary>
+    private IEnumerable<Run> HighlightRuns()
+    {
+        if (Vm is null)
+        {
+            yield break;
+        }
+
+        var text = Vm.EditorText;
+        var length = Vm.FindText.Length;
+        var at = 0;
+
+        for (var i = 0; i < Vm.Matches.Count; i++)
+        {
+            var start = Vm.Matches[i];
+            if (start < at || start + length > text.Length)
+            {
+                // The text moved under a stale list; the next render has the right one.
+                break;
+            }
+
+            if (start > at)
+            {
+                yield return new Run(text[at..start], "hl-gap");
+            }
+
+            yield return new Run(text.Substring(start, length), i == Vm.MatchIndex ? "hl hl-current" : "hl");
+            at = start + length;
+        }
+
+        // The trailing newline keeps the layer's scroll height equal to the textarea's: a textarea
+        // reserves a line for a final newline and a div does not, so without it the two drift apart
+        // by one line at the very bottom of a long document.
+        yield return new Run(text[at..] + "\n", "hl-gap");
+    }
 }

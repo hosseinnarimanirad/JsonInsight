@@ -60,23 +60,36 @@ public static class TextFinder
         return window.LastIndexOf(term, comparison);
     }
 
-    public static int Count(string text, string term, bool matchCase)
+    /// <summary>
+    /// Where every match starts, in order.
+    ///
+    /// <para>
+    /// What highlighting is built from, and what stepping counts against: with the whole list in hand
+    /// "next" is the entry after the current index rather than a fresh search from wherever the caret
+    /// happens to be, which is the arrangement that could land on the match it was already showing.
+    /// Non-overlapping, so searching <c>aa</c> in <c>aaaa</c> finds two rather than three — the same
+    /// rule <see cref="ReplaceAll"/> follows, since a highlight has to be what a replace would take.
+    /// </para>
+    /// </summary>
+    public static IReadOnlyList<int> All(string text, string term, bool matchCase)
     {
         if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(term))
         {
-            return 0;
+            return [];
         }
 
         var comparison = ComparisonFor(matchCase);
-        var count = 0;
+        var hits = new List<int>();
 
         for (var i = text.IndexOf(term, comparison); i >= 0; i = text.IndexOf(term, i + term.Length, comparison))
         {
-            count++;
+            hits.Add(i);
         }
 
-        return count;
+        return hits;
     }
+
+    public static int Count(string text, string term, bool matchCase) => All(text, term, matchCase).Count;
 
     /// <summary>
     /// Which match a position sits on, counted from one — for the "3 of 12" reading. Zero when the

@@ -115,7 +115,7 @@ else
                                 {
                                     var reason = Vm.UnavailableReason(tierId);
                                     <th class="col-tier @(reason is null ? "" : "unavailable")"
-                                        title="@(reason ?? SourceOf(tierId))">
+                                        title="@(reason ?? SourceDetailOf(tierId))">
                                         <div class="th-name">@tierId</div>
                                         <div class="th-sub">@(reason is null ? SourceOf(tierId) : "UNAVAILABLE")</div>
                                     </th>
@@ -292,19 +292,18 @@ else
         return string.Join(' ', classes);
     }
 
-    /// <summary>Where a column's values came from, for its header and its tooltip.</summary>
-    private string SourceOf(string tierId)
-    {
-        var document = Vm?.Documents.FirstOrDefault(d =>
-            d.Id.Equals(tierId, StringComparison.OrdinalIgnoreCase));
+    /// <summary>
+    /// Which version of what a column is showing. The number is the point: it is the difference
+    /// between "stage does not have this key" and "stage did not have it an hour ago", and this
+    /// header used to say only "Vault".
+    /// </summary>
+    private string SourceOf(string tierId) => Document(tierId)?.SourceBadge ?? string.Empty;
 
-        if (document is null)
-        {
-            return string.Empty;
-        }
+    /// <summary>The longer form — the server, the secret and the version — for the header's tooltip.</summary>
+    private string SourceDetailOf(string tierId) => Document(tierId)?.SourceDetail ?? string.Empty;
 
-        return document.IsFromVault ? "Vault" : "file";
-    }
+    private TierDocument? Document(string tierId) =>
+        Vm?.Documents.FirstOrDefault(d => d.Id.Equals(tierId, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
     /// The full value on hover — except for a secret, which is never rendered anywhere but the Tier

@@ -41,4 +41,10 @@
     <!-- Masked values. Distinct from every findings colour: a secret is a rendering rule, not a finding. -->
     <SolidColorBrush x:Key="Brush.Secret" Color="#B392EE" />
 
+    <!-- Dark tints of the same hue rather than the pale washes the light theme uses, for the same
+         reason every soft findings colour is re-mixed here: a pale yellow behind #E8EDF4 text hides
+         the text on top of it. -->
+    <SolidColorBrush x:Key="Brush.FindSoft" Color="#4A3F1B" />
+    <SolidColorBrush x:Key="Brush.Find" Color="#8A6D1F" />
+
 </ResourceDictionary>

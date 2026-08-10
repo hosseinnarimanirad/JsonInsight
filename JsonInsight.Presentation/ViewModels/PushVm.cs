@@ -183,11 +183,23 @@ public sealed partial class PushVm : ObservableObject
         Tier is not null && ConfirmText.Trim().Equals(Tier.Id, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
-    /// A push needs a live read behind it, a real difference to send, and the tier's name typed out.
-    /// Nothing here is a formality: the first is where the check-and-set version comes from.
+    /// A push needs a live read behind it, a real difference to send, a source that has not moved
+    /// since this was built, and the tier's name typed out. Nothing here is a formality: the first is
+    /// where the check-and-set version comes from, and the third is the one the check-and-set cannot
+    /// catch — see <see cref="PushPlan.Stale"/>.
     /// </summary>
     public bool CanPush =>
-        !Busy && !Completed && HasChecked && _plan is { Identical: false } && ConfirmMatches;
+        !Busy && !Completed && HasChecked &&
+        _plan is { Identical: false, Stale: null } && ConfirmMatches;
+
+    /// <summary>
+    /// Why this may not be pushed because the source moved, or null. The providers refuse it too —
+    /// this is what stops the button being pressable in the first place, and what the dialog shows
+    /// instead of a diff nobody may act on.
+    /// </summary>
+    public string? Stale => _plan?.Stale;
+
+    public bool IsStale => Stale is not null;
 
     partial void OnTierChanged(TierDocument? value)
     {
@@ -283,11 +295,14 @@ public sealed partial class PushVm : ObservableObject
                 return;
             }
 
-            Problem = string.Empty;
             _plan = preflight.Plan;
             HasChecked = true;
 
-            foreach (var warning in _plan!.Warnings)
+            // A source that moved is reported where a refusal belongs rather than among the warnings:
+            // it is not something to read on the way past, it is the reason the button below is off.
+            Problem = _plan!.Stale ?? string.Empty;
+
+            foreach (var warning in _plan.Warnings)
             {
                 Warnings.Add(warning);
             }
@@ -368,6 +383,17 @@ public sealed partial class PushVm : ObservableObject
         }
 
         var counts = $"{modified} changed, {added} added, {removed} removed.";
+
+        // The diff still earns its place on a refused push — it is what says how much of somebody
+        // else's work this would have taken out — but it must not go on promising the next version
+        // number of a write that is not going to happen.
+        if (_plan.Stale is not null)
+        {
+            Message = $"What is on the left is what the source holds now, and it is not what this was " +
+                      $"built from: {counts} Shown so the size of the collision is visible; nothing " +
+                      "will be sent.";
+            return;
+        }
 
         // A file has no version history to promise the next number of — see PushPlan.Kind.
         Message = _plan.Kind == SourceKind.LocalFile
@@ -467,6 +493,8 @@ public sealed partial class PushVm : ObservableObject
     private void NotifyState()
     {
         OnPropertyChanged(nameof(CanPush));
+        OnPropertyChanged(nameof(Stale));
+        OnPropertyChanged(nameof(IsStale));
         OnPropertyChanged(nameof(Destination));
         OnPropertyChanged(nameof(What));
         OnPropertyChanged(nameof(SourceLine));

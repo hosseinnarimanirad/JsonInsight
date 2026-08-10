@@ -41,4 +41,10 @@
     <!-- Masked values. Distinct from every findings colour: a secret is a rendering rule, not a finding. -->
     <SolidColorBrush x:Key="Brush.Secret" Color="#7A4FBF" />
 
+    <!-- Find matches in the editor pane. A rendering rule like the one above rather than a finding,
+         so it gets its own hue: amber here would read as the "shape" finding and as the "edited"
+         mark, and a search hit is neither. Soft on every match, strong on the one Enter is on. -->
+    <SolidColorBrush x:Key="Brush.FindSoft" Color="#FFF3B8" />
+    <SolidColorBrush x:Key="Brush.Find" Color="#FFC94D" />
+
 </ResourceDictionary>

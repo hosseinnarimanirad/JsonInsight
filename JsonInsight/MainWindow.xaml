@@ -125,11 +125,32 @@
                          button that still looks pressable during a network call is a button that
                          gets pressed again, and the read nobody asked for is the one that most needs
                          to say it is happening. -->
+                    <!-- Off, too, while an environment ticked ON names no source. There is no reading
+                         around that one: what a pull would produce is a comparison missing the column
+                         somebody just asked for, arriving looking exactly like a successful one. The
+                         tooltip carries the reason, and shows while disabled — which is when it is
+                         asked for. -->
                     <Button Style="{StaticResource Button.Primary}" Margin="0,0,8,0"
                             Command="{Binding Tiers.PullFromVaultCommand}"
-                            IsEnabled="{Binding VaultBusy, Converter={StaticResource NotBool}}"
-                            Visibility="{Binding ShowingProjectList, Converter={StaticResource BoolVis}, ConverterParameter=invert}"
-                            ToolTip="Read every configured tier again, from Vault or from disk. Nothing is written: a pull replaces what is in memory, and what is in memory is all there is. The per-tier result is listed on the All tiers tab.">
+                            IsEnabled="{Binding CanPull}"
+                            ToolTipService.ShowOnDisabled="True"
+                            Visibility="{Binding ShowingProjectList, Converter={StaticResource BoolVis}, ConverterParameter=invert}">
+                        <Button.ToolTip>
+                            <ToolTip>
+                                <TextBlock TextWrapping="Wrap" MaxWidth="420">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Text" Value="Read every configured tier again, from Vault or from disk — every one that has a source, not only the ones being compared. Nothing is written: a pull replaces what is in memory, and what is in memory is all there is. The per-tier result is listed on the All tiers tab." />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding PullBlocked, Converter={StaticResource NotEmptyVis}}" Value="Visible">
+                                                    <Setter Property="Text" Value="{Binding PullBlocked}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </ToolTip>
+                        </Button.ToolTip>
                         <StackPanel Orientation="Horizontal">
                             <TextBlock FontFamily="{StaticResource Font.Icons}" FontSize="13"
                                        VerticalAlignment="Center" Margin="0,0,8,0"

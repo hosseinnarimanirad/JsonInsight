@@ -62,9 +62,13 @@
                 @* Disabled and spinning while a read is in flight, the startup one included: a button
                    that still looks pressable during a network call is a button that gets pressed
                    again, and the read nobody asked for is the one that most needs to say so. *@
-                <button class="btn btn-primary" disabled="@Main.VaultBusy"
+                @* Off while a ticked environment names no source. There is no reading around that
+                   one: what a pull would produce is a comparison missing the column somebody just
+                   asked for, arriving looking exactly like a successful one. *@
+                <button class="btn btn-primary" disabled="@(!Main.CanPull)"
                         @onclick="Pull"
-                        title="Read every configured source again, from Vault or from disk. Nothing is written: a pull replaces what is in memory, and what is in memory is all there is.">
+                        title="@(Main.PullBlocked
+                                   ?? "Read every configured source again, from Vault or from disk — every one that has a source, not only the ones being compared. Nothing is written: a pull replaces what is in memory, and what is in memory is all there is.")">
                     <Icon Name="@(Main.VaultBusy ? "refresh" : "pull")" Class="@(Main.VaultBusy ? "spinning" : "")" />
                     <span>@(Main.VaultBusy ? "Pulling…" : "Pull from Vault or disk")</span>
                 </button>

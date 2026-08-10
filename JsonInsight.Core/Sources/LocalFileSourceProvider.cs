@@ -160,13 +160,9 @@ public sealed class LocalFileSourceProvider : ISourceProvider
         var baseline = OrdinalJsonWriter.SerializeToText(document.Root);
         var changedUnderneath = !string.Equals(baseline, liveText, StringComparison.Ordinal);
 
+        // A file that changed underneath is not a warning any more — PushPlan.Stale refuses the write
+        // and says what to do instead, exactly as it does for a Vault secret that moved.
         var warnings = new List<string>();
-        if (changedUnderneath)
-        {
-            warnings.Add(
-                $"{Path.GetFileName(path)} has changed on disk since this tier was loaded — what this " +
-                "replaces is what's there now, which is what the diff shows.");
-        }
 
         return Task.FromResult(new PushPreflight(
             new PushPlan(
@@ -202,6 +198,13 @@ public sealed class LocalFileSourceProvider : ISourceProvider
             return new PushResult(false, null,
                 $"{Path.GetFileName(plan.SecretPath)} already holds exactly this. Nothing was written — a " +
                 "write that changes nothing is noise in the backup history.", []);
+        }
+
+        // The fence VaultPusher grew for a secret that moved, kept in step here: a backup taken
+        // immediately before the overwrite makes the change recoverable, not consented to.
+        if (plan.Stale is { } stale)
+        {
+            return new PushResult(false, null, stale, []);
         }
 
         var path = plan.SecretPath;
