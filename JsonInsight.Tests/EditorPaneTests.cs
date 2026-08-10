@@ -338,6 +338,27 @@ public sealed class EditorPaneTests
         Assert.False(vm.HasMatches);
     }
 
+    /// <summary>
+    /// Replace is offered only when it would do something. Both bars ask this rather than each
+    /// assembling it, so neither can end up with a lit button that does nothing when pressed.
+    /// </summary>
+    [Fact]
+    public void Replace_is_offered_only_with_something_to_replace()
+    {
+        var vm = Open();
+        vm.SelectedNode = vm.Nodes.First(n => n.Path == "Redis");
+
+        vm.FindOpen = true;
+        Assert.False(vm.CanReplace);
+
+        vm.FindText = "Database";
+        Assert.True(vm.CanReplace);
+
+        // Nothing found is as much a reason to be off as a pane that cannot be written to.
+        vm.FindText = "nothing here matches this";
+        Assert.False(vm.CanReplace);
+    }
+
     /// <summary>Case is a choice, and turning it on re-finds rather than filtering what was found.</summary>
     [Fact]
     public void Match_case_re_finds_immediately()

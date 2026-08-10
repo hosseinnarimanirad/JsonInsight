@@ -321,6 +321,37 @@
     </Style>
 
     <!--
+        Button.Small's shape as a two-state control, for a flag that sits in a dense row and has to
+        say which state it is in - Aa on the find bar. A switch would be the wrong shape here: the
+        track needs a label beside it to mean anything, and the row it lives on has no width for one.
+
+        Checked lights it with the same three accent brushes hover uses, so on reads as "this button
+        is currently doing something" rather than as a different button. That is the rendering the
+        Blazor bar gives it too, where the class is literally called .toggled.
+    -->
+    <Style x:Key="Toggle.Small" TargetType="{x:Type ToggleButton}" BasedOn="{StaticResource Button.Base}">
+        <Setter Property="Background" Value="{DynamicResource Brush.Surface}" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.TextSecondary}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="9,2" />
+        <Setter Property="MinHeight" Value="{StaticResource Size.Control.Dense}" />
+        <Setter Property="FontSize" Value="11.5" />
+        <Style.Triggers>
+            <Trigger Property="IsChecked" Value="True">
+                <Setter Property="Background" Value="{DynamicResource Brush.AccentSoft}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
+                <Setter Property="Foreground" Value="{DynamicResource Brush.Accent}" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+            </Trigger>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
+                <Setter Property="Foreground" Value="{DynamicResource Brush.Accent}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!--
         Danger is reserved for the one irreversible action in the app - writing a snapshot. It stays
         soft until hover so it is legible as "this is the destructive one" without shouting.
     -->

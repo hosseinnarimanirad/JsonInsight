@@ -517,22 +517,44 @@ Two things follow from applying as you type, and both are load-bearing:
   it, because it is open most of the time it is in use and a second row pushes the text down by a
   whole field. `F3` and `Enter` step forward, `Shift+F3` and `Shift+Enter` back, both wrapping; `Aa`
   is match case, worth having because this file's ordinal key order treats `Url` and `URL` as two
-  keys. The counter reads `3 of 12` in a fixed-width slot, so a count changing as you type does not
-  shove the row sideways. Replace and Replace all edit the *pane*, not the document — for a section,
-  Update node still has to follow, which is what keeps a bulk replace reviewable before it lands.
+  keys, and it lights up while it is on rather than being a tick box you have to look twice at. The
+  counter reads `3 of 12` in a fixed-width slot, so a count changing as you type does not shove the
+  row sideways. Replace and Replace all edit the *pane*, not the document — for a section, Update
+  node still has to follow, which is what keeps a bulk replace reviewable before it lands.
+
+  Both shortcuts work from anywhere on the tab, in both front ends. `Ctrl+F` was a key handler on the
+  WPF pane alone, so it only opened the bar once the caret was already in the JSON — which is exactly
+  where you do not need a shortcut to get to — and `F3` did nothing from inside the find box, which
+  is where it is most likely to be pressed. Stepping and replacing are offered only when there is
+  something to step to or replace, rather than staying lit and doing nothing; and clicking in the
+  pane moves the search's idea of *here*, so the next `Enter` continues from where you are looking
+  rather than from wherever the last step stopped.
 
   **Every match is highlighted**, softly, and the one you are standing on more strongly. Neither pane
-  can colour part of its own content — a `<textarea>` cannot, and nor can a WPF `TextBox` — so the
-  Photino app draws a layer behind a transparent textarea holding the same string at the same
-  metrics, and the WPF app draws an adorner over the text box. Both read their marks from one list on
-  the view model, so a match is the same thing in both.
+  can colour part of its own content — a `<textarea>` cannot, and nor can a WPF `TextBox` — so both
+  put the marks *behind* a transparent editor: the Photino app in a layer holding the same string at
+  the same metrics, the WPF app in a `FindHighlightLayer` sharing the editor's grid cell. Both read
+  their marks from one list on the view model, so a match is the same thing in both. WPF gets the
+  easier half of it: `GetRectFromCharacterIndex` already answers in scrolled coordinates, so there is
+  nothing there matching the browser side's scroll-syncing or its rule that every metric affecting
+  where a character lands must be identical on both elements.
 
-  Two things this fixed rather than added. Stepping used to search from the caret — and the caret
+  Four things this fixed rather than added. Stepping used to search from the caret — and the caret
   sits *at* the current match after a step, so ↓ found the same one again; it walks an index into the
-  match list now, which cannot land on the entry it is already on. And revealing a match used to
-  focus the pane, which took the caret out of the find box and turned the second `Enter` into a
-  newline in the JSON; the highlight is what shows the match now, so nothing needs focus to be
-  visible and the box keeps it.
+  match list now, which cannot land on the entry it is already on. Revealing a match used to focus
+  the pane, which took the caret out of the find box and turned the second `Enter` into a newline in
+  the JSON; the highlight is what shows the match now, so nothing needs focus to be visible and the
+  box keeps it.
+
+  The other two were the WPF highlights, which were drawn by an *adorner* and had both of the faults
+  that arrangement guarantees. An adorner renders above what it adorns, and these brushes are opaque,
+  so every mark erased the word it was marking — pale yellow on white in the light theme, which read
+  as the searched term having simply gone missing from the pane. And an adorner lives in the window's
+  adorner layer rather than in the tree it decorates: selecting another tab disconnects this pane,
+  the layer drops the adorner, and the code that attached it only ever ran while its field was null —
+  so after the first switch away from the Tier editor, nothing was ever drawn again for the life of
+  the window. An ordinary child of the grid has neither fault, because it paints under the glyphs and
+  travels with the pane.
 - **Compact** and **Wrap** are switches rather than buttons, matching **Changed** on the tree. Both
   are states you leave set, and a button labelled with its own current state has to be read before it
   can be pressed — and reads as an action whichever way round it is labelled. Compact is display only

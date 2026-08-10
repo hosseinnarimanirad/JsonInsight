@@ -221,6 +221,18 @@ public sealed partial class JsonEditorVm : ObservableObject
     /// <summary>Whether there is anything to draw — for a pane that renders no highlight layer at all otherwise.</summary>
     public bool HasMatches => Matches.Count > 0;
 
+    /// <summary>
+    /// Whether Replace and Replace all would do anything: something to replace, and a pane that can
+    /// be written to.
+    ///
+    /// <para>
+    /// Both conditions rather than just the second, because a lit button that does nothing when
+    /// pressed is the one that gets pressed twice and then reported as broken. Asked here rather than
+    /// assembled in each view, so the two bars cannot disagree about when replacing is possible.
+    /// </para>
+    /// </summary>
+    public bool CanReplace => HasMatches && !IsEditorReadOnly;
+
     partial void OnFindTextChanged(string value) => RefreshMatches();
 
     partial void OnMatchCaseChanged(bool value) => RefreshMatches();
@@ -316,6 +328,7 @@ public sealed partial class JsonEditorVm : ObservableObject
         OnPropertyChanged(nameof(MatchIndex));
         OnPropertyChanged(nameof(MatchAt));
         OnPropertyChanged(nameof(HasMatches));
+        OnPropertyChanged(nameof(CanReplace));
     }
 
     [RelayCommand]
@@ -604,6 +617,7 @@ public sealed partial class JsonEditorVm : ObservableObject
         OnPropertyChanged(nameof(CommitHint));
         OnPropertyChanged(nameof(RevertNodeLabel));
         OnPropertyChanged(nameof(IsEditorReadOnly));
+        OnPropertyChanged(nameof(CanReplace));
         OnPropertyChanged(nameof(CanCompare));
         OnPropertyChanged(nameof(PaneHeader));
 
@@ -1169,6 +1183,7 @@ public sealed partial class JsonEditorVm : ObservableObject
         OnPropertyChanged(nameof(RevertNodeLabel));
         OnPropertyChanged(nameof(PaneHeader));
         OnPropertyChanged(nameof(IsEditorReadOnly));
+        OnPropertyChanged(nameof(CanReplace));
         OnPropertyChanged(nameof(StatusLine));
     }
 

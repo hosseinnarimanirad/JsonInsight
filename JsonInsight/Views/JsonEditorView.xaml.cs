@@ -1,6 +1,5 @@
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Documents;
 using System.Windows.Input;
 using JsonInsight.Editing;
 using JsonInsight.ViewModels;
@@ -24,10 +23,9 @@ public partial class JsonEditorView : UserControl
         };
 
         // The view model is replaced on every reload and every pull, so the match list to paint is a
-        // different object each time. Watched here rather than bound, because what the adorner needs
+        // different object each time. Watched here rather than bound, because what the layer needs
         // is a call, not a value.
         DataContextChanged += OnViewModelReplaced;
-        Loaded += (_, _) => RefreshHighlights();
     }
 
     private JsonEditorVm? Vm => DataContext as JsonEditorVm;
@@ -78,9 +76,22 @@ public partial class JsonEditorView : UserControl
     /// Find and replace lives in the code-behind because it is entirely about the text box: where the
     /// caret is, what is selected, and what to scroll to. The matching itself is
     /// <see cref="TextFinder"/>, which is testable; none of what is left here is.
+    ///
+    /// <para>
+    /// Handled for the whole tab rather than for the pane alone. Ctrl+F used to be a
+    /// <c>KeyDown</c> on the editor, so it only worked once the caret was already in the JSON — which
+    /// is precisely where you do not need a shortcut to get to. F3 was the same, and did nothing from
+    /// inside the find box, where it is most likely to be pressed.
+    /// </para>
     /// </summary>
-    private void OnEditorKeyDown(object sender, KeyEventArgs e)
+    private void OnPaneKeyDown(object sender, KeyEventArgs e)
     {
+        // Nothing to search while the diff is up, which is also when the Find switch is off.
+        if (Vm is not { ShowingComparison: false })
+        {
+            return;
+        }
+
         if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control)
         {
             OpenFind();
@@ -93,6 +104,30 @@ public partial class JsonEditorView : UserControl
             Find(forward: Keyboard.Modifiers != ModifierKeys.Shift);
             e.Handled = true;
         }
+    }
+
+    /// <summary>
+    /// A click in the pane moves the search's idea of "here", so the next Enter continues from where
+    /// you are looking rather than from wherever the last step stopped — the same thing a click does
+    /// on the Blazor pane.
+    ///
+    /// <para>
+    /// Read after the event rather than during it: the caret has not moved yet while the click is
+    /// still being previewed. Handling <c>SelectionChanged</c> instead would have been simpler and
+    /// wrong — <see cref="Reveal"/> selects the match it just stepped to, so stepping would re-enter
+    /// this and argue with itself about which match is current.
+    /// </para>
+    /// </summary>
+    private void OnEditorClicked(object sender, MouseButtonEventArgs e)
+    {
+        if (Vm is not { FindOpen: true, HasMatches: true } vm)
+        {
+            return;
+        }
+
+        Dispatcher.BeginInvoke(
+            () => vm.SyncMatchToCaret(Editor.CaretIndex),
+            System.Windows.Threading.DispatcherPriority.Input);
     }
 
     private void OnFindBoxKeyDown(object sender, KeyEventArgs e)
@@ -191,6 +226,8 @@ public partial class JsonEditorView : UserControl
             return;
         }
 
+        var index = vm.MatchIndex;
+
         Editor.Select(at, vm.FindText.Length);
         Editor.SelectedText = vm.ReplaceText;
         Editor.Select(at + vm.ReplaceText.Length, 0);
@@ -200,20 +237,39 @@ public partial class JsonEditorView : UserControl
         // repeatedly walk the document.
         vm.SyncMatchToCaret(at + vm.ReplaceText.Length);
 
+        // Replacing the last match leaves the caret past everything left, so there is no match at or
+        // before it to be current. Wrapping to the first one keeps Replace walking rather than
+        // stopping dead on the final press.
+        if (vm.HasMatches && vm.MatchIndex < 0 && index >= 0)
+        {
+            vm.StepMatch(forward: true);
+        }
+
         if (vm.MatchAt >= 0)
         {
             Reveal(vm.MatchAt, vm.FindText.Length);
         }
     }
 
+    /// <summary>
+    /// Every match in the pane at once. Still only in the pane — a section needs Update node
+    /// afterwards, which is what keeps a bulk replace reviewable before it lands.
+    ///
+    /// <para>
+    /// Written through the view model rather than straight into the text box. The box's binding is
+    /// delayed by 250&#160;ms, so assigning <c>Editor.Text</c> left the view model — and with it the
+    /// match list the highlights are drawn from and the count in the bar — a quarter second behind
+    /// what was on screen.
+    /// </para>
+    /// </summary>
     private void OnReplaceAll(object sender, RoutedEventArgs e)
     {
-        if (Vm is not { } vm || vm.FindText.Length == 0 || Editor.IsReadOnly)
+        if (Vm is not { CanReplace: true } vm)
         {
             return;
         }
 
-        var (replaced, count) = TextFinder.ReplaceAll(Editor.Text, vm.FindText, vm.ReplaceText, vm.MatchCase);
+        var (replaced, count) = TextFinder.ReplaceAll(vm.EditorText, vm.FindText, vm.ReplaceText, vm.MatchCase);
 
         if (count == 0)
         {
@@ -222,7 +278,8 @@ public partial class JsonEditorView : UserControl
         }
 
         var caret = Editor.SelectionStart;
-        Editor.Text = replaced;
+
+        vm.EditorText = replaced;
         Editor.Select(Math.Min(caret, replaced.Length), 0);
 
         vm.FindStatus = $"{count} replaced";
@@ -233,8 +290,9 @@ public partial class JsonEditorView : UserControl
     ///
     /// <para>
     /// It used to focus the editor, which moved the caret out of the find box — so the second Enter
-    /// went into the JSON as a newline instead of finding the next match. The adorner is what shows
-    /// the match now, so there is nothing left that needs focus to be visible, and the box keeps it.
+    /// went into the JSON as a newline instead of finding the next match. The highlight layer is what
+    /// shows the match now, so there is nothing left that needs focus to be visible, and the box
+    /// keeps it.
     /// </para>
     /// </summary>
     private void Reveal(int at, int length)
@@ -245,30 +303,21 @@ public partial class JsonEditorView : UserControl
 
     // ------------------------------------------------------------------ highlighting
 
-    private FindHighlightAdorner? _highlights;
-
     /// <summary>
-    /// Attaches the adorner the first time it is needed and keeps it fed. Late rather than in the
-    /// constructor: an adorner layer only exists once the control is in a visual tree.
+    /// Hands the layer the current match list.
+    ///
+    /// <para>
+    /// The layer is declared in the XAML beside the editor, so there is nothing to attach and nothing
+    /// to retry. This used to create an adorner on first use and guard on a null field — which meant
+    /// that once the adorner layer had dropped it, on the first switch away from this tab, the guard
+    /// saw a non-null field and never put it back.
+    /// </para>
     /// </summary>
     private void RefreshHighlights()
     {
-        if (Vm is not { } vm)
+        if (Vm is { } vm)
         {
-            return;
+            Highlights.Show(vm.Matches, vm.FindText.Length, vm.MatchIndex);
         }
-
-        if (_highlights is null)
-        {
-            if (AdornerLayer.GetAdornerLayer(Editor) is not { } layer)
-            {
-                return;
-            }
-
-            _highlights = new FindHighlightAdorner(Editor);
-            layer.Add(_highlights);
-        }
-
-        _highlights.Show(vm.Matches, vm.FindText.Length, vm.MatchIndex);
     }
 }

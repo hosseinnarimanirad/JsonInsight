@@ -6,7 +6,8 @@
              d:DataContext="{d:DesignInstance Type=vm:JsonEditorVm}"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             mc:Ignorable="d">
+             mc:Ignorable="d"
+             PreviewKeyDown="OnPaneKeyDown">
 
     <DockPanel>
         <!-- Toolbar: which tier, and everything that acts on the document as a whole. -->
@@ -287,9 +288,14 @@
                                           IsChecked="{Binding WordWrap}" Margin="0,0,5,0"
                                           ToolTip="Wrap long lines instead of letting them run off with a horizontal scrollbar. On is for reading a 900-character token; off is for seeing the shape of a deep structure." />
 
+                                <!-- Off while comparing: there is no editable text behind the diff
+                                     to search, which the bar's own MultiDataTrigger already knows -
+                                     but a switch you can flip that changes nothing on screen is
+                                     worse than one that is plainly unavailable. -->
                                 <CheckBox Style="{StaticResource Switch.Filter}" Content="Find"
                                           IsChecked="{Binding FindOpen}" Margin="0,0,5,0"
                                           Checked="OnFindToggled"
+                                          IsEnabled="{Binding ShowingComparison, Converter={StaticResource NotBool}}"
                                           ToolTip="Find and replace inside this pane (Ctrl+F). F3 finds the next match, Shift+F3 the previous." />
 
                                 <Button Style="{StaticResource Button.Small}" Content="&#xE8C8;  Copy"
@@ -393,19 +399,27 @@
                                      ToolTip="Enter finds the next match, Shift+Enter the previous, Escape closes." />
 
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="5,0,0,0">
+                                <!-- Off with nothing to step to. Pressing a lit button that does
+                                     nothing is how a working search gets reported as broken. -->
                                 <Button Style="{StaticResource Button.Icon}" Content="&#xE70E;" FontSize="10"
-                                        Click="OnFindPrevious" ToolTip="Previous match (Shift+F3)" />
+                                        Click="OnFindPrevious" IsEnabled="{Binding HasMatches}"
+                                        ToolTip="Previous match (Shift+F3)" />
                                 <Button Style="{StaticResource Button.Icon}" Content="&#xE70D;" FontSize="10"
-                                        Margin="2,0,0,0" Click="OnFindNext" ToolTip="Next match (F3)" />
-                                <CheckBox Content="Aa" IsChecked="{Binding MatchCase}" FontSize="12"
-                                          VerticalAlignment="Center" Margin="9,0,0,0"
-                                          ToolTip="Match case. Worth turning on here — this file's key order treats Url and URL as two different keys." />
+                                        Margin="2,0,0,0" Click="OnFindNext" IsEnabled="{Binding HasMatches}"
+                                        ToolTip="Next match (F3)" />
+
+                                <!-- A flag that lights up rather than a tick box, so its state is
+                                     readable at the glance you give a dense row. -->
+                                <ToggleButton Style="{StaticResource Toggle.Small}" Content="Aa"
+                                              IsChecked="{Binding MatchCase}"
+                                              VerticalAlignment="Center" Margin="9,0,0,0"
+                                              ToolTip="Match case. Worth turning on here — this file's key order treats Url and URL as two different keys." />
 
                                 <!-- Fixed width: the count changes on every keystroke, and a status
                                      that resizes shoves the whole row sideways while you type. -->
                                 <TextBlock Text="{Binding FindStatus}" Style="{StaticResource Text.Caption}"
                                            VerticalAlignment="Center" TextAlignment="Right"
-                                           Width="62" Margin="8,0,9,0" />
+                                           Width="78" Margin="8,0,9,0" />
                             </StackPanel>
 
                             <TextBox Grid.Column="2"
@@ -416,13 +430,14 @@
                                      Text="{Binding ReplaceText, UpdateSourceTrigger=PropertyChanged}" />
 
                             <StackPanel Grid.Column="3" Orientation="Horizontal" Margin="5,0,0,0">
+                                <!-- CanReplace, not just "the pane is writable": with nothing found
+                                     there is nothing to replace, and the button should say so. -->
                                 <Button Style="{StaticResource Button.Secondary}" Content="Replace"
-                                        Click="OnReplace"
-                                        IsEnabled="{Binding IsEditorReadOnly, Converter={StaticResource NotBool}}"
-                                        ToolTip="Replace the selected match and move to the next one" />
-                                <Button Style="{StaticResource Button.Secondary}" Content="All"
+                                        Click="OnReplace" IsEnabled="{Binding CanReplace}"
+                                        ToolTip="Replace the current match and move to the next one" />
+                                <Button Style="{StaticResource Button.Secondary}" Content="Replace all"
                                         Click="OnReplaceAll" Margin="4,0,0,0"
-                                        IsEnabled="{Binding IsEditorReadOnly, Converter={StaticResource NotBool}}"
+                                        IsEnabled="{Binding CanReplace}"
                                         ToolTip="Replace every match in this pane. Still only in the pane — a section needs Update node afterwards." />
                                 <Button Style="{StaticResource Button.Icon}" Content="&#xE711;" FontSize="10"
                                         Margin="7,0,0,0"
@@ -509,6 +524,23 @@
                     </Border>
 
                     <Grid>
+                        <!-- The find marks, behind the text rather than over it.
+
+                             A TextBox cannot colour part of its own content, so the marks are a
+                             second element in this cell holding nothing but backgrounds, with the
+                             editor transparent on top of it. The surface brush moves here for the
+                             same reason - the editor no longer paints one - and the radius matches
+                             the one the field's own template draws, so the corners still line up.
+
+                             This layer must stay first: siblings paint in order, and the whole point
+                             is that the glyphs are drawn over the marks. It is also why the marks
+                             are an ordinary child rather than an adorner, which would render above
+                             the text and would not survive switching away from this tab. -->
+                        <Border CornerRadius="7" Background="{DynamicResource Brush.Surface}"
+                                Visibility="{Binding ShowingComparison, Converter={StaticResource BoolVis}, ConverterParameter=invert}">
+                            <views:FindHighlightLayer x:Name="Highlights" Editor="{Binding ElementName=Editor}" />
+                        </Border>
+
                         <!-- Wraps by default rather than scrolling sideways: these values include
                              tokens and PEM blocks hundreds of characters long, and reading one of
                              those a screen-width at a time is not reading it. The toggle is for the
@@ -519,7 +551,8 @@
                                  Visibility="{Binding ShowingComparison, Converter={StaticResource BoolVis}, ConverterParameter=invert}"
                                  Text="{Binding EditorText, UpdateSourceTrigger=PropertyChanged, Delay=250}"
                                  IsReadOnly="{Binding IsEditorReadOnly}"
-                                 KeyDown="OnEditorKeyDown"
+                                 Background="Transparent"
+                                 PreviewMouseLeftButtonUp="OnEditorClicked"
                                  AcceptsReturn="True" AcceptsTab="True"
                                  VerticalContentAlignment="Stretch" Padding="10"
                                  VerticalScrollBarVisibility="Auto">
