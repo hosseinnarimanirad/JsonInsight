@@ -320,9 +320,23 @@
                                     </Button.Style>
                                 </Button>
 
-                                <Button Style="{StaticResource Button.Primary}" Content="Update node"
-                                        Command="{Binding ApplyCommand}" IsEnabled="{Binding CanApply}"
-                                        ToolTip="Apply the JSON in the pane to this node. In memory only — Save writes it. Disabled while the pane matches the document." />
+                                <!-- ShowOnDisabled, because off is the state this tooltip is about:
+                                     the default hides a tooltip on a disabled control, which is
+                                     precisely when "why can I not press this" gets asked. -->
+                                <Button Content="Update node" Command="{Binding ApplyCommand}"
+                                        IsEnabled="{Binding CanApply}"
+                                        ToolTipService.ShowOnDisabled="True">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource Button.Primary}">
+                                            <Setter Property="ToolTip" Value="Apply the JSON in the pane to this node. In memory only — Save writes it. Off while the pane matches the document, and while it does not parse." />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding HasEditorProblem}" Value="True">
+                                                    <Setter Property="ToolTip" Value="{Binding EditorProblem}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
                             </StackPanel>
 
                             <!-- Names the comparison's scope while it is on: a node-scoped diff that
@@ -436,9 +450,14 @@
                                TextWrapping="Wrap" Margin="11,9"
                                Visibility="{Binding Message, Converter={StaticResource NotEmptyVis}}" />
 
-                    <!-- Which of the two ways this pane commits. A screen where some edits land as
-                         you type and others wait for a button has to say which one you are in;
-                         working it out from whether the button greyed itself out is not a design. -->
+                    <!-- Which of the two ways this pane commits - or, while the pane does not parse,
+                         why Update node is off. A screen where some edits land as you type and
+                         others wait for a button has to say which one you are in; working it out
+                         from whether the button greyed itself out is not a design, and that goes
+                         double for a button that is off because the text is unreadable.
+
+                         One line rather than two, because only one of the two is ever true: a pane
+                         that does not parse is not committing as you type either. -->
                     <Border DockPanel.Dock="Bottom" Padding="11,7"
                             Background="{DynamicResource Brush.SurfaceAlt}"
                             BorderBrush="{DynamicResource Brush.BorderSubtle}" BorderThickness="0,1,0,0"
@@ -455,12 +474,33 @@
                                                 <Setter Property="Text" Value="&#xE930;" />
                                                 <Setter Property="Foreground" Value="{DynamicResource Brush.Ok}" />
                                             </DataTrigger>
+
+                                            <!-- Last, so it wins over the scalar tick: a scalar whose
+                                                 pane does not parse is not landing as you type. -->
+                                            <DataTrigger Binding="{Binding HasEditorProblem}" Value="True">
+                                                <Setter Property="Text" Value="&#xE7BA;" />
+                                                <Setter Property="Foreground" Value="{DynamicResource Brush.Missing}" />
+                                            </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
                                 </TextBlock.Style>
                             </TextBlock>
-                            <TextBlock Text="{Binding CommitHint}" Style="{StaticResource Text.Caption}"
-                                       TextWrapping="Wrap" MaxWidth="620" VerticalAlignment="Center" />
+
+                            <!-- Text comes from the style rather than as an attribute: a local value
+                                 wins over a setter, so the trigger below could never replace it. -->
+                            <TextBlock TextWrapping="Wrap" MaxWidth="620" VerticalAlignment="Center">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource Text.Caption}">
+                                        <Setter Property="Text" Value="{Binding CommitHint}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasEditorProblem}" Value="True">
+                                                <Setter Property="Text" Value="{Binding EditorProblem}" />
+                                                <Setter Property="Foreground" Value="{DynamicResource Brush.Missing}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
                         </StackPanel>
                     </Border>
 

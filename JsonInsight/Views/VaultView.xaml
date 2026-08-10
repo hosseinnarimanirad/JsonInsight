@@ -15,49 +15,36 @@
         as whom" meant reading three places and knowing which won. A row now carries its own address,
         token and whole secret path, so the answer is on the row.
     -->
-    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+    <ScrollViewer x:Name="Page" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                   Padding="0,0,4,0">
-        <Border Style="{StaticResource Card.Flush}">
+
+        <!--
+            At least as tall as the tab, so the list is not a short block floating in a tall empty
+            pane. The rows take whatever is left over and the notes sit at the bottom of the page;
+            with more rows than fit, the card grows past the viewport and this scrolls as before.
+        -->
+        <Border Style="{StaticResource Card.Flush}" MinHeight="{Binding ViewportHeight, ElementName=Page}">
             <DockPanel>
 
                 <!-- Heading -->
                 <Border DockPanel.Dock="Top" Padding="12,10,12,0">
-                    <StackPanel>
-                        <DockPanel>
-                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                                <Border Style="{StaticResource Pill}" Margin="0,0,10,0"
-                                        Background="{DynamicResource Brush.SurfaceAlt}"
-                                        VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding ActiveSummary}" FontSize="12"
-                                               Foreground="{DynamicResource Brush.TextSecondary}" />
-                                </Border>
-                                <Button Style="{StaticResource Button.Secondary}" Content="Reload settings"
-                                        Command="{Binding ReloadSettingsCommand}" Margin="0,0,8,0"
-                                        ToolTip="Re-reads appsettings.json and user secrets, discarding unsaved edits." />
-                                <Button Style="{StaticResource Button.Primary}" Content="Save settings"
-                                        Command="{Binding SaveSettingsCommand}" />
-                            </StackPanel>
-                            <TextBlock Text="SOURCES" Style="{StaticResource Text.SectionLabel}"
-                                       VerticalAlignment="Center" />
-                        </DockPanel>
-
-                        <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,6,0,0"
-                                   Text="The environments this app knows, whether or not each has a source yet. A source is either a Vault secret — the whole path to one JSON, with its own address and token — or a single JSON file on disk. Press Search on a Vault row to walk that row's own server and list the JSONs actually there. Tick ON to make a row one of the columns the other tabs compare; four at a time. Until something is ticked and saved, config/tiers.json decides that instead." />
-
-                        <TextBlock Text="{Binding Status}" Style="{StaticResource Text.Secondary}"
-                                   FontSize="12" TextWrapping="Wrap" Margin="0,8,0,0"
-                                   Visibility="{Binding Status, Converter={StaticResource NotEmptyVis}}" />
-
-                        <ItemsControl ItemsSource="{Binding Problems}" Margin="0,6,0,0"
-                                      Visibility="{Binding Problems.Count, Converter={StaticResource NotEmptyVis}}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding}" Style="{StaticResource Text.Missing}"
-                                               TextWrapping="Wrap" />
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </StackPanel>
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <Border Style="{StaticResource Pill}" Margin="0,0,10,0"
+                                    Background="{DynamicResource Brush.SurfaceAlt}"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="{Binding ActiveSummary}" FontSize="12"
+                                           Foreground="{DynamicResource Brush.TextSecondary}" />
+                            </Border>
+                            <Button Style="{StaticResource Button.Secondary}" Content="Reload settings"
+                                    Command="{Binding ReloadSettingsCommand}" Margin="0,0,8,0"
+                                    ToolTip="Re-reads appsettings.json and user secrets, discarding unsaved edits." />
+                            <Button Style="{StaticResource Button.Primary}" Content="Save settings"
+                                    Command="{Binding SaveSettingsCommand}" />
+                        </StackPanel>
+                        <TextBlock Text="SOURCES" Style="{StaticResource Text.SectionLabel}"
+                                   VerticalAlignment="Center" />
+                    </DockPanel>
                 </Border>
 
                 <Border DockPanel.Dock="Top" Style="{StaticResource TableHeader}" Margin="0,10,0,0">
@@ -70,6 +57,7 @@
                             <ColumnDefinition Width="0.85*" />
                             <ColumnDefinition Width="3.65*" />
                             <ColumnDefinition Width="62" />
+                            <ColumnDefinition Width="62" />
                             <ColumnDefinition Width="46" />
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0" Text="ON" Style="{StaticResource Text.SectionLabel}" />
@@ -79,6 +67,33 @@
                         <TextBlock Grid.Column="4" Text="TOKEN" Style="{StaticResource Text.SectionLabel}" />
                         <TextBlock Grid.Column="5" Text="JSON PATH" Style="{StaticResource Text.SectionLabel}" />
                     </Grid>
+                </Border>
+
+                <!--
+                    Under the rows rather than over them. What this tab is for is answered by the
+                    list itself; the paragraph explaining it is worth having but is not worth the
+                    top of the page, and the status line reports on something you have just done -
+                    which is where you were already looking by the time it appears.
+                -->
+                <Border DockPanel.Dock="Bottom" Padding="12,10,12,12">
+                    <StackPanel>
+                        <ItemsControl ItemsSource="{Binding Problems}" Margin="0,0,0,6"
+                                      Visibility="{Binding Problems.Count, Converter={StaticResource NotEmptyVis}}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding}" Style="{StaticResource Text.Missing}"
+                                               TextWrapping="Wrap" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <TextBlock Text="{Binding Status}" Style="{StaticResource Text.Secondary}"
+                                   FontSize="12" TextWrapping="Wrap" Margin="0,0,0,8"
+                                   Visibility="{Binding Status, Converter={StaticResource NotEmptyVis}}" />
+
+                        <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap"
+                                   Text="The environments this app knows, whether or not each has a source yet. A source is either a Vault secret — the whole path to one JSON, with its own address and token — or a single JSON file on disk. Press Search on a Vault row to walk that row's own server and list the JSONs actually there. Test reads what a row points at and reports what is there; it is what turns Load on, and any edit to the row turns Load off again. Tick ON to make a row one of the columns the other tabs compare; four at a time. Until something is ticked and saved, config/tiers.json decides that instead." />
+                    </StackPanel>
                 </Border>
 
                 <!-- No scrollbar of its own: the page scrolls, and a nested one here would take the
@@ -98,6 +113,7 @@
                                                 <ColumnDefinition Width="1.5*" />
                                                 <ColumnDefinition Width="0.85*" />
                                                 <ColumnDefinition Width="3.65*" />
+                                                <ColumnDefinition Width="62" />
                                                 <ColumnDefinition Width="62" />
                                                 <ColumnDefinition Width="46" />
                                             </Grid.ColumnDefinitions>
@@ -152,11 +168,13 @@
                                             <!-- The path and the button that fills it, together: the
                                                  list Search returns is this field's contents, so
                                                  putting them apart would separate a control from the
-                                                 only thing that changes it. -->
+                                                 only thing that changes it. Search leads, because it
+                                                 is what turns an empty box into a list to choose
+                                                 from. -->
                                             <DockPanel Grid.Column="5" Margin="0,0,8,0"
                                                        Visibility="{Binding IsVault, Converter={StaticResource BoolVis}}">
-                                                <Button DockPanel.Dock="Right" Style="{StaticResource Button.Secondary}"
-                                                        Margin="8,0,0,0" Height="{StaticResource Size.Control}"
+                                                <Button DockPanel.Dock="Left" Style="{StaticResource Button.Secondary}"
+                                                        Margin="0,0,8,0" Height="{StaticResource Size.Control}"
                                                         Command="{Binding DataContext.SearchVaultCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                         CommandParameter="{Binding}"
                                                         IsEnabled="{Binding Searching, Converter={StaticResource NotBool}}"
@@ -198,8 +216,10 @@
                                                  room rather than leaving two dead boxes on the row. -->
                                             <DockPanel Grid.Column="3" Grid.ColumnSpan="3" Margin="0,0,8,0"
                                                        Visibility="{Binding IsLocalFile, Converter={StaticResource BoolVis}}">
-                                                <Button DockPanel.Dock="Right" Style="{StaticResource Button.Secondary}"
-                                                        Content="Browse&#8230;" Margin="8,0,0,0"
+                                                <!-- Leading, where a Vault row has Search: the same
+                                                     column doing the same job. -->
+                                                <Button DockPanel.Dock="Left" Style="{StaticResource Button.Secondary}"
+                                                        Content="Browse&#8230;" Margin="0,0,8,0"
                                                         Height="{StaticResource Size.Control}"
                                                         Command="{Binding DataContext.BrowseLocalFileCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                         CommandParameter="{Binding}"
@@ -209,23 +229,37 @@
                                                          ToolTip="The JSON file this environment is. Saving to it backs up the previous content beside it first, then writes and reads back to verify." />
                                             </DockPanel>
 
-                                            <!-- The one thing on a row worth a click of its own.
-                                                 Pull reads all four sources; this reads the one
-                                                 whose path was just fixed, and afterwards the other
-                                                 tabs are showing it - which is what Pull was being
-                                                 pressed for.
+                                            <!-- Test then Load, in that order and in that dependency:
+                                                 Test is the only thing that turns Load on, and any
+                                                 edit to the row turns it off again. It came out of
+                                                 the ⋮ menu to sit here because a button you have to
+                                                 press before the next one works is not an
+                                                 occasional option.
 
                                                  Height is set rather than left to MinHeight: the
-                                                 Search button beside it holds an icon and a word,
+                                                 Search button beside these holds an icon and a word,
                                                  which measures taller than a button holding a word,
                                                  so the two sat at different heights on the same row. -->
-                                            <Button Grid.Column="6" Style="{StaticResource Button.Primary}"
+                                            <Button Grid.Column="6" Style="{StaticResource Button.Secondary}"
+                                                    VerticalAlignment="Center" Margin="0,0,6,0"
+                                                    Height="{StaticResource Size.Control}" Padding="10,0"
+                                                    Content="Test"
+                                                    Command="{Binding DataContext.TestCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    CommandParameter="{Binding}"
+                                                    IsEnabled="{Binding CanTest}"
+                                                    ToolTip="Test connection - reads what this row points at and reports what is there: a Vault secret's version and key count, a file's key count and details. Keeps nothing and changes nothing on the other tabs. Load turns on once this succeeds. Off until the row says where to read from." />
+
+                                            <!-- Pull reads all four sources; this reads the one
+                                                 whose path was just fixed, and afterwards the other
+                                                 tabs are showing it - which is what Pull was being
+                                                 pressed for. -->
+                                            <Button Grid.Column="7" Style="{StaticResource Button.Primary}"
                                                     VerticalAlignment="Center"
                                                     Height="{StaticResource Size.Control}" Padding="10,0"
                                                     Command="{Binding DataContext.LoadRowCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                     CommandParameter="{Binding}"
-                                                    IsEnabled="{Binding Busy, Converter={StaticResource NotBool}}"
-                                                    ToolTip="Read this source now and show it on the Tier editor, All tiers and Text diff. Pull in the title bar does all of them; this does one.">
+                                                    IsEnabled="{Binding CanLoad}"
+                                                    ToolTip="Read this source now and show it on the Tier editor, All tiers and Text diff. Pull in the title bar does all of them; this does one. Off until Test has read this source, and off again after any edit to the row.">
                                                 <TextBlock VerticalAlignment="Center">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
@@ -240,21 +274,21 @@
                                                 </TextBlock>
                                             </Button>
 
-                                            <!-- Everything that is neither "where does this row read
-                                                 from" nor "check that it does", behind one overflow.
-
-                                                 The row is the wide part of this tab and the three
-                                                 things in here are all occasional: a TLS exception
-                                                 set once, an endpoint configured once, and a restart
-                                                 that should never be one click from a row of
-                                                 environments that all look alike. Call restart stays
-                                                 separate from Restart config inside the menu for the
-                                                 same reason it always was - one is a configuration
-                                                 act and the other is destructive. -->
-                                            <Button Grid.Column="7" Style="{StaticResource Button.Secondary}"
+                                            <!-- What is left is Vault-only and occasional: a TLS
+                                                 exception set once, an endpoint configured once, and
+                                                 a restart that should never be one click from a row
+                                                 of environments that all look alike. A local-file
+                                                 row has no certificate to trust and nothing running
+                                                 behind it to restart, so it gets no menu rather than
+                                                 an empty one. Call restart stays separate from
+                                                 Restart config inside the menu for the same reason
+                                                 it always was - one is a configuration act and the
+                                                 other is destructive. -->
+                                            <Button Grid.Column="8" Style="{StaticResource Button.Secondary}"
                                                     VerticalAlignment="Center" HorizontalAlignment="Right"
                                                     Height="{StaticResource Size.Control}"
                                                     Padding="8,0" MinWidth="0"
+                                                    Visibility="{Binding IsVault, Converter={StaticResource BoolVis}}"
                                                     Click="OnRowMenuClick"
                                                     ToolTip="More options for this source.">
                                                 <TextBlock Text="&#xE712;" FontFamily="{StaticResource Font.Icons}"
@@ -265,20 +299,6 @@
                                                          it does not inherit the row's and every
                                                          binding below would silently bind to nothing. -->
                                                     <ContextMenu>
-                                                        <!-- Click rather than a Command binding: the
-                                                             menu's DataContext is the row, and
-                                                             TestCommand lives on the tab. Reaching
-                                                             it through PlacementTarget would bind
-                                                             through a control that is not in this
-                                                             menu's tree either. -->
-                                                        <MenuItem Header="Test connection&#8230;" Click="OnTestClick"
-                                                                  ToolTip="Reads what this row points at and reports what is there - version and key count. Keeps nothing and changes nothing on the other tabs." />
-
-                                                        <!-- Vault-only below: a local file has no
-                                                             certificate to trust and nothing running
-                                                             behind it to restart. -->
-                                                        <Separator Visibility="{Binding IsVault, Converter={StaticResource BoolVis}}" />
-
                                                         <!-- Mode=TwoWay is required: unlike
                                                              CheckBox.IsChecked, MenuItem.IsChecked
                                                              does not bind two-way by default, so
@@ -291,7 +311,6 @@
                                                              ticked meant checking was off. -->
                                                         <MenuItem IsCheckable="True"
                                                                   IsChecked="{Binding AllowInsecureTls, Mode=TwoWay}"
-                                                                  Visibility="{Binding IsVault, Converter={StaticResource BoolVis}}"
                                                                   ToolTip="Accept any certificate from this row's Vault. Only for an internal server behind a self-signed cert.">
                                                             <MenuItem.Style>
                                                                 <Style TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
@@ -305,14 +324,12 @@
                                                             </MenuItem.Style>
                                                         </MenuItem>
 
-                                                        <Separator Visibility="{Binding IsVault, Converter={StaticResource BoolVis}}" />
+                                                        <Separator />
 
                                                         <MenuItem Header="Restart config&#8230;" Click="OnRestartConfigClick"
-                                                                  Visibility="{Binding IsVault, Converter={StaticResource BoolVis}}"
                                                                   ToolTip="Set the endpoint that restarts whatever reads this source. Saved with the row; the bearer token is not." />
 
                                                         <MenuItem Header="Call restart&#8230;" Click="OnRestartCallClick"
-                                                                  Visibility="{Binding IsVault, Converter={StaticResource BoolVis}}"
                                                                   ToolTip="{Binding RestartSummary}"
                                                                   IsEnabled="{Binding HasRestart}" />
                                                     </ContextMenu>

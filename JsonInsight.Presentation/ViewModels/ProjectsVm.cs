@@ -76,7 +76,22 @@ public sealed partial class ProjectsVm : ObservableObject
 
     /// <summary>The name being typed into the New project box.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanCreate))]
+    [NotifyCanExecuteChangedFor(nameof(CreateCommand))]
     private string _newProjectName = string.Empty;
+
+    /// <summary>
+    /// Whether there is a name to create a project under, which is the whole of what Create needs.
+    ///
+    /// <para>
+    /// A project <em>is</em> its name here — it is the key its sources are filed under and the key its
+    /// tokens are keyed by — so with the box empty there is nothing for Create to make. The button says
+    /// that by being unpressable, rather than by being pressed and answering with a status line, which
+    /// is the difference between a control that describes the state and one that reports on it
+    /// afterwards.
+    /// </para>
+    /// </summary>
+    public bool CanCreate => NewProjectName.Trim().Length > 0;
 
     /// <summary>
     /// Which project a new one copies its sources from, or null to start empty.
@@ -163,11 +178,14 @@ public sealed partial class ProjectsVm : ObservableObject
     [RelayCommand]
     private void Open(ProjectRowVm row) => _main.OpenProject(row.Name);
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanCreate))]
     private void Create()
     {
         var name = NewProjectName.Trim();
 
+        // Kept although CanCreate already refuses this: the Blazor screen commits on Enter as well as
+        // on the button, and RelayCommand.Execute does not consult CanExecute. A keystroke that
+        // arrives with the box empty gets the sentence rather than silence.
         if (name.Length == 0)
         {
             Status = "Give the project a name first.";

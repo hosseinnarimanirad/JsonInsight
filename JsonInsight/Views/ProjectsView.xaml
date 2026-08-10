@@ -47,8 +47,13 @@
                                   SelectedItem="{Binding CopySourcesFrom, Mode=TwoWay}"
                                   ToolTip="Start with another project's sources already filled in, then point the copy at a different document. The copy is its own from that moment: editing stage in one does not touch the other." />
 
+                        <!-- Off until the box says something: CreateCommand refuses an empty name,
+                             so the button is unpressable rather than pressed and answered afterwards
+                             with a status line. A project is its name here - it is what its sources
+                             are filed under and what its tokens are keyed by. -->
                         <Button Grid.Column="4" Style="{StaticResource Button.Primary}" Margin="12,0,0,0"
-                                Content="Create project" Command="{Binding CreateCommand}" />
+                                Content="Create project" Command="{Binding CreateCommand}"
+                                ToolTip="Create the project. Needs a name first. Creating does not open it - open it from the list below, then point its sources at something on the Sources tab." />
                     </Grid>
                 </StackPanel>
             </Border>

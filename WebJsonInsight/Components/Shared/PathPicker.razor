@@ -19,6 +19,15 @@
 @inherits ObservingComponent
 
 <div class="pathpicker">
+    @* Search first, then what it fills. It is the control that turns an empty box into a list to
+       choose from, so it comes where you reach for it: before the field, not after it. *@
+    <button class="btn btn-small" disabled="@Row.Searching" @onclick="Search"
+            title="Walk this row's own Vault and list every secret found there. Metadata only — no value is read and nothing is written. Bounded at 400 listings and 8 levels; it says when it stopped early.">
+        <Icon Name="@(Row.Searching ? "refresh" : "search")" Size="13"
+              Class="@(Row.Searching ? "spinning" : "")" />
+        <span>@(Row.Searching ? "Searching…" : "Search")</span>
+    </button>
+
     <div class="pathpicker-field">
         <input class="field dense mono" type="text"
                placeholder="kv/app/stage/resources/config/ui.json"
@@ -38,13 +47,6 @@
             <Icon Name="@(_open ? "chevron-down" : "chevron-right")" Size="11" />
         </button>
     </div>
-
-    <button class="btn btn-small" disabled="@Row.Searching" @onclick="Search"
-            title="Walk this row's own Vault and list every secret found there. Metadata only — no value is read and nothing is written. Bounded at 400 listings and 8 levels; it says when it stopped early.">
-        <Icon Name="@(Row.Searching ? "refresh" : "search")" Size="13"
-              Class="@(Row.Searching ? "spinning" : "")" />
-        <span>@(Row.Searching ? "Searching…" : "Search")</span>
-    </button>
 
     @if (_open)
     {

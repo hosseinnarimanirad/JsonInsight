@@ -30,7 +30,9 @@ else
             </div>
         }
 
-        <section class="card card-flush">
+        @* Takes whatever height the tab has left, so the notes underneath sit at the bottom of the
+           page rather than immediately under six rows with a screen of nothing below them. *@
+        <section class="card card-flush src-list">
             <div class="card-head">
                 <span class="section-label">SOURCES</span>
                 <div class="head-right">
@@ -46,13 +48,15 @@ else
                 </div>
             </div>
 
+            @* Left to right in the order a row gets filled in: what it is, where its server is, as
+               whom, then what to ask for — and only then the two buttons that act on the answer. *@
             <div class="src-head">
                 <div class="src-c-on" title="Whether this source is one of the columns the other tabs compare. Four at a time.">ON</div>
                 <div class="src-c-env">ENVIRONMENT</div>
                 <div class="src-c-kind">KIND</div>
-                <div class="src-c-path">JSON PATH</div>
                 <div class="src-c-addr">ADDRESS</div>
                 <div class="src-c-tok">TOKEN</div>
+                <div class="src-c-path">JSON PATH</div>
                 <div class="src-c-act"></div>
             </div>
 
@@ -88,10 +92,6 @@ else
 
                     @if (row.IsVault)
                     {
-                        <div class="src-c-path">
-                            <PathPicker Row="row" Vm="Vm" />
-                        </div>
-
                         <div class="src-c-addr">
                             <input class="field dense" type="text" placeholder="https://vault.example.com:8200"
                                    title="This row's own Vault server. Rows do not share one — beta and prod are not on the same host as stage."
@@ -118,33 +118,49 @@ else
                                    @oninput="e => row.Token = e.Value?.ToString() ?? string.Empty" />
                         </div>
 
+                        @* Search and the field it fills, in that order — see PathPicker. *@
+                        <div class="src-c-path">
+                            <PathPicker Row="row" Vm="Vm" />
+                        </div>
                     }
                     else
                     {
-                        <div class="src-c-path">
-                            <input class="field dense mono" type="text" placeholder="D:\snapshots\dev.json"
-                                   title="One JSON file on disk. Read live on every load and written in place — it is the environment, not a copy of one."
-                                   value="@row.LocalFilePath"
-                                   @oninput="e => row.LocalFilePath = e.Value?.ToString() ?? string.Empty" />
-                            <button class="btn btn-small" @onclick="() => Vm.BrowseLocalFileCommand.Execute(row)"
-                                    title="Pick the file this source reads.">
-                                <Icon Name="folder" Size="13" /> <span>Browse</span>
-                            </button>
-                        </div>
-
                         @* A local file has no server and no token, and empty boxes claiming otherwise
                            would be four fields that can never be filled in. *@
                         <div class="src-c-addr src-na">—</div>
                         <div class="src-c-tok src-na">—</div>
+
+                        <div class="src-c-path">
+                            @* Browse before the box, where a Vault row has Search: the same column,
+                               the same job, so the same place. *@
+                            <button class="btn btn-small" @onclick="() => Vm.BrowseLocalFileCommand.Execute(row)"
+                                    title="Pick the file this source reads.">
+                                <Icon Name="folder" Size="13" /> <span>Browse</span>
+                            </button>
+                            <input class="field dense mono" type="text" placeholder="D:\snapshots\dev.json"
+                                   title="One JSON file on disk. Read live on every load and written in place — it is the environment, not a copy of one."
+                                   value="@row.LocalFilePath"
+                                   @oninput="e => row.LocalFilePath = e.Value?.ToString() ?? string.Empty" />
+                        </div>
                     }
 
                     <div class="src-c-act">
-                        @* The one thing on a row worth a click of its own. Pull reads all four
-                           sources; this reads the one whose path you just fixed, and afterwards the
-                           other tabs are showing it - which is what you wanted Pull for. *@
-                        <button class="btn btn-small btn-primary" disabled="@row.Busy"
+                        @* Test then Load, in that order and in that dependency: Test is the only
+                           thing that turns Load on. It came out of the ⋮ menu to sit here because a
+                           button you must press before the next one works is not an occasional
+                           option. *@
+                        <button class="btn btn-small" disabled="@(!row.CanTest)"
+                                @onclick="() => Test(row)"
+                                title="@TestHint(row)">
+                            <Icon Name="ok" Size="13" /> <span>Test</span>
+                        </button>
+
+                        @* Pull reads all four sources; this reads the one whose path you just fixed,
+                           and afterwards the other tabs are showing it - which is what you wanted
+                           Pull for. *@
+                        <button class="btn btn-small btn-primary" disabled="@(!row.CanLoad)"
                                 @onclick="() => Vm.LoadRowCommand.ExecuteAsync(row)"
-                                title="Read this source now and show it on the Tier editor, All tiers and Text diff. Pull in the title bar does all of them; this does one.">
+                                title="@LoadHint(row)">
                             @if (row.Busy)
                             {
                                 <Icon Name="refresh" Size="13" Class="spinning" />
@@ -152,42 +168,33 @@ else
                             <span>@(row.Busy ? "Loading…" : "Load")</span>
                         </button>
 
-                        @* Everything occasional behind one overflow: checking a row without loading
-                           it, a TLS exception set once, an endpoint configured once, and a restart
-                           that should never be one click from a list of environments that all look
-                           alike.
+                        @* What is left is Vault-only and occasional: a TLS exception set once, an
+                           endpoint configured once, and a restart that should never be one click
+                           from a list of environments that all look alike. A local-file row has no
+                           certificate to trust and nothing running behind it to restart, so it gets
+                           no menu at all rather than an empty one.
 
                            Call restart stays a separate item from Restart config for the reason the
                            two buttons were always separate: one is a configuration act, the other is
                            destructive, and a single item that sometimes opens a form and sometimes
                            restarts production would be the wrong one to press by habit. *@
-                        <div class="rowmenu">
-                            <button class="btn btn-small btn-icon @(row.MenuOpen ? "is-open" : "")"
-                                    @onclick="() => Vm.ToggleMenuCommand.Execute(row)"
-                                    aria-haspopup="menu" aria-expanded="@row.MenuOpen"
-                                    title="More options for this source.">
-                                <Icon Name="more" Size="14" />
-                            </button>
+                        @if (row.IsVault)
+                        {
+                            <div class="rowmenu">
+                                <button class="btn btn-small btn-icon @(row.MenuOpen ? "is-open" : "")"
+                                        @onclick="() => Vm.ToggleMenuCommand.Execute(row)"
+                                        aria-haspopup="menu" aria-expanded="@row.MenuOpen"
+                                        title="More options for this source.">
+                                    <Icon Name="more" Size="14" />
+                                </button>
 
-                            @if (row.MenuOpen)
-                            {
-                                @* Catches the next click anywhere else so the menu dismisses the
-                                   way every other menu does, without a document-level handler. *@
-                                <div class="rowmenu-scrim" @onclick="() => Vm.CloseMenusCommand.Execute(null)"></div>
+                                @if (row.MenuOpen)
+                                {
+                                    @* Catches the next click anywhere else so the menu dismisses the
+                                       way every other menu does, without a document-level handler. *@
+                                    <div class="rowmenu-scrim" @onclick="() => Vm.CloseMenusCommand.Execute(null)"></div>
 
-                                <div class="rowmenu-pop" role="menu">
-                                    <button class="rowmenu-item" role="menuitem" disabled="@row.Busy"
-                                            @onclick="() => Test(row)"
-                                            title="Read what this row points at and report what is there — version and key count. Keeps nothing and changes nothing on the other tabs.">
-                                        <Icon Name="ok" Size="13" /> <span>Test connection…</span>
-                                    </button>
-
-                                    @* Vault-only below: a local file has no certificate to trust and
-                                       nothing running behind it to restart. *@
-                                    @if (row.IsVault)
-                                    {
-                                        <div class="rowmenu-sep"></div>
-
+                                    <div class="rowmenu-pop" role="menu">
                                         @* A toggle, not a checkbox in a menu. It says which state it
                                            is in twice - a tick and the word - because the previous
                                            version said it once, in a bare checkbox, and reading it
@@ -220,10 +227,16 @@ else
                                                 title="@row.RestartSummary">
                                             <Icon Name="refresh" Size="13" /> <span>Call restart…</span>
                                         </button>
-                                    }
-                                </div>
-                            }
-                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            @* The ⋮'s room, kept: without it Test and Load on a local-file row sit
+                               30px right of the same two buttons on the row above. *@
+                            <div class="rowmenu-gap"></div>
+                        }
                     </div>
 
                     @if (!string.IsNullOrEmpty(row.Status))
@@ -300,14 +313,47 @@ else
     }
 
     /// <summary>
-    /// Test closes the menu too: its answer lands in the row's status line underneath, which the
-    /// open menu would be covering.
+    /// Test closes any open menu first: its answer lands in the row's status line underneath, which
+    /// an open menu would be covering.
     /// </summary>
     private Task Test(VaultConnectionVm row)
     {
         Vm?.CloseMenusCommand.Execute(null);
         return Vm?.TestCommand.ExecuteAsync(row) ?? Task.CompletedTask;
     }
+
+    /// <summary>
+    /// Why Test is greyed out, or what it does when it is not. A disabled button that does not say
+    /// what is missing is one people press repeatedly and then report as broken.
+    /// </summary>
+    private static string TestHint(VaultConnectionVm row) => row switch
+    {
+        { Busy: true } => "Reading this source now.",
+
+        { CanTest: true } =>
+            "Test connection — read what this row points at and report what is there: version and " +
+            "key count for a Vault secret, key count and file details for a file. Keeps nothing and " +
+            "changes nothing on the other tabs. Load turns on once this succeeds.",
+
+        { IsLocalFile: true } =>
+            "Name the file first — press Browse, or type a path. There is nothing to read yet.",
+
+        _ => "Fill in the address, the token and the JSON path first. There is nothing to read yet.",
+    };
+
+    /// <summary>The same for Load, whose one precondition is a Test that passed.</summary>
+    private static string LoadHint(VaultConnectionVm row) => row switch
+    {
+        { Busy: true } => "Reading this source now.",
+
+        { CanLoad: true } =>
+            "Read this source now and show it on the Tier editor, All tiers and Text diff. Pull in " +
+            "the title bar does all of them; this does one.",
+
+        _ =>
+            "Press Test first. Load puts what it reads on every other tab, so it waits for something " +
+            "that says this row points where you think it does — and waits again after any edit to it.",
+    };
 
     /// <summary>
     /// The select hands back the enum's name; the row wants the enum. Parsed rather than bound

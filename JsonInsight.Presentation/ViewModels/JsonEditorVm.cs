@@ -297,7 +297,8 @@ public sealed partial class JsonEditorVm : ObservableObject
             "Press Update node to apply. This is one list rather than a set of rows: its elements have " +
             "no identity to name them by, so it is read and changed whole.",
 
-        _ => "Applied as you type. Update node is the fallback for text that does not parse yet.",
+        _ => "Applied as you type. Update node is the fallback for a shape change — a section typed " +
+             "into a value's pane.",
     };
 
     /// <summary>
@@ -320,7 +321,33 @@ public sealed partial class JsonEditorVm : ObservableObject
     /// </summary>
     private bool _textDiffers;
 
-    public bool CanApply => CanEdit && SelectedNode is { IsRemoved: false } && _textDiffers;
+    /// <summary>
+    /// Why the pane does not parse, or empty when it does. This is the whole of what stands between
+    /// the pane and Update node.
+    ///
+    /// <para>
+    /// Update used to stay lit on text that does not parse, so that pressing it produced the real
+    /// error. That made the button the only way to find out, and made an unpressable state look
+    /// exactly like a pressable one: the same button, offering to replace a node with something that
+    /// cannot be read. Saying it here instead means the answer is on screen without pressing
+    /// anything, and Update is offered only when it would work.
+    /// </para>
+    ///
+    /// <para>
+    /// It is not <see cref="Error"/>. Half-typed JSON is a value on its way in, not a failure — the
+    /// pane reports it in its own strip, quietly, rather than raising the banner that means something
+    /// went wrong.
+    /// </para>
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasEditorProblem))]
+    private string _editorProblem = string.Empty;
+
+    /// <summary>Whether there is anything to say about the pane's text — for a line that hides itself.</summary>
+    public bool HasEditorProblem => EditorProblem.Length > 0;
+
+    public bool CanApply =>
+        CanEdit && SelectedNode is { IsRemoved: false } && _textDiffers && !HasEditorProblem;
 
     /// <summary>Offered only for a node that actually has changes of its own to throw away.</summary>
     public bool CanRevertNode => CanEdit && SelectedNode is { IsChanged: true };
@@ -516,8 +543,8 @@ public sealed partial class JsonEditorVm : ObservableObject
     /// <para>
     /// Text that does not parse is not an error here — it is a value halfway through being typed, and
     /// a red banner on every intermediate keystroke would make typing feel broken. It simply does not
-    /// commit, the pane says so quietly, and Update node stays lit as the way to get the real parse
-    /// error when something is actually wrong.
+    /// commit, and the reason is said quietly under the pane by <see cref="EditorProblem"/>, which is
+    /// also what holds Update node off until it clears.
     /// </para>
     ///
     /// <para>
@@ -540,7 +567,10 @@ public sealed partial class JsonEditorVm : ObservableObject
         }
         catch
         {
-            Message = "Not valid JSON yet — nothing applied. A string needs its quotes.";
+            // Said under the pane by EditorProblem, with the reader's own reason for it. Cleared
+            // rather than added to: "Redis:Database updated" from the previous keystroke would
+            // otherwise sit there claiming this one landed as well.
+            Message = null;
             return;
         }
 
@@ -1074,15 +1104,22 @@ public sealed partial class JsonEditorVm : ObservableObject
     }
 
     /// <summary>
-    /// Decides whether Update has anything to do. Both sides are parsed and re-serialized before
-    /// comparing, so a reformat is not an edit; text that does not parse counts as a difference, so
-    /// pressing the button reports the error rather than the button quietly doing nothing.
+    /// Decides both of the things Update depends on: whether the pane says anything the document
+    /// does not, and whether what it says can be read at all.
+    ///
+    /// <para>
+    /// Both sides are parsed and re-serialized before comparing, so a reformat is not an edit. Text
+    /// that does not parse is still a difference — the pane no longer says what the document says —
+    /// but it is not one Update can act on, so it lands in <see cref="EditorProblem"/> and the button
+    /// waits for it to clear.
+    /// </para>
     /// </summary>
     private void RecomputeTextDiffers()
     {
         if (Editor is null || SelectedNode is null || SelectedNode.IsRemoved)
         {
             _textDiffers = false;
+            EditorProblem = string.Empty;
             return;
         }
 
@@ -1093,12 +1130,24 @@ public sealed partial class JsonEditorVm : ObservableObject
             var typed = parsed is null ? "null" : OrdinalJsonWriter.SerializeToText(parsed);
 
             _textDiffers = !typed.Equals(current, StringComparison.Ordinal);
+            EditorProblem = string.Empty;
         }
-        catch
+        catch (Exception ex)
         {
+            // Still a difference — the pane no longer says what the document says — but not one
+            // Update can act on. Both facts are recorded, and CanApply needs both.
             _textDiffers = true;
+            EditorProblem = Unparseable(ex);
         }
     }
+
+    /// <summary>
+    /// What to put under the pane when it does not parse. The reader's own message names the
+    /// character and the position, which is the useful half; the sentence in front of it says what
+    /// that means for the button, which is the half a JSON reader has no idea about.
+    /// </summary>
+    private static string Unparseable(Exception ex) =>
+        $"Not valid JSON, so there is nothing to apply — {ex.Message}";
 
     private void RebuildTree()
     {

@@ -264,12 +264,19 @@ else
                               @oninput="e => Vm.EditorText = e.Value?.ToString() ?? string.Empty"></textarea>
 
                     <div class="pane-strip">
-                        <span class="commit-hint">@Vm.CommitHint</span>
+                        @* The reason Update is off, where the text it is about is — not in the banner
+                           at the top of the tab, which is for things that went wrong. Half-typed JSON
+                           has not gone wrong; it is on its way in. *@
+                        <span class="commit-hint @(Vm.HasEditorProblem ? "is-problem" : "")">
+                            @(Vm.HasEditorProblem ? Vm.EditorProblem : Vm.CommitHint)
+                        </span>
 
                         <div class="pane-actions">
                             <button class="btn btn-small" disabled="@(!Vm.CanApply)"
                                     @onclick="() => Vm.ApplyCommand.Execute(null)"
-                                    title="Apply the pane to this node. Any valid JSON is accepted, including a different shape.">
+                                    title="@(Vm.HasEditorProblem
+                                               ? "The pane does not parse, so there is nothing to apply. The reason is beside this button."
+                                               : "Apply the pane to this node. Any valid JSON is accepted, including a different shape. Off while the pane matches the document, and while it does not parse.")">
                                 Update node
                             </button>
                             <button class="btn btn-small" @onclick="() => Vm.ReloadNodeCommand.Execute(null)"

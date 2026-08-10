@@ -52,7 +52,15 @@ else
                     }
                 </select>
 
-                <button class="btn btn-primary" @onclick="() => Vm.CreateCommand.Execute(null)">
+                @* Off until the box says something. A project is its name here — it is what its
+                   sources are filed under and what its tokens are keyed by — so with nothing typed
+                   there is nothing to create, and the button says so rather than being pressed and
+                   answering afterwards. *@
+                <button class="btn btn-primary" disabled="@(!Vm.CanCreate)"
+                        @onclick="() => Vm.CreateCommand.Execute(null)"
+                        title="@(Vm.CanCreate
+                                   ? "Create the project. It is not opened by creating it — open it from the list below, then point its sources at something on the Sources tab."
+                                   : "Type a name first.")">
                     <Icon Name="plus" /> <span>Create project</span>
                 </button>
             </div>

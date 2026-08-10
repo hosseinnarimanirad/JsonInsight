@@ -69,19 +69,9 @@ public partial class VaultView : UserControl
     // place in this app that opens a dialog.
     // ---------------------------------------------------------------------------------------------
 
-    /// <summary>
-    /// Test, from the row's menu. The command is on the tab's view model while the menu's
-    /// DataContext is the row, so the two are joined here rather than through a binding that would
-    /// have to climb out of the menu's own visual tree to find the tab.
-    /// </summary>
-    private void OnTestClick(object sender, RoutedEventArgs e)
-    {
-        if (sender is FrameworkElement { DataContext: VaultConnectionVm row } &&
-            DataContext is VaultVm vm)
-        {
-            vm.TestCommand.Execute(row);
-        }
-    }
+    // Test used to need a handler here for the same reason the two below still do - it lived in the
+    // ContextMenu, whose visual tree cannot see the tab. It is a button on the row now, so it binds
+    // to TestCommand directly and the handler is gone.
 
     private void OnRestartConfigClick(object sender, RoutedEventArgs e)
     {

@@ -195,7 +195,10 @@ public sealed class EditorPaneTests
         Assert.False(vm.IsModified);
     }
 
-    /// <summary>Half-typed text is not an error, it is a value on its way in. It just does not commit.</summary>
+    /// <summary>
+    /// Half-typed text is not an error, it is a value on its way in. It commits nothing, raises no
+    /// banner, and says why under the pane rather than through a button.
+    /// </summary>
     [Fact]
     public void Text_that_does_not_parse_yet_commits_nothing_and_raises_nothing()
     {
@@ -207,7 +210,57 @@ public sealed class EditorPaneTests
 
         Assert.Equal(was, vm.Editor.TextAt("Redis:ConnectionString"));
         Assert.Null(vm.Error);
+
+        Assert.True(vm.HasEditorProblem);
+        Assert.Contains("Not valid JSON", vm.EditorProblem, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Update node is off while the pane does not parse, and comes back the moment it does.
+    ///
+    /// <para>
+    /// It used to stay lit, so that pressing it produced the real parse error. That made the button
+    /// the only way to find out and made an unpressable state look pressable — a button offering to
+    /// replace a node with something that cannot be read. The reason is on screen now, and the
+    /// button is offered only when it would work.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void Update_node_is_off_while_the_pane_does_not_parse()
+    {
+        var vm = Open();
+        vm.SelectedNode = vm.Nodes.First(n => n.Path == "Redis");
+
+        // A section: this is the pane that commits by button rather than as you type.
+        Assert.False(vm.SelectedIsScalar);
+
+        vm.EditorText = "{ \"Database\": 9 ";
+        Assert.True(vm.HasEditorProblem);
+        Assert.False(vm.CanApply);
+
+        vm.EditorText = "{ \"Database\": 9 }";
+        Assert.False(vm.HasEditorProblem);
+        Assert.Empty(vm.EditorProblem);
         Assert.True(vm.CanApply);
+    }
+
+    /// <summary>
+    /// And the problem goes with the selection. Landing on a node whose text is fine must not carry
+    /// the last node's parse error — nor keep Update off for a pane that is perfectly readable.
+    /// </summary>
+    [Fact]
+    public void Moving_the_selection_clears_the_previous_panes_problem()
+    {
+        var vm = Open();
+        vm.SelectedNode = vm.Nodes.First(n => n.Path == "Redis");
+        vm.EditorText = "{ nonsense";
+
+        Assert.True(vm.HasEditorProblem);
+
+        vm.SelectedNode = vm.Nodes.First(n => n.Path == "Redis:Database");
+
+        Assert.False(vm.HasEditorProblem);
+        Assert.Empty(vm.EditorProblem);
     }
 
     // ------------------------------------------------------------ find/replace

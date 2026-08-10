@@ -406,7 +406,24 @@ select.field { cursor: pointer; }
 
 /* ================================= Sources =============================== */
 
-.sources { display: flex; flex-direction: column; gap: 10px; padding-bottom: 14px; }
+/*
+ * At least the height of the tab, so the list is not a short block floating in a tall empty pane with
+ * its notes tucked under it. The card takes whatever is left over and the notes go to the bottom;
+ * with more rows than fit, the card grows past the viewport and the tab scrolls as it always did.
+ *
+ * 100% resolves against .tab-body's content box, which already excludes its padding-top - so this is
+ * exactly the height available and not a permanent 12px of scrollbar.
+ */
+.sources {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-bottom: 14px;
+    min-height: 100%;
+}
+
+/* Grows into the leftover height; never shrinks below its own rows. */
+.src-list { flex: 1 0 auto; }
 
 .head-right { display: flex; align-items: center; gap: 9px; }
 .caption.inline { margin: 0; }
@@ -420,10 +437,14 @@ select.field { cursor: pointer; }
  * other's widths. The JSON path gets the room because it is the longest thing here and the one most
  * worth reading in full - which is also why Namespace has no column: it is empty on every row in
  * these deployments and would have taken width from this.
+ *
+ * Left to right: what the row is, where its server is, as whom, what to ask for, then the two
+ * buttons that act on the answer. The path cell carries Search ahead of the field, because the
+ * button is what fills it.
  */
 .src-head, .src-row {
     display: grid;
-    grid-template-columns: 32px 88px 92px minmax(230px, 2.1fr) minmax(140px, 1fr) 120px 128px;
+    grid-template-columns: 32px 88px 92px minmax(150px, 1fr) 112px minmax(250px, 2.2fr) 206px;
     gap: 8px;
     align-items: center;
     padding: 7px 14px;
@@ -457,9 +478,16 @@ select.field { cursor: pointer; }
 .src-c-path { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .src-c-path input { flex: 1; min-width: 0; }
 
+/* Browse, on a local-file row: it leads the cell the way Search leads a Vault one, and keeps its
+   width while the path beside it takes the rest. */
+.src-c-path > .btn { flex: none; }
+
 /* ------------------------------- Path picker ------------------------------ */
 
 .pathpicker { position: relative; display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
+
+/* Search leads the cell; the field takes whatever is left rather than the button giving way first. */
+.pathpicker > .btn { flex: none; }
 
 .pathpicker-field {
     display: flex;
@@ -581,6 +609,10 @@ select.field { cursor: pointer; }
 /* ---------------------------- Row overflow menu --------------------------- */
 
 .rowmenu { position: relative; display: flex; }
+
+/* What a row without a menu leaves in its place, so Test and Load stay in one column down the list.
+   Matches .btn-small.btn-icon below: 7px + a 14px glyph + 7px, plus its border. */
+.rowmenu-gap { width: 30px; flex: none; }
 
 .btn-icon { padding: 4px 7px; min-width: 0; line-height: 1; }
 .btn-icon.is-open { background: var(--brush-selected); }
@@ -1135,6 +1167,10 @@ select.field { cursor: pointer; }
 /* The pane says which way it commits rather than leaving it to be inferred from whether a button
    greyed itself out. */
 .commit-hint { font-size: var(--font-size-caption); color: var(--brush-text-tertiary); flex: 1; min-width: 200px; }
+
+/* The same line, saying why Update is off instead of how the pane commits. Coloured but not a
+   banner: half-typed JSON is a value on its way in, not a failure. */
+.commit-hint.is-problem { color: var(--brush-missing); }
 .pane-actions { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
 
 .editor-pane .difflines { flex: 1; min-height: 0; }

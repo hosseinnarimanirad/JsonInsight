@@ -297,6 +297,43 @@ public sealed class RenderTests : TestContext
         Assert.Contains(expected, page.Markup, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Update node is off while the pane does not parse, and the strip under the pane says why
+    /// instead of the commit hint it usually carries.
+    ///
+    /// <para>
+    /// The button used to stay pressable so that pressing it produced the parse error. That made it
+    /// the only way to find out, and made an unpressable state look exactly like a pressable one.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void Update_node_is_off_and_says_why_while_the_pane_does_not_parse()
+    {
+        var main = Seeded();
+        var editor = main.JsonEditor!;
+        editor.SelectedNode = editor.Nodes.First(n => n.Path == "PaymentSettings:Hub");
+
+        var page = RenderComponent<TierEditorTab>(p => p.Add(c => c.Vm, editor));
+
+        editor.EditorText = "{ \"Timeout\": 99 ";
+        page.Render();
+
+        Assert.True(Update(page).HasAttribute("disabled"));
+        Assert.Contains("Not valid JSON", page.Find(".commit-hint").TextContent, StringComparison.Ordinal);
+        Assert.NotEmpty(page.FindAll(".commit-hint.is-problem"));
+
+        editor.EditorText = "{ \"Timeout\": 99 }";
+        page.Render();
+
+        Assert.False(Update(page).HasAttribute("disabled"));
+        Assert.Empty(page.FindAll(".commit-hint.is-problem"));
+        Assert.Contains("Press Update node", page.Find(".commit-hint").TextContent, StringComparison.Ordinal);
+    }
+
+    private static AngleSharp.Dom.IElement Update(IRenderedComponent<TierEditorTab> page) =>
+        page.FindAll(".pane-actions > button")
+            .Single(b => b.TextContent.Trim().StartsWith("Update node", StringComparison.Ordinal));
+
     /// <summary>The find bar renders and closes, and its counter reads in a fixed-width slot.</summary>
     [Fact]
     public void The_find_bar_opens_and_closes()

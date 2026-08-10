@@ -72,21 +72,123 @@ public sealed class SourcesRowTests : TestContext
     }
 
     /// <summary>
-    /// Test moved into the menu: it answers a question about a row without changing what any other
-    /// tab is showing, which makes it the rarer of the two acts.
+    /// Test is on the row, beside Load and before it. It was in the ⋮ menu while it was optional; it
+    /// is the thing that turns Load on now, and a button you have to press before the next one works
+    /// is not an occasional option.
     /// </summary>
     [Fact]
-    public void Test_is_in_the_menu_rather_than_on_the_row()
+    public void Test_is_on_the_row_and_comes_before_load()
     {
         var main = Fixtures.NewMain();
         var page = Render(main);
 
-        Assert.DoesNotContain(page.FindAll(".src-c-act > button"),
-            b => b.TextContent.Contains("Test", StringComparison.Ordinal));
+        var actions = page.FindAll(".src-row")[0]
+            .QuerySelectorAll(".src-c-act > button")
+            .Select(b => b.TextContent.Trim())
+            .ToArray();
 
+        Assert.Contains("Test", actions);
+        Assert.True(Array.IndexOf(actions, "Test") < Array.IndexOf(actions, "Load"));
+
+        // And not left behind in the menu it came out of, where it would be the same act twice.
         page.FindAll(".rowmenu > button")[0].Click();
+        Assert.DoesNotContain("Test", page.Find(".rowmenu-pop").TextContent, StringComparison.Ordinal);
+    }
 
-        Assert.Contains("Test connection", page.Find(".rowmenu-pop").TextContent, StringComparison.Ordinal);
+    /// <summary>
+    /// Test is off until the row says where to read from. Pressing it on a half-filled row could only
+    /// ever answer "missing: address, token, secret path", which is not an answer worth a round trip.
+    /// </summary>
+    [Fact]
+    public void Test_is_off_until_the_row_says_where_to_read_from()
+    {
+        var main = Fixtures.NewMain();
+        var row = main.Vault!.Connections.First(c => c.Kind == SourceKind.Vault);
+
+        // Stated rather than assumed: these rows are built from whatever settings this machine holds.
+        row.Address = string.Empty;
+        row.SecretPath = string.Empty;
+        row.Token = string.Empty;
+
+        var page = Render(main);
+        Assert.True(Action(page, row, "Test").HasAttribute("disabled"));
+
+        row.Address = "https://vault.test";
+        row.Token = "hvs.test";
+        page.Render();
+        Assert.True(Action(page, row, "Test").HasAttribute("disabled"));
+
+        row.SecretPath = "kv/app/stage/resources/config/ui.json";
+        page.Render();
+        Assert.False(Action(page, row, "Test").HasAttribute("disabled"));
+    }
+
+    /// <summary>
+    /// A local-file row asks for its file and nothing else — it has no server to reach and no
+    /// credentials to reach it with.
+    /// </summary>
+    [Fact]
+    public void A_local_file_row_needs_only_its_file_before_test_turns_on()
+    {
+        var main = Fixtures.NewMain();
+        var row = main.Vault!.Connections.First(c => c.Kind == SourceKind.Vault);
+
+        row.Kind = SourceKind.LocalFile;
+        row.LocalFilePath = string.Empty;
+
+        var page = Render(main);
+        Assert.True(Action(page, row, "Test").HasAttribute("disabled"));
+
+        row.LocalFilePath = @"C:\snapshots\stage.json";
+        page.Render();
+        Assert.False(Action(page, row, "Test").HasAttribute("disabled"));
+    }
+
+    /// <summary>
+    /// Load waits on a Test that passed, and waits again after any edit to the row.
+    ///
+    /// <para>
+    /// Load puts what it reads onto the Tier editor, All tiers and Text diff, so it is the button
+    /// that says "this is what that environment holds". A test that passed against a path since
+    /// retyped is not evidence for that, which is why the flag is cleared rather than kept.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void Load_waits_for_a_test_and_waits_again_after_an_edit()
+    {
+        var main = Fixtures.NewMain();
+        var row = main.Vault!.Connections.First(c => c.Kind == SourceKind.Vault);
+
+        row.Address = "https://vault.test";
+        row.Token = "hvs.test";
+        row.SecretPath = "kv/app/stage/resources/config/ui.json";
+
+        var page = Render(main);
+        Assert.True(Action(page, row, "Load").HasAttribute("disabled"));
+
+        // What a successful TestCommand leaves behind; the command itself would need a Vault.
+        row.TestPassed = true;
+        page.Render();
+        Assert.False(Action(page, row, "Load").HasAttribute("disabled"));
+
+        row.SecretPath = "kv/app/stage/resources/config/config.json";
+        page.Render();
+
+        Assert.False(row.TestPassed);
+        Assert.True(Action(page, row, "Load").HasAttribute("disabled"));
+    }
+
+    /// <summary>One row's action button by its word, found in that row rather than by position.</summary>
+    private static AngleSharp.Dom.IElement Action(
+        Bunit.IRenderedComponent<WebJsonInsight.Components.Tabs.SourcesTab> page,
+        VaultConnectionVm row,
+        string word)
+    {
+        var index = page.Instance.Vm!.Connections.IndexOf(row);
+
+        return page.FindAll(".src-row")[index]
+            .QuerySelectorAll(".src-c-act > button")
+            .Single(b => b.TextContent.Trim().StartsWith(word, StringComparison.Ordinal));
     }
 
     /// <summary>

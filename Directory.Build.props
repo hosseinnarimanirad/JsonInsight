@@ -1,0 +1,25 @@
+<Project>
+
+  <!--
+    One version for the whole solution.
+
+    It lives here rather than in each csproj because the two front ends ship together: they read the
+    same settings file, the same config folder and the same user secrets, so a build of one that is a
+    version behind the other is not a thing anyone wants to have to reason about. Bump this, and both
+    executables, both file-version resources and the release artifacts all move together.
+  -->
+  <PropertyGroup>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+
+    <Product>JsonInsight</Product>
+    <Authors>Hossein Narimani Rad</Authors>
+    <Company>Hossein Narimani Rad</Company>
+    <Copyright>Copyright (c) 2026 Hossein Narimani Rad</Copyright>
+    <Description>Compares, edits and promotes JSON configuration across environments, reading live from HashiCorp Vault or from files on disk.</Description>
+    <RepositoryUrl>https://github.com/hosseinnarimanirad/JsonInsight</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+
+</Project>

@@ -41,9 +41,11 @@ public sealed partial class VaultConnectionVm : ObservableObject
     /// <c>kv/app/stage/resources/config/ui.json</c>. Vault kind only.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanTest))]
     private string _secretPath = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanTest))]
     private string _address = string.Empty;
 
     [ObservableProperty]
@@ -51,6 +53,7 @@ public sealed partial class VaultConnectionVm : ObservableObject
 
     /// <summary>Held only in memory and in the PasswordBox; persisted exclusively to user secrets.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanTest))]
     private string _token = string.Empty;
 
     [ObservableProperty]
@@ -60,6 +63,7 @@ public sealed partial class VaultConnectionVm : ObservableObject
     private string _status = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanTest), nameof(CanLoad))]
     private bool _busy;
 
     /// <summary>True while this row's Vault is being walked. See <see cref="VaultVm.SearchVault"/>.</summary>
@@ -68,11 +72,45 @@ public sealed partial class VaultConnectionVm : ObservableObject
 
     /// <summary>Where this source's content lives — which half of the row is the one that matters.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanTest))]
     private SourceKind _kind = SourceKind.Vault;
 
     /// <summary>The file this source reads and writes, when <see cref="Kind"/> is <see cref="SourceKind.LocalFile"/>.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanTest))]
     private string _localFilePath = string.Empty;
+
+    /// <summary>
+    /// True once Test has read this source successfully and nothing on the row has been edited since.
+    /// It is what enables Load.
+    ///
+    /// <para>
+    /// Not persisted, and deliberately not sticky: Load puts this source on the Tier editor, All tiers
+    /// and Text diff, so the claim it makes is "this is what that environment holds". A test that
+    /// passed against a path since retyped, or a server since repointed, is not evidence for that
+    /// claim — so every field saying where this source is or how it is reached clears this again. See
+    /// <see cref="Retest"/>.
+    /// </para>
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanLoad))]
+    private bool _testPassed;
+
+    /// <summary>
+    /// Whether a token from <c>vault login</c> or <c>VAULT_TOKEN</c> is standing by for a row that
+    /// names none of its own — see <see cref="VaultSettingsStore.AmbientToken"/>.
+    ///
+    /// <para>
+    /// Pushed in by the tab rather than read here. <see cref="VaultSettingsStore.AmbientToken"/> goes
+    /// to the environment and then to disk on every call, and <see cref="CanTest"/> is consulted on
+    /// every redraw of every row; asking per keystroke would be a file read per keystroke. It is
+    /// re-read whenever the tab rebuilds its rows, which is what Revert and Reload everything do — so
+    /// a <c>vault login</c> run while this app is open takes effect on the next of those.
+    /// </para>
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanTest))]
+    private bool _ambientTokenAvailable;
 
     /// <summary>
     /// Whether this row's overflow menu is showing. View state, not settings: it is here rather than
@@ -150,6 +188,29 @@ public sealed partial class VaultConnectionVm : ObservableObject
 
     public bool HasToken => !string.IsNullOrWhiteSpace(Token);
 
+    /// <summary>
+    /// Whether this row says enough for Test to have something to read — the same three things
+    /// <see cref="VaultSettings.Incomplete"/> names for a Vault source, and the file for a local one.
+    ///
+    /// <para>
+    /// Asked of the row rather than of saved settings, because the row is what is on screen: a path
+    /// typed a second ago has not been saved and would not be there to find. The ambient token counts,
+    /// for the same reason the read itself counts it — a row left blank because <c>vault login</c>
+    /// supplied the credential is configured, and a Test button greyed out at it would be wrong.
+    /// </para>
+    /// </summary>
+    public bool CanTest => !Busy && (Kind == SourceKind.LocalFile
+        ? !string.IsNullOrWhiteSpace(LocalFilePath)
+        : !string.IsNullOrWhiteSpace(Address) &&
+          !string.IsNullOrWhiteSpace(SecretPath) &&
+          (HasToken || AmbientTokenAvailable));
+
+    /// <summary>
+    /// Whether Load has been earned. It waits on a Test that succeeded, and stops waiting the moment
+    /// the row is edited again — see <see cref="TestPassed"/>.
+    /// </summary>
+    public bool CanLoad => TestPassed && !Busy;
+
     public bool IsVault => Kind == SourceKind.Vault;
 
     public bool IsLocalFile => Kind == SourceKind.LocalFile;
@@ -206,13 +267,38 @@ public sealed partial class VaultConnectionVm : ObservableObject
         RestartAllowInsecureTls = RestartAllowInsecureTls,
     };
 
-    partial void OnTokenChanged(string value) => OnPropertyChanged(nameof(HasToken));
+    partial void OnTokenChanged(string value)
+    {
+        OnPropertyChanged(nameof(HasToken));
+        Retest();
+    }
 
     partial void OnKindChanged(SourceKind value)
     {
         OnPropertyChanged(nameof(IsVault));
         OnPropertyChanged(nameof(IsLocalFile));
+        Retest();
     }
+
+    // Every field below says where this source is or how it is reached, so editing any of them means
+    // the row no longer describes whatever Test read. Status, Busy, the menu and the ON tick are
+    // deliberately not among them: none of them changes what a read would return.
+    partial void OnSecretPathChanged(string value) => Retest();
+
+    partial void OnAddressChanged(string value) => Retest();
+
+    partial void OnNamespaceChanged(string value) => Retest();
+
+    partial void OnAllowInsecureTlsChanged(bool value) => Retest();
+
+    partial void OnLocalFilePathChanged(string value) => Retest();
+
+    /// <summary>
+    /// Forgets that Test succeeded. Load is the button that says "this is what that environment
+    /// holds", and a verification of a source that has since been edited is not evidence of that —
+    /// so it goes back to needing one.
+    /// </summary>
+    private void Retest() => TestPassed = false;
 }
 
 /// <summary>
@@ -240,6 +326,13 @@ public sealed partial class VaultVm : ObservableObject
 
     /// <summary>Preserved across a save: it is a setting this tab does not show.</summary>
     private bool _loadTiersAtStartup = true;
+
+    /// <summary>
+    /// Whether <c>vault login</c> or <c>VAULT_TOKEN</c> has left a token behind, read once per rebuild
+    /// and handed to each row. See <see cref="VaultConnectionVm.AmbientTokenAvailable"/> for why it is
+    /// not asked per row.
+    /// </summary>
+    private bool _ambientToken;
 
     [ObservableProperty]
     private string _status = string.Empty;
@@ -319,6 +412,8 @@ public sealed partial class VaultVm : ObservableObject
         Connections.Clear();
         Problems.Clear();
 
+        _ambientToken = !string.IsNullOrWhiteSpace(VaultSettingsStore.AmbientToken);
+
         // Nothing is read until a project is open, and this is where that has to be enforced: the
         // workspace still names whichever project was open last, so loading here would fill the tab
         // with one project's servers and tokens while the projects list is the thing on screen — and
@@ -375,6 +470,10 @@ public sealed partial class VaultVm : ObservableObject
 
     private void AddRow(VaultConnectionVm row)
     {
+        // Before the subscription, so the row's own notification for it is not one the tab has to
+        // ignore: this is the tab telling the row what it already decided, not a change to react to.
+        row.AmbientTokenAvailable = _ambientToken;
+
         row.PropertyChanged += RowChanged;
         Connections.Add(row);
     }
@@ -645,6 +744,16 @@ public sealed partial class VaultVm : ObservableObject
             return;
         }
 
+        // Both views disable the button for this, so it is only reachable by a caller that went round
+        // them. Said rather than ignored: a Load that quietly did nothing would look like a failed one.
+        if (!row.TestPassed)
+        {
+            row.Status = "Test this source first — Load turns on once a test has read it. " +
+                         "Load puts what it reads on the other tabs, so it waits for something that " +
+                         "says the row points where you think it does.";
+            return;
+        }
+
         var definition = ToDefinition(row);
         var settings = BuildSettings();
 
@@ -726,6 +835,7 @@ public sealed partial class VaultVm : ObservableObject
         var missing = settings.Incomplete(row.TierId);
         if (missing.Count > 0)
         {
+            row.TestPassed = false;
             row.Status = $"Not configured yet — missing: {string.Join(", ", missing)}.";
             return;
         }
@@ -741,11 +851,17 @@ public sealed partial class VaultVm : ObservableObject
 
             var keys = _flattener.Flatten(row.TierId, OrdinalJsonWriter.Parse(pulled.Json)).Count;
 
+            // This is what turns Load on, and the only thing that does. Set after the read rather
+            // than around it, so a token that authenticated but a path that is not there does not
+            // count as a source having been reached.
+            row.TestPassed = true;
+
             row.Status = $"{connection.SecretPath} — Vault version {pulled.Version}, {keys} keys. " +
-                         "Nothing was kept; Load is what puts it on screen.";
+                         "Nothing was kept; Load is on now, and is what puts it on screen.";
         }
         catch (Exception ex)
         {
+            row.TestPassed = false;
             row.Status = ex.Message;
         }
         finally
@@ -762,6 +878,7 @@ public sealed partial class VaultVm : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(row.LocalFilePath))
         {
+            row.TestPassed = false;
             row.Status = "Not configured yet — missing: file. Press Browse to pick one.";
             return;
         }
@@ -782,12 +899,17 @@ public sealed partial class VaultVm : ObservableObject
                 .LoadAsync(definition, BuildSettings())
                 .ConfigureAwait(true);
 
+            // A file that parsed is a source that was reached, which is the same bar the Vault half
+            // clears above — so it turns Load on the same way.
+            row.TestPassed = result.Document is not null;
+
             row.Status = result.Document is { } document
-                ? $"{document.FilePath} — {document.Flat.Count} keys, {result.Detail}."
+                ? $"{document.FilePath} — {document.Flat.Count} keys, {result.Detail}. Load is on now."
                 : result.Problem ?? "Could not be read.";
         }
         catch (Exception ex)
         {
+            row.TestPassed = false;
             row.Status = ex.Message;
         }
         finally

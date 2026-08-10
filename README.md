@@ -141,6 +141,12 @@ is there because the usual second project is the same environments looking at a 
 the same four Vault roots, one path lower. The copy is its own from that moment: editing `stage` in
 one does not touch the other.
 
+**Create is off until the box says something.** A project *is* its name here — it is the key its
+sources are filed under and the key its tokens are keyed by, which is why renaming one has to carry
+them across — so an unnamed project is not a thing that can exist. The button says that by being
+unpressable rather than by being pressed and answering afterwards with a line of status text.
+Whitespace does not count.
+
 **What a project owns, and what it does not:**
 
 | Per project | Shared by every project |
@@ -215,8 +221,11 @@ it is one of the columns the other tabs compare. One list, and nothing above it.
 A row is either a **Vault** secret — the whole path to one JSON, with its own address and token — or
 a **local file**, one JSON on disk. Everything about a row is on that one line, with the occasional
 settings behind the **⋮** at its end.
-**Search**, beside the **JSON path**, walks that row's own Vault and fills its picker with the JSONs
-actually there; see *Finding the JSON* below.
+
+The line reads left to right in the order a row gets filled in: **ON**, **environment**, **kind**,
+**address**, **token**, then **Search** and the **JSON path** it fills, then **Test** and **Load**.
+Search walks that row's own Vault and fills its picker with the JSONs actually there; see *Finding
+the JSON* below. A local-file row swaps Search for **Browse** in the same place.
 
 `Namespace` is the one setting not shown. It sets the `X-Vault-Namespace` header, which only means
 anything on Vault Enterprise, and it is empty on every row in these deployments — so it stays in
@@ -228,16 +237,30 @@ with a reason rather than accepted and quietly dropped later. Until something is
 `config/tiers.json` decides that instead and nothing on this tab changes what is on screen — so an
 existing install upgrades to this tab without moving.
 
+**Test** reads what the row points at and reports what is there — a Vault secret's version and key
+count, a file's key count and details — keeping nothing and changing nothing on the other tabs. It is
+off until the row says where to read from: a server, a token and a path for a Vault source, a file
+for a local one. A token from `vault login` counts as the token, since it is the one the read would
+use.
+
 **Load** reads that one source and puts it on screen: after it, the Tier editor, All tiers and Text
 diff are all showing that source without anyone having pressed Pull. Pull reads all four, which is
 the wrong size of act when one row's path was just corrected and the other three are fine — and on
 four Vault servers it is three network round trips nobody asked for. Loading a source that is already
 on screen replaces it in place, so it keeps its column.
 
-**⋮** holds everything occasional: **Test connection…**, **Insecure TLS**, **Restart config…** and
-**Call restart…**. Test answers a question about a row without changing what any other tab shows,
-which is what makes it the rarer act and Load the one worth a button. The last three are Vault
-concerns, so a local-file row's menu holds Test alone.
+**Load is off until Test has passed**, and off again after any edit to the row. Load is the button
+that says *this is what that environment holds* — it puts what it reads onto three other tabs — so it
+waits for something that says the row points where you think it does. A test that passed against a
+path since retyped, or a server since repointed, is not evidence about the source now described, so
+editing the kind, address, namespace, token, path or file takes Load back off. Ticking **ON**,
+opening the menu and the row's own status line do not: none of them changes what a read would return.
+
+**⋮** now holds only what is both occasional and a Vault concern: **Insecure TLS**,
+**Restart config…** and **Call restart…**. Test used to live here too, while it was optional; a
+button you have to press before the next one works is not an occasional option. A local-file row has
+no certificate to trust and nothing running behind it to restart, so it has no ⋮ at all rather than
+an empty one.
 
 **Insecure TLS** says its state twice — a tick and the word **ON**/**OFF** — and a row with it on
 also carries a **TLS off** pill beside its address. It reads as a double until you have had it on
@@ -438,7 +461,7 @@ than leaving it to be inferred from whether a button greyed itself out.
 `Redis:Database` from `0` to `2` is a keystroke, not a keystroke and a button: there is no half-typed
 state worth protecting anyone from, and the tree's mark and preview update as it lands. Text that
 does not parse yet is not an error — it is a value on its way in, so nothing commits, the strip says
-so quietly, and no red banner appears on the way through `"unterminate`.
+so quietly with the reader's own reason, and no red banner appears on the way through `"unterminate`.
 
 **A section keeps the button.** An object or an array is invalid JSON for as long as it takes to
 type one, so applying as you type would either fail on every keystroke or destroy the node. Those
@@ -457,9 +480,16 @@ Two things follow from applying as you type, and both are load-bearing:
   JSON is accepted, including a different shape: an object can become an array or a scalar. It is
   disabled while the pane matches the document, so it lights up when there is something to apply and
   goes quiet once applied — and a reformat alone never lights it, because both sides are parsed and
-  re-serialized before comparing. It stays available for a value too, as the way to get the real
-  parse error when something is actually wrong, and as the way to turn a value into a section.
-  The root row is the whole document, so "replace everything" is reachable from the same tree.
+  re-serialized before comparing. It stays available for a value as the way to turn one into a
+  section. The root row is the whole document, so "replace everything" is reachable from the same
+  tree.
+
+  **It is also disabled while the pane does not parse**, and the strip underneath says why —
+  the reader's own message, naming the character and the position. It used to stay lit on
+  unparseable text so that pressing it produced that error; that made the button the only way to
+  find out, and made an unpressable state look exactly like a pressable one — the same button,
+  offering to replace a node with something that cannot be read. The answer is on screen now, and
+  the button is offered only when it would work.
 - **Find** (`Ctrl+F`) searches the pane, on one row with replace beside it rather than under it —
   it is open most of the time it is in use, and a second row pushes the text down by a whole field.
   `F3` and `Enter` step forward, `Shift+F3` and `Shift+Enter` back, both wrapping; `Aa` is match

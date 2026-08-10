@@ -247,12 +247,13 @@ public sealed class RestartTests : TestContext
     }
 
     /// <summary>
-    /// Every row has an overflow menu, because Test lives in it and applies to both kinds. What
-    /// differs is the contents: the restart pair and the TLS toggle are Vault concerns, so a
-    /// local-file row's menu holds Test alone rather than three items that could never do anything.
+    /// Only a Vault row has an overflow menu at all. Everything left in it is a Vault concern — the
+    /// TLS toggle and the restart pair — since Test came out onto the row itself; a local-file row
+    /// has no certificate to trust and nothing running behind it to restart, so it would be opening
+    /// an empty box.
     /// </summary>
     [Fact]
-    public void Every_row_has_a_menu_but_only_a_vault_row_has_the_vault_items()
+    public void Only_a_vault_row_has_a_menu_and_it_holds_the_vault_items()
     {
         var main = Fixtures.NewMain();
         Services.AddSingleton(main);
@@ -260,10 +261,17 @@ public sealed class RestartTests : TestContext
 
         var page = RenderComponent<WebJsonInsight.Components.Tabs.SourcesTab>(p => p.Add(c => c.Vm, main.Vault));
 
-        Assert.Equal(main.Vault!.Connections.Count, page.FindAll(".rowmenu > button").Count);
+        var vaultRows = main.Vault!.Connections.Count(c => c.Kind == SourceKind.Vault);
+        Assert.Equal(vaultRows, page.FindAll(".rowmenu > button").Count);
 
         // Closed until asked for: the row is the wide part of this tab, and these are occasional.
         Assert.DoesNotContain("Call restart", page.Markup, StringComparison.Ordinal);
+
+        page.FindAll(".rowmenu > button")[0].Click();
+
+        var menu = page.Find(".rowmenu-pop");
+        Assert.Contains("Insecure TLS", menu.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Call restart", menu.TextContent, StringComparison.Ordinal);
 
         foreach (var row in main.Vault.Connections)
         {
@@ -271,12 +279,7 @@ public sealed class RestartTests : TestContext
         }
 
         page.Render();
-        page.FindAll(".rowmenu > button")[0].Click();
-
-        var menu = page.Find(".rowmenu-pop");
-        Assert.Contains("Test connection", menu.TextContent, StringComparison.Ordinal);
-        Assert.DoesNotContain("Insecure TLS", menu.TextContent, StringComparison.Ordinal);
-        Assert.DoesNotContain("Call restart", menu.TextContent, StringComparison.Ordinal);
+        Assert.Empty(page.FindAll(".rowmenu"));
     }
 
     /// <summary>

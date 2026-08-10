@@ -287,4 +287,54 @@ public sealed class ProjectTests
     {
         Assert.Equal("never opened", ProjectsVm.Ago(null));
     }
+
+    /// <summary>
+    /// Create is off until the box says something. A project is its name here — it is what its
+    /// sources are filed under and what its tokens are keyed by — so an unnamed one is not a thing
+    /// that can exist, and the button says so rather than being pressed and answering afterwards.
+    ///
+    /// <para>
+    /// Whitespace does not count. A project called <c>"   "</c> would be one nobody could tell from
+    /// the next, in a list that is chosen from by reading the names.
+    /// </para>
+    /// </summary>
+    [Theory]
+    [InlineData("", false)]
+    [InlineData("   ", false)]
+    [InlineData("\t", false)]
+    [InlineData("ui", true)]
+    [InlineData("  ui  ", true)]
+    public void Create_is_off_until_the_project_has_a_name(string typed, bool enabled)
+    {
+        // Reads the workspace and stops there. Nothing here saves: VaultSettingsStore.Save writes the
+        // developer's real appsettings.json, which is why every assertion below is about the command
+        // rather than about what came back.
+        var screen = new ProjectsVm(new MainVm(vaultAtStartup: false))
+        {
+            NewProjectName = typed,
+        };
+
+        Assert.Equal(enabled, screen.CanCreate);
+
+        // And through the command, which is what the WPF button binds to — the screen has no second
+        // rule of its own for this.
+        Assert.Equal(enabled, screen.CreateCommand.CanExecute(null));
+    }
+
+    /// <summary>
+    /// The Blazor screen commits on Enter as well as on the button, and RelayCommand.Execute does not
+    /// consult CanExecute — so an empty name arriving that way gets the sentence rather than silence.
+    /// </summary>
+    [Fact]
+    public void An_empty_name_committed_by_keyboard_is_answered_rather_than_ignored()
+    {
+        var screen = new ProjectsVm(new MainVm(vaultAtStartup: false))
+        {
+            NewProjectName = "  ",
+        };
+
+        screen.CreateCommand.Execute(null);
+
+        Assert.Contains("name", screen.Status, StringComparison.OrdinalIgnoreCase);
+    }
 }

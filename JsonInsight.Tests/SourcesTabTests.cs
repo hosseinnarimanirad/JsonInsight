@@ -238,6 +238,149 @@ public sealed class SourcesTabTests
     }
 
     /// <summary>
+    /// Test is off until the row says where to read from — the same three things
+    /// <see cref="VaultSettings.Incomplete"/> names, asked of the row rather than of saved settings,
+    /// because the row is what is on screen and a path typed a second ago has not been saved.
+    /// </summary>
+    [Fact]
+    public void Test_turns_on_only_once_a_vault_row_names_a_server_a_token_and_a_path()
+    {
+        var row = new VaultConnectionVm("stage", new VaultConnection());
+        Assert.False(row.CanTest);
+
+        row.Address = "https://vault.example.com";
+        Assert.False(row.CanTest);
+
+        row.Token = "hvs.example";
+        Assert.False(row.CanTest);
+
+        row.SecretPath = "kv/app/stage/resources/config/ui.json";
+        Assert.True(row.CanTest);
+
+        // And off again while it is reading: a second press would be a second round trip for an
+        // answer already on its way.
+        row.Busy = true;
+        Assert.False(row.CanTest);
+    }
+
+    /// <summary>
+    /// A token from <c>vault login</c> counts, for the same reason the read itself counts it. A row
+    /// left blank because the environment supplied the credential is configured, and a Test greyed
+    /// out at it would be refusing a read that would have worked.
+    /// </summary>
+    [Fact]
+    public void An_ambient_token_is_enough_for_a_row_that_names_none_of_its_own()
+    {
+        var row = new VaultConnectionVm("stage", new VaultConnection())
+        {
+            Address = "https://vault.example.com",
+            SecretPath = "kv/app/stage/resources/config/ui.json",
+        };
+
+        Assert.False(row.CanTest);
+
+        row.AmbientTokenAvailable = true;
+        Assert.True(row.CanTest);
+    }
+
+    /// <summary>A local-file row has no server to reach and no credentials to reach it with.</summary>
+    [Fact]
+    public void A_local_file_row_needs_only_its_file_before_test_turns_on()
+    {
+        var row = new VaultConnectionVm("dev", new VaultConnection()) { Kind = SourceKind.LocalFile };
+        Assert.False(row.CanTest);
+
+        row.LocalFilePath = @"C:\snapshots\dev.json";
+        Assert.True(row.CanTest);
+    }
+
+    /// <summary>
+    /// Load waits on a Test that passed. It is the button that puts a source on every other tab —
+    /// the one that says "this is what that environment holds" — so it waits for something that says
+    /// the row points where you think it does.
+    /// </summary>
+    [Fact]
+    public void Load_is_off_until_a_test_has_passed()
+    {
+        var row = new VaultConnectionVm("stage", new VaultConnection())
+        {
+            Address = "https://vault.example.com",
+            Token = "hvs.example",
+            SecretPath = "kv/app/stage/resources/config/ui.json",
+        };
+
+        Assert.False(row.CanLoad);
+
+        row.TestPassed = true;
+        Assert.True(row.CanLoad);
+
+        row.Busy = true;
+        Assert.False(row.CanLoad);
+    }
+
+    /// <summary>
+    /// And starts waiting again after any edit that changes what a read would return. A test that
+    /// passed against a path since retyped, or a server since repointed, is not evidence about the
+    /// source now described.
+    /// </summary>
+    [Theory]
+    [InlineData(nameof(VaultConnectionVm.SecretPath))]
+    [InlineData(nameof(VaultConnectionVm.Address))]
+    [InlineData(nameof(VaultConnectionVm.Namespace))]
+    [InlineData(nameof(VaultConnectionVm.Token))]
+    [InlineData(nameof(VaultConnectionVm.AllowInsecureTls))]
+    [InlineData(nameof(VaultConnectionVm.Kind))]
+    [InlineData(nameof(VaultConnectionVm.LocalFilePath))]
+    public void Editing_the_row_takes_load_back_off(string field)
+    {
+        var row = new VaultConnectionVm("stage", new VaultConnection())
+        {
+            Address = "https://vault.example.com",
+            Token = "hvs.example",
+            SecretPath = "kv/app/stage/resources/config/ui.json",
+            TestPassed = true,
+        };
+
+        switch (field)
+        {
+            case nameof(VaultConnectionVm.SecretPath): row.SecretPath = "kv/app/stage/other.json"; break;
+            case nameof(VaultConnectionVm.Address): row.Address = "https://elsewhere.example.com"; break;
+            case nameof(VaultConnectionVm.Namespace): row.Namespace = "team"; break;
+            case nameof(VaultConnectionVm.Token): row.Token = "hvs.another"; break;
+            case nameof(VaultConnectionVm.AllowInsecureTls): row.AllowInsecureTls = true; break;
+            case nameof(VaultConnectionVm.Kind): row.Kind = SourceKind.LocalFile; break;
+            case nameof(VaultConnectionVm.LocalFilePath): row.LocalFilePath = @"C:\snapshots\stage.json"; break;
+        }
+
+        Assert.False(row.TestPassed);
+        Assert.False(row.CanLoad);
+    }
+
+    /// <summary>
+    /// Ticking a row for comparison, opening its menu or writing to its status line are not edits to
+    /// where it reads from, so none of them costs a passing test. Clearing on those would make Load
+    /// turn itself off while nothing about the source had changed.
+    /// </summary>
+    [Fact]
+    public void Ticking_or_reporting_on_a_row_does_not_cost_it_a_passing_test()
+    {
+        var row = new VaultConnectionVm("stage", new VaultConnection())
+        {
+            Address = "https://vault.example.com",
+            Token = "hvs.example",
+            SecretPath = "kv/app/stage/resources/config/ui.json",
+            TestPassed = true,
+        };
+
+        row.Active = true;
+        row.MenuOpen = true;
+        row.Status = "Loaded — 412 keys.";
+
+        Assert.True(row.TestPassed);
+        Assert.True(row.CanLoad);
+    }
+
+    /// <summary>
     /// A local file is one document, so it is written down as a source but excluded from any
     /// comparison that has moved off the appsettings root — the rule <see cref="DocumentTiers"/>
     /// enforces, reached the way the tab actually reaches it.
