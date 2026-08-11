@@ -107,6 +107,25 @@ public sealed class TierDocument
         : "Local file" +
           (FileModifiedUtc is { } modified ? $"  {modified.LocalDateTime:yyyy-MM-dd HH:mm}" : string.Empty);
 
+    /// <summary>
+    /// When what this tier holds was written: the Vault version's creation time, or the file's last
+    /// write time. Not when the app read it — that is a different question, and the freshness banner
+    /// is what answers it.
+    /// </summary>
+    public DateTimeOffset? SourceTime => Origin == TierOrigin.Vault ? VaultCreatedTime : FileModifiedUtc;
+
+    /// <summary>
+    /// The age of <see cref="SourceTime"/> in words — "11 h 23 min ago". Empty when the source
+    /// carries no timestamp at all, so a caller can append it unconditionally.
+    ///
+    /// <para>
+    /// Shown beside the absolute timestamp rather than instead of it. The timestamp is the record and
+    /// the age is what gets read: "2026-08-10 17:52" does not say whether this version landed before
+    /// or after the change somebody is asking you about.
+    /// </para>
+    /// </summary>
+    public string SourceAge => Elapsed.Since(SourceTime, DateTimeOffset.Now);
+
     /// <summary>The longer form, for a tooltip.</summary>
     public string SourceDetail => Origin == TierOrigin.Vault
         ? $"Read live from {VaultAddress}{(VaultSecretPath is null ? string.Empty : " · " + VaultSecretPath)} " +

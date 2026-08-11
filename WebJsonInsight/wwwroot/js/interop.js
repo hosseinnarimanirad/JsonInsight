@@ -45,19 +45,32 @@ window.jsonInsight = {
         document.documentElement.setAttribute('data-theme', name);
     },
 
-    // Ctrl+D and F5, forwarded to .NET. Registered on the document rather than on a component so a
-    // shortcut works wherever focus happens to be, which is what makes it a shortcut.
+    // Ctrl+D, Ctrl+F and Ctrl+Z, forwarded to .NET. Registered on the document rather than on a
+    // component so a shortcut works wherever focus happens to be, which is what makes it a shortcut.
     registerShortcuts: function (dotNetRef) {
         document.addEventListener('keydown', function (e) {
-            if (e.ctrlKey && !e.shiftKey && !e.altKey && (e.key === 'd' || e.key === 'D')) {
+            // Swallowed rather than handled. This app has no reload command, and letting F5 through
+            // asks the webview to reload the page - which here means throwing away every loaded
+            // source, the open project and any queued edit, with no confirmation.
+            if (e.key === 'F5') {
                 e.preventDefault();
-                dotNetRef.invokeMethodAsync('OnToggleTheme');
                 return;
             }
 
-            if (e.key === 'F5') {
+            // Ctrl+Z belongs to the editor pane's text and to nothing else, so it is claimed only
+            // while the caret is actually in the pane; everywhere else the webview keeps it. Undo of
+            // the DOCUMENT is a button, deliberately - see JsonEditorVm.UndoText.
+            if (e.ctrlKey && !e.shiftKey && !e.altKey && (e.key === 'z' || e.key === 'Z')) {
+                if (e.target && e.target.classList && e.target.classList.contains('pane-text')) {
+                    e.preventDefault();
+                    dotNetRef.invokeMethodAsync('OnPaneUndo');
+                }
+                return;
+            }
+
+            if (e.ctrlKey && !e.shiftKey && !e.altKey && (e.key === 'd' || e.key === 'D')) {
                 e.preventDefault();
-                dotNetRef.invokeMethodAsync('OnReload');
+                dotNetRef.invokeMethodAsync('OnToggleTheme');
                 return;
             }
 

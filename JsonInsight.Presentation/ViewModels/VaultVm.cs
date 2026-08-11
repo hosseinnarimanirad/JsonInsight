@@ -104,8 +104,9 @@ public sealed partial class VaultConnectionVm : ObservableObject
     /// Pushed in by the tab rather than read here. <see cref="VaultSettingsStore.AmbientToken"/> goes
     /// to the environment and then to disk on every call, and <see cref="CanTest"/> is consulted on
     /// every redraw of every row; asking per keystroke would be a file read per keystroke. It is
-    /// re-read whenever the tab rebuilds its rows, which is what Revert and Reload everything do — so
-    /// a <c>vault login</c> run while this app is open takes effect on the next of those.
+    /// re-read whenever the tab rebuilds its rows, which is what Revert does and what opening a
+    /// project does — so a <c>vault login</c> run while this app is open takes effect on the next of
+    /// those.
     /// </para>
     /// </summary>
     [ObservableProperty]
@@ -608,10 +609,16 @@ public sealed partial class VaultVm : ObservableObject
 
             // Saving an active set is the moment tiers.json stops being what the app compares, and it
             // is not a moment to leave anyone to infer. Nothing on screen has moved yet either — the
-            // tabs were built from the old set and are rebuilt by Reload, not by this button.
+            // tabs were built from the old set, and only a reload rebuilds them, which this button
+            // does not do. The routes named below are the ones that actually reach one: MainVm.Reload
+            // runs when OpenProject is given a project other than the active one, and OpenProject
+            // deliberately returns early when you leave the projects list for the project you were
+            // already in, so "go to the list and come back" is not one of them.
             var handover = settings.ActiveSources.Count > 0
                 ? $" The {settings.ActiveSources.Count} ticked source(s) — {string.Join(", ", settings.ActiveSources)} — " +
-                  "are now what every tab compares, in place of config/tiers.json. Press Reload everything (F5) to apply."
+                  "are now what every tab compares, in place of config/tiers.json. Nothing on screen has moved yet: " +
+                  "restart the app, or open another project and come back — leaving the projects list for this same " +
+                  "project returns you to it without rebuilding anything."
                 : " No sources are ticked, so config/tiers.json still decides what every tab compares.";
 
             Status = $"Saved into the '{_main.ActiveProject}' project — paths and addresses in " +

@@ -154,7 +154,20 @@ else
                             @if (node.Change != NodeChange.None)
                             {
                                 <span class="mark mark-@node.Change.ToString().ToLowerInvariant()"
-                                      title="@node.ChangedTooltip">@MarkGlyph(node.Change)</span>
+                                      title="@node.ChangedTooltip">
+                                    @if (node.Change == NodeChange.Edited)
+                                    {
+                                        @* Drawn rather than typed. The pencil has no ASCII form, and
+                                           U+270F renders as a full-colour emoji on most platforms —
+                                           a cartoon beside three flat findings-coloured glyphs. The
+                                           WPF tree borrows its icon font for exactly this one mark. *@
+                                        <Icon Name="edit" Size="11" />
+                                    }
+                                    else
+                                    {
+                                        @MarkGlyph(node.Change)
+                                    }
+                                </span>
                             }
                             else
                             {
@@ -297,7 +310,10 @@ else
                         </span>
 
                         <div class="pane-actions">
-                            <button class="btn btn-small" disabled="@(!Vm.CanApply)"
+                            @* Primary, matching the WPF pane: this is the one button in the row that
+                               commits, and the four beside it all discard or copy. Rendered the same
+                               as its plain neighbours, the commit action was the hardest to find. *@
+                            <button class="btn btn-small btn-primary" disabled="@(!Vm.CanApply)"
                                     @onclick="() => Vm.ApplyCommand.Execute(null)"
                                     title="@(Vm.HasEditorProblem
                                                ? "The pane does not parse, so there is nothing to apply. The reason is beside this button."
@@ -403,10 +419,13 @@ else
         }
     }
 
+    /// <summary>
+    /// The three marks that are legible as characters. Edited is not one of them — it is drawn as an
+    /// icon at the call site, for the reason given there.
+    /// </summary>
     private static string MarkGlyph(NodeChange change) => change switch
     {
         NodeChange.Added => "+",
-        NodeChange.Edited => "✏",
         NodeChange.Removed => "−",
         NodeChange.Mixed => "*",
         _ => string.Empty,

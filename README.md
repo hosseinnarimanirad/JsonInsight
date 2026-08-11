@@ -118,7 +118,7 @@ The **content root** — the folder holding this repository, found by walking up
 Either solution file counts, so deleting whichever one you do not use cannot quietly move it.
 Override with the `JSONINSIGHT_ROOT` environment variable.
 
-`Ctrl+D` switches between the light and dark themes, `F5` reloads. The theme it opens in follows
+`Ctrl+D` switches between the light and dark themes. The theme it opens in follows
 the Windows app theme and is not remembered per app, which is deliberate: the only file this app
 could persist it to is the one the Sources tab writes, and a colour preference has no business in a
 file that holds connection settings.
@@ -823,7 +823,7 @@ environment fails loudly at startup, which is what it is for, but it fails *ther
 ## Configuration
 
 Everything the app knows lives in `JsonInsight/config/`, and the authored copy is preferred over
-the one in `bin\`, so edits take effect on the next Reload.
+the one in `bin\`, so edits take effect the next time a project is opened, with no rebuild.
 
 | File | Purpose |
 |---|---|

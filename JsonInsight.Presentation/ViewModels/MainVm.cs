@@ -392,7 +392,6 @@ public sealed partial class MainVm : ObservableObject
     /// answer; the live values arrive a moment later and swap themselves in.
     /// </para>
     /// </summary>
-    [RelayCommand]
     public void Reload() => Load(resetVaultTab: true);
 
     /// <param name="resetVaultTab">

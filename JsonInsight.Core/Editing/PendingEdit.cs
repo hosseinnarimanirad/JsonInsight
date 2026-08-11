@@ -21,7 +21,7 @@ public enum EditKind
 ///
 /// <para>
 /// An edit records the value it was made against as well as the value it sets. That base is what
-/// makes a batched change set safe to hold across a Vault refresh or an F5: when the underlying
+/// makes a batched change set safe to hold across a Vault refresh or a reload: when the underlying
 /// document moves, an edit whose base no longer matches is stale, and committing it would silently
 /// discard whatever the other change was. <see cref="IsStaleAgainst"/> is the check, and the commit
 /// dialog refuses to write until every stale edit has been re-based or dropped.

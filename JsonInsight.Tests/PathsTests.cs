@@ -9,9 +9,9 @@ namespace JsonInsight.Tests;
 /// These exist because splitting the engine into JsonInsight.Core broke the first one silently. The
 /// authored config folder moved with the engine, the lookup was still asking for the folder holding
 /// <c>JsonInsight.csproj</c>, and every path fell through to the copy in bin\ — which is byte-identical
-/// on a fresh build, so the whole suite stayed green while the documented "edit a rule file and press
-/// Reload" behaviour had stopped working. A test that only reads values cannot catch that; this one
-/// asserts <em>which file</em> was read.
+/// on a fresh build, so the whole suite stayed green while the documented "edit a rule file and it
+/// takes effect with no rebuild" behaviour had stopped working. A test that only reads values cannot
+/// catch that; this one asserts <em>which file</em> was read.
 /// </para>
 /// </summary>
 public sealed class PathsTests

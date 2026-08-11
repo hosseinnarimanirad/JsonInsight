@@ -838,6 +838,10 @@ select.field { cursor: pointer; }
 .grid thead th.unavailable .th-name { color: var(--brush-shape); }
 .th-sub { font-weight: 500; letter-spacing: 0; }
 
+/* The age of what the column holds, quieter than the version above it: it is read at a glance and
+   should not compete with the tier name for the eye. */
+.th-age { font-weight: 400; letter-spacing: 0; color: var(--brush-text-tertiary); }
+
 .grid td { padding: 5px 10px; border-bottom: 1px solid var(--brush-border-subtle); vertical-align: middle; }
 
 .grid tr:hover td { background: var(--brush-hover); }
@@ -1086,7 +1090,10 @@ select.field { cursor: pointer; }
  * the last is the point of having four: a parent is not an edit, and labelling it as one would be a
  * lie told at exactly the level you are scanning.
  */
-.mark { width: 12px; text-align: center; font-weight: 700; flex: none; font-size: 11px; }
+/* Grid rather than inline text, so the drawn Edited mark centres on the same 12px as the three typed
+   ones and the tree name beside it does not shift by a pixel between an edited row and an added one. */
+.mark { width: 12px; flex: none; display: grid; place-items: center; font-weight: 700; font-size: 11px; }
+.mark svg { display: block; }
 .mark-spacer { width: 12px; flex: none; }
 .mark-added { color: var(--brush-added); }
 .mark-edited { color: var(--brush-edited); }

@@ -125,7 +125,7 @@
                                             <CheckBox Grid.Column="0" IsChecked="{Binding Active}"
                                                       IsEnabled="{Binding CanActivate}"
                                                       VerticalAlignment="Center"
-                                                      ToolTip="Compare this source. Four at a time - a fifth is refused with a note rather than silently dropped. Takes effect on Save settings, then Reload everything." />
+                                                      ToolTip="Compare this source. Four at a time - a fifth is refused with a note rather than silently dropped. Takes effect on Save settings; the tabs show it after a restart, or after opening another project and coming back." />
 
                                             <TextBlock Grid.Column="1" Text="{Binding Label}"
                                                        Style="{StaticResource Text.Base}" FontWeight="SemiBold"

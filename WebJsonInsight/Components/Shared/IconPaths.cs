@@ -42,7 +42,7 @@ internal static class IconPaths
         //  — pull: read every source again.
         "pull" => """<path d="M12 3.5v11M7.5 10l4.5 4.5 4.5-4.5M4.5 19.5h15" />""",
 
-        //  — reload everything, and the spinner while a read is in flight.
+        //  — revert and re-read, and the spinner while a read is in flight.
         "refresh" => """
             <path d="M20 5.5v5h-5" /><path d="M4 18.5v-5h5" />
             <path d="M19.1 9.6A7.6 7.6 0 0 0 5.6 8.2L4 10.5M4.9 14.4a7.6 7.6 0 0 0 13.5 1.4L20 13.5" />

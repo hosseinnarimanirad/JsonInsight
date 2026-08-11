@@ -362,6 +362,112 @@ public sealed class EditorPaneTests
         Assert.Equal("3 replaced", vm.FindStatus);
     }
 
+    /// <summary>
+    /// Ctrl+Z takes back a run of typing as one step, not one keystroke at a time.
+    ///
+    /// <para>
+    /// Coalescing is the whole point: an undo that gives back one character per press is not an undo
+    /// anyone uses. A run is consecutive single-character edits in the same direction, so typing
+    /// "1234" is one step even though it arrived as four.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void Undoing_the_pane_takes_back_a_run_of_typing_in_one_step()
+    {
+        var vm = Open();
+        vm.SelectedNode = vm.Nodes.First(n => n.Path == "Redis:Database");
+
+        var opened = vm.EditorText;
+        Assert.False(vm.CanUndoText);
+
+        // Appended one character at a time, the way it arrives from a text box.
+        vm.EditorText = opened + "1";
+        vm.EditorText = opened + "12";
+        vm.EditorText = opened + "123";
+
+        Assert.True(vm.CanUndoText);
+        Assert.True(vm.UndoText());
+        Assert.Equal(opened, vm.EditorText);
+
+        // And nothing beyond the beginning: the pane as it was opened is the floor.
+        Assert.False(vm.CanUndoText);
+        Assert.False(vm.UndoText());
+    }
+
+    /// <summary>
+    /// Typing over a selection is two steps, not one: replacing the whole value is one action and the
+    /// characters typed afterwards are another, so the first Ctrl+Z gives back the typing and the
+    /// second gives back the value that was overwritten.
+    ///
+    /// <para>
+    /// Worth pinning because it follows from how a run is detected — a same-length or wholesale change
+    /// cannot be a continuation of a typing run, so it always opens a step of its own.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void Replacing_the_value_and_then_typing_are_separate_undo_steps()
+    {
+        var vm = Open();
+        vm.SelectedNode = vm.Nodes.First(n => n.Path == "Redis:Database");
+
+        var opened = vm.EditorText;
+
+        // Select-all and type: the first keystroke replaces everything, the rest extend it.
+        vm.EditorText = "1";
+        vm.EditorText = "12";
+        vm.EditorText = "123";
+
+        Assert.True(vm.UndoText());
+        Assert.Equal("1", vm.EditorText);
+
+        Assert.True(vm.UndoText());
+        Assert.Equal(opened, vm.EditorText);
+
+        Assert.False(vm.CanUndoText);
+    }
+
+    /// <summary>
+    /// A paste or a replace is its own step, even mid-run. It is one action, and the run it interrupts
+    /// is a different one — merging them would make one Ctrl+Z undo both.
+    /// </summary>
+    [Fact]
+    public void A_wholesale_change_is_its_own_undo_step()
+    {
+        var vm = Open();
+        vm.SelectedNode = vm.Nodes.First(n => n.Path == "Redis:Database");
+
+        vm.EditorText = "1";
+        vm.EditorText = "12";
+
+        // Not a single character: a paste over the top.
+        vm.EditorText = "98765";
+
+        Assert.True(vm.UndoText());
+        Assert.Equal("12", vm.EditorText);
+
+        Assert.True(vm.UndoText());
+        Assert.Equal(vm.Editor!.TextAt("Redis:Database"), vm.EditorText);
+    }
+
+    /// <summary>
+    /// Selecting another node drops the trail. The steps describe the previous node's text, and
+    /// replaying one into this pane would paste one node's JSON over another's.
+    /// </summary>
+    [Fact]
+    public void Changing_node_forgets_the_pane_undo_trail()
+    {
+        var vm = Open();
+
+        vm.SelectedNode = vm.Nodes.First(n => n.Path == "Redis:Database");
+        vm.EditorText = "4242";
+        Assert.True(vm.CanUndoText);
+
+        vm.SelectedNode = vm.Nodes.First(n => n.Path == "Redis:Enabled");
+
+        Assert.False(vm.CanUndoText);
+        Assert.False(vm.UndoText());
+    }
+
     /// <summary>Back from a standing start opens on the last match rather than on nothing.</summary>
     [Fact]
     public void Stepping_backwards_first_opens_on_the_last_match()

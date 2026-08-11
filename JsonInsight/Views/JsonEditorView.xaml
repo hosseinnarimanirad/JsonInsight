@@ -26,12 +26,34 @@
                     </StackPanel>
 
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button Style="{StaticResource Button.Small}" Content="&#xE7A7;  Undo"
+                        <!-- The glyph is its own TextBlock in the icon font, not a character sitting
+                             in Content beside the label. Every button style here descends from
+                             Button.Base, which sets Font.Ui, and a text font has nothing at these
+                             private-use codepoints - a glyph left in Content renders as the
+                             missing-glyph rectangle. Switching the whole button to Font.Icons was
+                             the other way out and is worse: the label would then be set in an icon
+                             font too, so it takes two elements. Same shape as the Push button below,
+                             and as Redo, Copy and the Comparing state. The glyph is sized to the
+                             style it sits in - 11.5 for Button.Small - so it sits on the label's
+                             own line rather than riding above it. -->
+                        <Button Style="{StaticResource Button.Small}"
                                 Command="{Binding UndoCommand}" IsEnabled="{Binding CanUndo}"
-                                Margin="0,0,6,0" ToolTip="Undo the last replacement" />
-                        <Button Style="{StaticResource Button.Small}" Content="&#xE7A6;  Redo"
+                                Margin="0,0,6,0" ToolTip="Undo the last replacement">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE7A7;" FontFamily="{StaticResource Font.Icons}" FontSize="11.5"
+                                           VerticalAlignment="Center" Margin="0,0,6,0" />
+                                <TextBlock Text="Undo" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource Button.Small}"
                                 Command="{Binding RedoCommand}" IsEnabled="{Binding CanRedo}"
-                                Margin="0,0,6,0" />
+                                Margin="0,0,6,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE7A6;" FontFamily="{StaticResource Font.Icons}" FontSize="11.5"
+                                           VerticalAlignment="Center" Margin="0,0,6,0" />
+                                <TextBlock Text="Redo" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
                         <Button Style="{StaticResource Button.Small}" Content="Revert all"
                                 Command="{Binding RevertAllCommand}" IsEnabled="{Binding IsModified}"
                                 Margin="0,0,6,0"
@@ -44,10 +66,23 @@
                                 ToolTip="Diff the selected node against the state it was opened in — the root row is the whole document. Press again to go back to the editor. Disabled for a node with nothing to compare.">
                             <Button.Style>
                                 <Style TargetType="Button" BasedOn="{StaticResource Button.Secondary}">
-                                    <Setter Property="Content" Value="Compare with original" />
+                                    <Setter Property="Content">
+                                        <Setter.Value>Compare with original</Setter.Value>
+                                    </Setter>
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding ShowingComparison}" Value="True">
-                                            <Setter Property="Content" Value="&#xE73E;  Comparing" />
+                                            <!-- The tick needs the icon font for the reason given at
+                                                 Undo above, so the on-state content is a panel and
+                                                 the off-state stays a plain string. -->
+                                            <Setter Property="Content">
+                                                <Setter.Value>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="&#xE73E;" FontFamily="{StaticResource Font.Icons}" FontSize="13"
+                                                                   VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                        <TextBlock Text="Comparing" VerticalAlignment="Center" />
+                                                    </StackPanel>
+                                                </Setter.Value>
+                                            </Setter>
                                             <Setter Property="Background" Value="{DynamicResource Brush.Accent}" />
                                             <Setter Property="Foreground" Value="{DynamicResource Brush.OnAccent}" />
                                             <Setter Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
@@ -298,9 +333,15 @@
                                           IsEnabled="{Binding ShowingComparison, Converter={StaticResource NotBool}}"
                                           ToolTip="Find and replace inside this pane (Ctrl+F). F3 finds the next match, Shift+F3 the previous." />
 
-                                <Button Style="{StaticResource Button.Small}" Content="&#xE8C8;  Copy"
+                                <Button Style="{StaticResource Button.Small}"
                                         Command="{Binding CopyNodeCommand}" Margin="0,0,4,0"
-                                        ToolTip="Copy this pane's JSON to the clipboard — exactly what is shown, edits included." />
+                                        ToolTip="Copy this pane's JSON to the clipboard — exactly what is shown, edits included.">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="&#xE8C8;" FontFamily="{StaticResource Font.Icons}" FontSize="11.5"
+                                                   VerticalAlignment="Center" Margin="0,0,6,0" />
+                                        <TextBlock Text="Copy" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
 
                                 <Button Style="{StaticResource Button.Small}" Content="Reload node"
                                         Command="{Binding ReloadNodeCommand}" Margin="0,0,4,0"

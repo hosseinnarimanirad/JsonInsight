@@ -670,7 +670,10 @@ public sealed partial class JsonEditorVm : ObservableObject
                 return "No tier selected.";
             }
 
-            var head = $"{Tier.Id}: {Tier.SourceLine}";
+            // The age goes beside the timestamp, not instead of it: which version you are editing is
+            // a record, how old it is is the thing you actually react to.
+            var age = Tier.SourceAge;
+            var head = $"{Tier.Id}: {Tier.SourceLine}" + (age.Length == 0 ? string.Empty : $"  ({age})");
             var edits = _main.Edits.For(Tier.Id).Count;
 
             // The two editing models are separate on purpose, so a tier with queued key edits and an
@@ -752,11 +755,23 @@ public sealed partial class JsonEditorVm : ObservableObject
 
     partial void OnEditorTextChanged(string value)
     {
-        // Loading a node into the pane is not someone typing into it.
+        // Loading a node into the pane is not someone typing into it. The undo trail goes with it:
+        // the steps recorded so far describe a different node's text, and replaying one into this
+        // pane would paste the previous node's JSON over this one.
         if (_loadingText)
         {
+            _textUndo.Clear();
+            _previousEditorText = value;
+            _run = 0;
             return;
         }
+
+        if (!_undoingText)
+        {
+            RememberForTextUndo(_previousEditorText, value);
+        }
+
+        _previousEditorText = value;
 
         RecomputeTextDiffers();
 
@@ -775,6 +790,105 @@ public sealed partial class JsonEditorVm : ObservableObject
 
     /// <summary>True while the pane is being filled from the document, so the write-back is not re-entered.</summary>
     private bool _loadingText;
+
+    // --------------------------------------------------------- pane text undo
+
+    /// <summary>
+    /// Ctrl+Z over the pane's text, which is a different undo from <see cref="UndoCommand"/>.
+    ///
+    /// <para>
+    /// The button undoes committed <em>document</em> changes — an applied node, a scalar that landed as
+    /// you typed. This undoes what you have <em>typed into the pane</em>, before any of it commits.
+    /// They are separate because the pane is an editing surface over a document, and undoing a
+    /// half-typed value by reverting the last applied node would throw away work nobody asked to lose.
+    /// </para>
+    ///
+    /// <para>
+    /// Kept here rather than left to each host's native text undo. Both hosts write this text
+    /// programmatically — Replace and Replace all assign <see cref="EditorText"/>, and a scalar
+    /// commits as you type — and every such write is liable to flatten a native undo stack, differently
+    /// on WPF and in a webview. One stack in the view model is the same stack on both, and it can be
+    /// tested.
+    /// </para>
+    /// </summary>
+    private readonly List<string> _textUndo = [];
+
+    private string _previousEditorText = string.Empty;
+
+    /// <summary>True while <see cref="UndoText"/> is writing, so a replay is not itself recorded.</summary>
+    private bool _undoingText;
+
+    /// <summary>
+    /// Which direction the current run of single-character edits is going: 1 while typing, -1 while
+    /// backspacing, 0 for anything else. Consecutive edits in the same direction coalesce into one
+    /// step, so Ctrl+Z takes back the word you just typed rather than one letter of it — the same
+    /// grouping <see cref="_instantPath"/> gives the document-level undo.
+    /// </summary>
+    private int _run;
+
+    /// <summary>How many steps to keep. Long enough to cover a session at the pane, short enough that
+    /// a 28 KB document's history cannot quietly grow into tens of megabytes of snapshots.</summary>
+    private const int MaximumTextUndoSteps = 100;
+
+    public bool CanUndoText => _textUndo.Count > 0;
+
+    private void RememberForTextUndo(string before, string after)
+    {
+        if (string.Equals(before, after, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var run = after.Length == before.Length + 1 ? 1
+            : after.Length == before.Length - 1 ? -1
+            : 0;
+
+        // A paste, a replace, or a change of direction starts a new step. A continuing run does not:
+        // the step already on the stack is the text from before the run began, which is where Ctrl+Z
+        // should land.
+        if (run == 0 || run != _run || _textUndo.Count == 0)
+        {
+            _textUndo.Add(before);
+
+            if (_textUndo.Count > MaximumTextUndoSteps)
+            {
+                _textUndo.RemoveAt(0);
+            }
+        }
+
+        _run = run;
+    }
+
+    /// <summary>
+    /// Takes back the last thing typed into the pane. Returns false when there is nothing left, so a
+    /// host can let the key through to whatever else might want it.
+    /// </summary>
+    public bool UndoText()
+    {
+        if (_textUndo.Count == 0)
+        {
+            return false;
+        }
+
+        var restored = _textUndo[^1];
+        _textUndo.RemoveAt(_textUndo.Count - 1);
+
+        _undoingText = true;
+        try
+        {
+            EditorText = restored;
+        }
+        finally
+        {
+            _undoingText = false;
+        }
+
+        // The next keystroke starts a fresh run rather than joining the one that was just undone.
+        _run = 0;
+        OnPropertyChanged(nameof(CanUndoText));
+
+        return true;
+    }
 
     /// <summary>
     /// The node the current run of keystrokes is editing, or null when there is no run in progress.

@@ -72,11 +72,6 @@
                     <Icon Name="@(Main.VaultBusy ? "refresh" : "pull")" Class="@(Main.VaultBusy ? "spinning" : "")" />
                     <span>@(Main.VaultBusy ? "Pulling…" : "Pull from Vault or disk")</span>
                 </button>
-
-                <button class="btn btn-secondary" @onclick="() => Main.ReloadCommand.Execute(null)"
-                        title="Start again (F5): re-read the config files, rebuild every tab, and read every source. Pull, beside it, is the narrower half — it re-reads the sources alone.">
-                    <Icon Name="refresh" /> <span>Reload everything</span>
-                </button>
             }
         </div>
     </header>
@@ -248,9 +243,6 @@
     [JSInvokable]
     public async Task OnToggleTheme() => await ToggleTheme();
 
-    [JSInvokable]
-    public void OnReload() => Main.ReloadCommand.Execute(null);
-
     /// <summary>Ctrl+F belongs to the editor pane; every other tab lets the webview keep it.</summary>
     [JSInvokable]
     public bool OnFind()
@@ -263,6 +255,25 @@
         Main.JsonEditor.FindOpen = true;
         _ = InvokeAsync(StateHasChanged);
         return true;
+    }
+
+    /// <summary>
+    /// Ctrl+Z over the editor pane. Routed through the document handler rather than the textarea's own
+    /// keydown because the browser's native undo has to be suppressed in the same breath, and Blazor's
+    /// preventDefault is fixed at render time — it cannot be decided per key press.
+    ///
+    /// <para>
+    /// This undoes typing in the pane. The Undo button beside it is the document's undo, which is a
+    /// different thing — see <see cref="JsonEditorVm.UndoText"/>.
+    /// </para>
+    /// </summary>
+    [JSInvokable]
+    public void OnPaneUndo()
+    {
+        if (Main.JsonEditor?.UndoText() == true)
+        {
+            _ = InvokeAsync(StateHasChanged);
+        }
     }
 
     protected override void Disposing() => Theme.Changed -= OnThemeChanged;

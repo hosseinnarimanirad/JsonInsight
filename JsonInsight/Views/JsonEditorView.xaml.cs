@@ -97,6 +97,21 @@ public partial class JsonEditorView : UserControl
         var shift = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
         var control = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
 
+        // Ctrl+Z takes back what was typed into the pane, and only while the pane has the caret: the
+        // find and replace boxes are ordinary text boxes and keep their own undo. Handled here rather
+        // than left to the TextBox because its native stack is flattened every time the view model
+        // writes the text — which Replace, Replace all and a scalar committing as you type all do.
+        if (control && !shift && e.Key == Key.Z && Editor.IsKeyboardFocused)
+        {
+            if (Vm?.UndoText() == true)
+            {
+                Editor.CaretIndex = Math.Min(Editor.CaretIndex, Editor.Text.Length);
+                e.Handled = true;
+            }
+
+            return;
+        }
+
         switch (JsonEditorVm.PaneKey(e.Key.ToString(), shift, control))
         {
             case JsonEditorVm.FindKey.Open:

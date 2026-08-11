@@ -118,6 +118,13 @@ else
                                         title="@(reason ?? SourceDetailOf(tierId))">
                                         <div class="th-name">@tierId</div>
                                         <div class="th-sub">@(reason is null ? SourceOf(tierId) : "UNAVAILABLE")</div>
+                                        @* A row of its own rather than the end of the line above: the age is
+                                           what gets read while scanning four columns, and appending it would
+                                           bury it at the end of the line most likely to be trimmed. *@
+                                        @if (reason is null && AgeOf(tierId) is { Length: > 0 } age)
+                                        {
+                                            <div class="th-age">@age</div>
+                                        }
                                     </th>
                                 }
                                 <th class="col-actions"></th>
@@ -281,6 +288,9 @@ else
 
     /// <summary>The longer form — the server, the secret and the version — for the header's tooltip.</summary>
     private string SourceDetailOf(string tierId) => Document(tierId)?.SourceDetail ?? string.Empty;
+
+    /// <summary>How old what this column holds is — "11 h 23 min ago". Empty when it has no timestamp.</summary>
+    private string AgeOf(string tierId) => Document(tierId)?.SourceAge ?? string.Empty;
 
     private TierDocument? Document(string tierId) =>
         Vm?.Documents.FirstOrDefault(d => d.Id.Equals(tierId, StringComparison.OrdinalIgnoreCase));

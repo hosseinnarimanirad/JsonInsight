@@ -42,7 +42,7 @@ else
                         <Icon Name="refresh" /> <span>Revert</span>
                     </button>
                     <button class="btn btn-primary" @onclick="() => Vm.SaveSettingsCommand.Execute(null)"
-                            title="Write the paths and addresses to appsettings.json and the tokens to user secrets. Nothing on screen moves until Reload everything (F5).">
+                            title="Write the paths and addresses to appsettings.json and the tokens to user secrets. Nothing on screen moves until the app is restarted, or another project is opened and this one reopened.">
                         <span>Save settings</span>
                     </button>
                 </div>

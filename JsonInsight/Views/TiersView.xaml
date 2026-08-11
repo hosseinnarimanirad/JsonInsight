@@ -99,9 +99,9 @@
                                    VerticalAlignment="Center" Margin="14,0,0,0" />
                     </StackPanel>
 
-                    <!-- Where the values came from. Pull from Vault sits in the title bar beside
-                         Reload from disk; its per-tier report is still the LAST PULL card on the
-                         rail, because that is where you are looking when you press it. -->
+                    <!-- Where the values came from. Pull from Vault sits in the title bar; its
+                         per-tier report is still the LAST PULL card on the rail, because that is
+                         where you are looking when you press it. -->
                     <StackPanel Orientation="Horizontal" Margin="0,11,0,0">
                         <Border Style="{StaticResource Pill}"
                                 Background="{DynamicResource Brush.SurfaceAlt}">

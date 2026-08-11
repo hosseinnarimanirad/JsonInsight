@@ -18,7 +18,6 @@
 
     <Window.InputBindings>
         <KeyBinding Key="D" Modifiers="Ctrl" Command="{Binding ToggleThemeCommand}" />
-        <KeyBinding Key="F5" Command="{Binding ReloadCommand}" />
     </Window.InputBindings>
 
     <Grid>
@@ -196,16 +195,6 @@
                                     </Style>
                                 </TextBlock.Style>
                             </TextBlock>
-                        </StackPanel>
-                    </Button>
-
-                    <Button Style="{StaticResource Button.Secondary}" Command="{Binding ReloadCommand}"
-                            Visibility="{Binding ShowingProjectList, Converter={StaticResource BoolVis}, ConverterParameter=invert}"
-                            ToolTip="Start again (F5): re-read config/tiers.json and the other config files, rebuild every tab, and read every tier from Vault or disk. Pull from Vault or disk, beside it, is the narrower half — it re-reads the tiers alone.">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE72C;" FontFamily="{StaticResource Font.Icons}" FontSize="14"
-                                       VerticalAlignment="Center" Margin="0,0,8,0" />
-                            <TextBlock Text="Reload everything" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
                 </StackPanel>

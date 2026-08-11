@@ -110,6 +110,22 @@ public partial class TiersView : UserControl
 
         panel.Children.Add(subtitle);
 
+        // A third line rather than a longer second one. The subtitle is already a version and a
+        // timestamp, and the age is the part that is read at a glance while scanning four columns —
+        // appending it would bury it at the end of the line most likely to be trimmed.
+        if (document?.SourceAge is { Length: > 0 } age)
+        {
+            var elapsed = new TextBlock
+            {
+                Text = age,
+                FontSize = 10,
+                FontWeight = FontWeights.Normal,
+            };
+
+            elapsed.SetResourceReference(TextBlock.ForegroundProperty, "Brush.TextTertiary");
+            panel.Children.Add(elapsed);
+        }
+
         return panel;
     }
 
