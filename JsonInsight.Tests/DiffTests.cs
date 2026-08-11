@@ -1,4 +1,6 @@
+using DiffPlex.DiffBuilder.Model;
 using JsonInsight.Diff;
+using JsonInsight.ViewModels;
 
 namespace JsonInsight.Tests;
 
@@ -37,6 +39,28 @@ public sealed class DiffTests(SampleFiles files)
             : throw new InvalidOperationException("Both tiers should carry AdminSettings:TrustGatewayHeaders.");
 
         Assert.Equal(DiffKind.ValueDiffers, entry.Kind);
+    }
+
+    /// <summary>
+    /// A type difference names the two types with the words the rest of the app uses. There used to be
+    /// two copies of the JsonValueKind-to-word switch — this one said <c>bool</c>, EditValidator's said
+    /// <c>boolean</c> — so the same value was called two different things depending on which screen
+    /// reported it, and the Edit dialog's own kind picker (<c>EditVm.KindOptions</c>) agreed with only
+    /// one of them. Nothing failed while they disagreed, which is why the word itself is asserted here.
+    /// </summary>
+    [Fact]
+    public void A_type_difference_names_the_types_the_way_the_rest_of_the_app_does()
+    {
+        var flag = files.Stage.Flat.Find("AdminSettings:TrustGatewayHeaders");
+        var host = files.Stage.Flat.Find("AuthSettings:GatewayA:Host");
+
+        Assert.NotNull(flag);
+        Assert.NotNull(host);
+
+        var entry = DiffEntry.Compare("AdminSettings:TrustGatewayHeaders", flag, host);
+
+        Assert.Equal(DiffKind.TypeDiffers, entry.Kind);
+        Assert.Equal("boolean vs string", entry.Detail);
     }
 
     [Fact]
@@ -145,6 +169,36 @@ public sealed class DiffTests(SampleFiles files)
     }
 
     /// <summary>
+    /// A shape row names the left tier's root first, whichever way round the comparison was asked.
+    ///
+    /// <para>
+    /// <see cref="AliasSet.Resolve"/> is the two-tier case of <see cref="AliasSet.ResolveMulti"/> now
+    /// rather than its own copy of the engagement rules — and the N-tier form has no left and right to
+    /// order by, so it sorts the distinct roots ordinally. Handing its display path straight back would
+    /// print <c>Redis / RedisCache</c> for a beta-to-stage comparison too, which reads as beta holding
+    /// what stage holds. Nothing else pins the direction.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void A_shape_row_reads_in_the_direction_the_comparison_was_asked()
+    {
+        var differ = new TierDiffer(files.Aliases);
+
+        var forwards = Redis(differ.Compare(files.Stage.Flat, files.Beta.Flat));
+        var backwards = Redis(differ.Compare(files.Beta.Flat, files.Stage.Flat));
+
+        Assert.Equal("Redis", forwards.LeftRoot);
+        Assert.Equal("RedisCache", forwards.RightRoot);
+        Assert.Equal("Redis / RedisCache", forwards.DisplayPath);
+
+        Assert.Equal("RedisCache", backwards.LeftRoot);
+        Assert.Equal("Redis", backwards.RightRoot);
+        Assert.Equal("RedisCache / Redis", backwards.DisplayPath);
+
+        static ResolvedAlias Redis(TierDiff diff) => diff.AppliedAliases.Single(a => a.Id == "redis");
+    }
+
+    /// <summary>
     /// The N-tier alias path has its own failure mode the pairwise tests above cannot see: a tier with
     /// no entry in an alias's members block silently disables that alias for <em>every</em> tier, so
     /// adding a tier to tiers.json and forgetting aliases.json degrades the whole side-by-side view
@@ -247,5 +301,67 @@ public sealed class DiffTests(SampleFiles files)
     public void Glob_matching_behaves(string path, string pattern, bool expected)
     {
         Assert.Equal(expected, PathGlob.IsMatch(path, pattern));
+    }
+
+    // --------------------------------------------------- the line diff the screens show
+
+    /// <summary>
+    /// DiffPlex pairs a deleted line with an <c>Imaginary</c> placeholder on the other side, so
+    /// resolving a row's type from the new side first labels every deletion "imaginary" — it renders
+    /// as an uncoloured blank row, and every count keyed on Deleted stays at zero. Three of the five
+    /// screens that show a diff had exactly that bug while each ran its own copy of the loop. They
+    /// all call <see cref="DiffLineVm.Build"/> now, so this is the one place it can come back.
+    /// </summary>
+    [Fact]
+    public void A_deleted_line_is_a_deletion_rather_than_an_imaginary_row()
+    {
+        var diff = DiffLineVm.Build("one\ntwo\nthree", "one\nthree", includeUnchanged: false);
+
+        var row = Assert.Single(diff.Lines);
+
+        Assert.Equal(ChangeType.Deleted, row.Type);
+        Assert.Equal("two", row.LeftText);
+        Assert.Empty(row.RightText);
+
+        Assert.Equal(1, diff.Removed);
+        Assert.Equal(0, diff.Added);
+        Assert.Equal(0, diff.Modified);
+    }
+
+    /// <summary>
+    /// The counts describe the whole diff, not the rows that survived the filter. Both hosts show a
+    /// summary above a list the reader can hide the unchanged lines in, and a count that moved when
+    /// they did so would be reporting the state of the toggle rather than of the document.
+    /// </summary>
+    [Fact]
+    public void Hiding_the_unchanged_rows_does_not_change_the_counts()
+    {
+        const string before = "one\ntwo\nthree";
+        const string after = "one\ntwo\nthree\nfour";
+
+        var shown = DiffLineVm.Build(before, after, includeUnchanged: false);
+        var all = DiffLineVm.Build(before, after, includeUnchanged: true);
+
+        Assert.Equal((all.Added, all.Removed, all.Modified), (shown.Added, shown.Removed, shown.Modified));
+        Assert.True(all.Lines.Count > shown.Lines.Count, "the unchanged rows are the ones being hidden.");
+        Assert.DoesNotContain(shown.Lines, l => l.Type is ChangeType.Unchanged or ChangeType.Imaginary);
+    }
+
+    /// <summary>
+    /// The Text diff tab's "removed" count used to be permanently zero — its deletions arrived
+    /// labelled Imaginary, so the branch that counts them never ran. The right answer is the number
+    /// of lines the left-hand source has and the right-hand one does not, which for stage → dev is
+    /// not zero: stage carries AdminSettings keys dev has never gained (see
+    /// <see cref="Leaf_counts_are_stable"/>).
+    /// </summary>
+    [Fact]
+    public void The_text_diff_counts_the_lines_the_right_hand_source_does_not_have()
+    {
+        var vm = new RawDiffVm([files.Stage, files.Dev]);
+
+        var deleted = vm.Lines.Count(l => l.Type == ChangeType.Deleted);
+
+        Assert.True(deleted > 0, "stage holds keys dev does not, so this diff has deletions in it.");
+        Assert.Contains($"{deleted} removed", vm.Summary, StringComparison.Ordinal);
     }
 }

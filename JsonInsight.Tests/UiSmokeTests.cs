@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Windows;
 using DiffPlex.DiffBuilder.Model;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Threading;
 using JsonInsight.Editing;
 using JsonInsight.Loading;
@@ -574,8 +575,7 @@ public sealed class UiSmokeTests
                 vm.Lines.Add(new DiffLineVm("12", "\"Url\": \"redis://old\"", "12", "\"Url\": \"redis://new\"",
                     ChangeType.Modified));
                 vm.Lines.Add(new DiffLineVm("13", "\"Gone\": 1", string.Empty, string.Empty, ChangeType.Deleted));
-                vm.Warnings.Add("A warning, so the banner is realised too.");
-                vm.Notes.Add("A note, likewise.");
+                vm.Notes.Add("A note, so the notes banner is realised too.");
 
                 Render(new PushDialog(vm));
             }
@@ -586,6 +586,51 @@ public sealed class UiSmokeTests
         Assert.True(errors.Count == 0,
             $"WPF reported binding errors in the {theme} theme:" +
             Environment.NewLine + string.Join(Environment.NewLine, errors));
+    }
+
+    /// <summary>
+    /// Pushing from the Tier editor must offer the pane as edited, not the tier as it was loaded.
+    ///
+    /// <para>
+    /// The pane edits a <c>SortedClone</c> that never touches <c>Tier.Root</c>, so a request carrying
+    /// only the tier makes the dialog diff the unedited document and announce that the source already
+    /// holds exactly this — the whole tab's work, silently discarded at the last step. This window did
+    /// that until the request began carrying <c>Working</c>; the Blazor host never did.
+    /// </para>
+    ///
+    /// <para>
+    /// Raised through the real button rather than by calling the handler, because the wiring is what
+    /// broke: the payload type was never the problem.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void Pushing_from_the_tier_editor_offers_the_edited_pane()
+    {
+        var (request, working) = RunOnStaThread(() =>
+        {
+            EnsureApplication();
+
+            var main = NewMainVm();
+            var vm = main.JsonEditor!;
+            vm.Tier = vm.Tiers.First(t => t.Id.Equals("dev", StringComparison.OrdinalIgnoreCase));
+            vm.SelectedNode = vm.Nodes.First(n => n.Path == "Redis:Database");
+            vm.EditorText = "4242";
+
+            var view = new JsonEditorView { DataContext = vm };
+            Render(view);
+
+            PushRequest? seen = null;
+            view.PushRequested += (_, r) => seen = r;
+
+            ((Button)view.FindName("PushButton")).RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+
+            return (seen, vm.Editor?.Working);
+        });
+
+        Assert.NotNull(request);
+        Assert.NotNull(working);
+        Assert.Same(working, request.Updated);
+        Assert.Equal("the document as edited on the Tier editor tab", request.What);
     }
 
     /// <summary>

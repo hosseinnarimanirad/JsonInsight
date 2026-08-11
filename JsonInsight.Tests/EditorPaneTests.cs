@@ -300,6 +300,68 @@ public sealed class EditorPaneTests
         Assert.Equal("3 of 3", vm.FindStatus);
     }
 
+    /// <summary>
+    /// Pressing Replace repeatedly walks the document forwards and replaces every match, rather than
+    /// doubling back or stopping on one.
+    ///
+    /// <para>
+    /// Nothing pinned this while each host owned its own copy, and the two had drifted into behaving
+    /// differently: the Blazor pane wrote the text straight into the view model, while the WPF pane
+    /// assigned the text box, whose binding is delayed — so WPF consulted a stale match list and the
+    /// two walked in opposite directions. Both go through <c>ReplaceCurrent</c> now, and this is the
+    /// test that says which direction is the right one.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void Replacing_repeatedly_walks_forwards_through_every_match()
+    {
+        var vm = Open();
+        vm.SelectedNode = vm.Nodes.First(n => n.Path == "Redis");
+        vm.EditorText = """{ "a": 1, "b": 1, "c": 1 }""";
+
+        vm.FindOpen = true;
+        vm.FindText = "1";
+        vm.ReplaceText = "9";
+
+        Assert.Equal(3, vm.Matches.Count);
+
+        // Nothing has been stepped to, so the first press takes the first match rather than nothing.
+        Assert.True(vm.ReplaceCurrent() > 0);
+        Assert.Equal("""{ "a": 9, "b": 1, "c": 1 }""", vm.EditorText);
+
+        Assert.True(vm.ReplaceCurrent() > 0);
+        Assert.Equal("""{ "a": 9, "b": 9, "c": 1 }""", vm.EditorText);
+
+        Assert.True(vm.ReplaceCurrent() > 0);
+        Assert.Equal("""{ "a": 9, "b": 9, "c": 9 }""", vm.EditorText);
+
+        // Everything is replaced, so there is nothing left to find and nothing left to do.
+        Assert.Empty(vm.Matches);
+        Assert.False(vm.CanReplace);
+        Assert.Equal(-1, vm.ReplaceCurrent());
+    }
+
+    /// <summary>
+    /// Replace all reports the count and never "not found": it is offered only when there are matches,
+    /// and it replaces them in the same text they were found in.
+    /// </summary>
+    [Fact]
+    public void Replacing_all_reports_how_many_went()
+    {
+        var vm = Open();
+        vm.SelectedNode = vm.Nodes.First(n => n.Path == "Redis");
+        vm.EditorText = """{ "a": 1, "b": 1, "c": 1 }""";
+
+        vm.FindOpen = true;
+        vm.FindText = "1";
+        vm.ReplaceText = "9";
+
+        vm.ReplaceAllInPane();
+
+        Assert.Equal("""{ "a": 9, "b": 9, "c": 9 }""", vm.EditorText);
+        Assert.Equal("3 replaced", vm.FindStatus);
+    }
+
     /// <summary>Back from a standing start opens on the last match rather than on nothing.</summary>
     [Fact]
     public void Stepping_backwards_first_opens_on_the_last_match()

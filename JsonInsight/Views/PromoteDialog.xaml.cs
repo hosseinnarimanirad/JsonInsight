@@ -21,12 +21,12 @@ public partial class PromoteDialog : Window
     /// </summary>
     private void OnPushClick(object sender, RoutedEventArgs e)
     {
-        if (_vm.Destination is not { } destination || _vm.BuildUpdated() is not { } updated)
+        if (_vm.PendingPush() is not { } pending)
         {
             return;
         }
 
-        var push = new PushVm(_vm.Main, destination, updated, _vm.What);
+        var push = new PushVm(_vm.Main, pending.Tier, pending.Updated, pending.What);
         new PushDialog(push) { Owner = this }.ShowDialog();
 
         if (push.PushedTier is not null)

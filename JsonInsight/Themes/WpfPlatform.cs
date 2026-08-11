@@ -32,13 +32,15 @@ internal sealed class WpfFilePicker : IFilePicker
     public string? OpenFile(string title, IReadOnlyList<string> filter, string? startingDirectory = null)
     {
         var extensions = filter.Count == 0 ? ["json"] : filter;
+        // One list serves both halves of a filter entry: the label the type dropdown shows and the
+        // pattern the dialog actually matches on. They were built twice, identically; keeping it to
+        // one is also what stops the label from ever describing something the filter does not do.
         var patterns = string.Join(';', extensions.Select(e => $"*.{e}"));
-        var names = string.Join(';', extensions.Select(e => $"*.{e}"));
 
         var dialog = new OpenFileDialog
         {
             Title = title,
-            Filter = $"JSON files ({names})|{patterns}|All files (*.*)|*.*",
+            Filter = $"JSON files ({patterns})|{patterns}|All files (*.*)|*.*",
             CheckFileExists = true,
         };
 

@@ -522,10 +522,11 @@ Two things follow from applying as you type, and both are load-bearing:
   row sideways. Replace and Replace all edit the *pane*, not the document — for a section, Update
   node still has to follow, which is what keeps a bulk replace reviewable before it lands.
 
-  Both shortcuts work from anywhere on the tab, in both front ends. `Ctrl+F` was a key handler on the
-  WPF pane alone, so it only opened the bar once the caret was already in the JSON — which is exactly
-  where you do not need a shortcut to get to — and `F3` did nothing from inside the find box, which
-  is where it is most likely to be pressed. Stepping and replacing are offered only when there is
+  `Ctrl+F` works from anywhere on the tab in both front ends. It was a key handler on the WPF pane
+  alone, so it only opened the bar once the caret was already in the JSON — which is exactly where you
+  do not need a shortcut to get to — and `F3` did nothing from inside the find box, which is where it
+  is most likely to be pressed. `F3` is tab-wide in the WPF app; in the web app it works in the find
+  box and the pane, which is where it is pressed, but not from the tree. Stepping and replacing are offered only when there is
   something to step to or replace, rather than staying lit and doing nothing; and clicking in the
   pane moves the search's idea of *here*, so the next `Enter` continues from where you are looking
   rather than from wherever the last step stopped.

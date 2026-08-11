@@ -37,12 +37,6 @@
         <Setter Property="TextOptions.TextRenderingMode" Value="ClearType" />
     </Style>
 
-    <Style x:Key="Text.Title" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource Text.Base}">
-        <Setter Property="FontFamily" Value="{StaticResource Font.Display}" />
-        <Setter Property="FontSize" Value="22" />
-        <Setter Property="FontWeight" Value="SemiBold" />
-    </Style>
-
     <Style x:Key="Text.Heading" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource Text.Base}">
         <Setter Property="FontFamily" Value="{StaticResource Font.Display}" />
         <Setter Property="FontSize" Value="16" />
@@ -62,14 +56,6 @@
         <Setter Property="FontSize" Value="11" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Foreground" Value="{DynamicResource Brush.TextTertiary}" />
-    </Style>
-
-    <Style x:Key="Text.Icon" TargetType="{x:Type TextBlock}">
-        <Setter Property="FontFamily" Value="{StaticResource Font.Icons}" />
-        <Setter Property="FontSize" Value="15" />
-        <Setter Property="Foreground" Value="{DynamicResource Brush.TextSecondary}" />
-        <Setter Property="VerticalAlignment" Value="Center" />
-        <Setter Property="HorizontalAlignment" Value="Center" />
     </Style>
 
     <Style x:Key="Text.Mono" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource Text.Base}">
@@ -1110,7 +1096,7 @@
                        FontSize="{StaticResource Size.Mono}"
                        Foreground="{DynamicResource Brush.Text}"
                        TextTrimming="CharacterEllipsis"
-                       ToolTip="{Binding Detail}" />
+                       ToolTip="{Binding Tooltip}" />
         </Border>
         <DataTemplate.Triggers>
             <DataTrigger Binding="{Binding State}" Value="Missing">
@@ -1126,8 +1112,6 @@
                  unknowns painted like a column of gaps would read as hundreds of missing keys. -->
             <DataTrigger Binding="{Binding State}" Value="Unavailable">
                 <Setter TargetName="Value" Property="Foreground" Value="{DynamicResource Brush.TextTertiary}" />
-                <Setter TargetName="Value" Property="ToolTip"
-                        Value="Vault could not be read for this tier, so this key is unknown in it — not missing from it." />
             </DataTrigger>
             <DataTrigger Binding="{Binding Leaf.Class}" Value="Secret">
                 <Setter TargetName="Value" Property="Foreground" Value="{DynamicResource Brush.Secret}" />
@@ -1165,6 +1149,93 @@
             </DataTrigger>
         </Style.Triggers>
     </Style>
+
+    <!--
+        The four columns of a two-sided diff row: a line number and its text for each side, bound to
+        DiffLineVm.
+
+        Held apart from the two row templates below because the only thing those differ in is which
+        wash the row takes, and re-typing twenty lines of columns to change one attribute is exactly
+        how the three copies this replaces drifted: they had reached two number-column widths (40 in
+        the editor, 46 on the push screen and the Text diff tab) and two sets of margins between
+        them, for the same four columns showing the same record. Unified on 46, the wider of the two
+        - a four-digit line number does not fit in 40, and these documents are thousands of lines
+        long.
+
+        Wrapping rather than scrolling sideways, because these values include PEM blocks and
+        900-character tokens: a line that runs off to the right takes the other column with it, and a
+        two-column diff that reads as a one-column one until you scroll is not answering the question
+        it is for.
+    -->
+    <DataTemplate x:Key="DiffRow.Columns">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="46" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="46" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="{Binding LeftNumber}"
+                       Style="{StaticResource Text.MonoCaption}"
+                       TextAlignment="Right" Margin="0,0,10,0"
+                       VerticalAlignment="Top" />
+            <TextBlock Grid.Column="1" Text="{Binding LeftText}" Style="{StaticResource Text.Mono}"
+                       TextWrapping="Wrap" />
+            <TextBlock Grid.Column="2" Text="{Binding RightNumber}"
+                       Style="{StaticResource Text.MonoCaption}"
+                       TextAlignment="Right" Margin="10,0,10,0"
+                       VerticalAlignment="Top" />
+            <TextBlock Grid.Column="3" Text="{Binding RightText}" Style="{StaticResource Text.Mono}"
+                       TextWrapping="Wrap" />
+        </Grid>
+    </DataTemplate>
+
+    <!--
+        One row of a two-sided diff, washed as one tier against another - the Text diff tab.
+    -->
+    <DataTemplate x:Key="DiffRow">
+        <Border Style="{StaticResource Row.DiffLine}">
+            <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource DiffRow.Columns}" />
+        </Border>
+    </DataTemplate>
+
+    <!--
+        The same row washed as an edit rather than a comparison of two tiers: Row.EditDiffLine
+        recolours Modified to the tree's amber. Two templates rather than one with a swappable style
+        because a DataTemplate cannot take a parameter, and the alternative - resolving the style
+        through a DynamicResource each view redefines - hides which wash a screen uses from the
+        screen's own markup.
+    -->
+    <DataTemplate x:Key="DiffRow.Edit">
+        <Border Style="{StaticResource Row.EditDiffLine}">
+            <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource DiffRow.Columns}" />
+        </Border>
+    </DataTemplate>
+
+    <!--
+        One row of a one-sided preview - the pending-changes and promote dialogs, which show the
+        document as it would end up rather than a before-and-after. They bind the RIGHT side because
+        that is the side that carries the result; a deleted line is still visible, as a red row whose
+        text is the line that follows it.
+
+        No wrapping here on purpose: both dialogs give the preview a narrow pane beside a grid and
+        scroll it horizontally instead, so the rows stay one line each and line up with the grid's.
+    -->
+    <DataTemplate x:Key="DiffRow.Preview">
+        <Border Style="{StaticResource Row.DiffLine}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="44" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{Binding RightNumber}"
+                           Style="{StaticResource Text.MonoCaption}"
+                           TextAlignment="Right" Margin="0,0,10,0" />
+                <TextBlock Grid.Column="1" Text="{Binding RightText}"
+                           Style="{StaticResource Text.Mono}" />
+            </Grid>
+        </Border>
+    </DataTemplate>
 
     <!-- Background wash for one row of the JSON compare, keyed on the kind of difference. -->
     <Style x:Key="Row.DiffKind" TargetType="{x:Type Border}">

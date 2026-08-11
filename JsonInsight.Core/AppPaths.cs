@@ -3,15 +3,13 @@ using System.IO;
 namespace JsonInsight;
 
 /// <summary>
-/// Resolves where the config files and the tier snapshots live.
+/// Resolves where the config files and the settings file live.
 ///
 /// <para>
-/// Tier paths in config/tiers.json are relative to the <em>content root</em>: the folder this app's
-/// own repository sits in. That is the only anchor it has, and deliberately the only one - naming a
-/// neighbouring project here would make the app depend on a repository it does not own, and a tier
-/// pointing anywhere else is a config edit rather than a code change. Detecting it by walking up
-/// means the app works from bin\Debug, from a published folder, or from a test run with nothing
-/// hardcoded.
+/// The <em>content root</em> - the folder this app's own repository sits in - is the only anchor it
+/// has, and deliberately the only one: naming a neighbouring project here would make the app depend
+/// on a repository it does not own. Detecting it by walking up means the app works from bin\Debug,
+/// from a published folder, or from a test run with nothing hardcoded.
 /// </para>
 /// </summary>
 public static class AppPaths
@@ -73,8 +71,10 @@ public static class AppPaths
     private static string? _appSettingsFile;
 
     /// <summary>
-    /// What relative tier paths resolve against: the folder holding this app's repository. Override
-    /// it with <see cref="RootOverrideVariable"/> to point the app at snapshots kept elsewhere.
+    /// The folder holding this app's repository. Nothing resolves against it any more - a source is
+    /// a Vault path or a whole file path now - so it is reported rather than used: the status bar
+    /// and <c>--check</c> both print it, which is how "which working copy is this?" gets answered.
+    /// Override it with <see cref="RootOverrideVariable"/>.
     /// </summary>
     public static string ContentRoot => _contentRoot ??= ResolveContentRoot();
 
@@ -90,17 +90,6 @@ public static class AppPaths
     /// the next build.
     /// </summary>
     public static string AppSettingsFile => _appSettingsFile ??= ResolveAppSettingsFile();
-
-    /// <summary>Resolves a tiers.json-style path (relative to the content root) to a full path.</summary>
-    public static string ResolveFromRoot(string relativePath)
-    {
-        if (Path.IsPathRooted(relativePath))
-        {
-            return Path.GetFullPath(relativePath);
-        }
-
-        return Path.GetFullPath(Path.Combine(ContentRoot, relativePath.Replace('/', Path.DirectorySeparatorChar)));
-    }
 
     /// <summary>
     /// The parent of the folder holding a solution file. The parent rather than the repository

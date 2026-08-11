@@ -43,7 +43,7 @@ public sealed class WritePathTests : TestContext
     {
         var (_, dialogs) = Seeded();
 
-        var paths = Enumerable.Range(0, DialogService.MaximumEditRows + 1)
+        var paths = Enumerable.Range(0, WriteFlows.MaximumEditRows + 1)
             .Select(i => $"Section:Key{i}")
             .ToArray();
 

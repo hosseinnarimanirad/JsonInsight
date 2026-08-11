@@ -78,7 +78,7 @@
         <Border DockPanel.Dock="Bottom" Style="{StaticResource Card}" Margin="0,10,0,0"
                 Visibility="{Binding CanEdit, Converter={StaticResource BoolVis}}">
             <DockPanel>
-                <Button DockPanel.Dock="Right" Style="{StaticResource Button.Danger}"
+                <Button DockPanel.Dock="Right" x:Name="PushButton" Style="{StaticResource Button.Danger}"
                         MinWidth="170" Click="OnPushClick" Margin="8,0,0,0"
                         IsEnabled="{Binding CanPush}" ToolTip="{Binding PushHint}"
                         ToolTipService.ShowOnDisabled="True">
@@ -571,42 +571,15 @@
                         </TextBox>
 
                         <!-- Both sides, so a removed line has somewhere to appear and a changed one
-                             shows what it changed from. -->
+                             shows what it changed from. DiffRow.Edit rather than DiffRow: this is a
+                             document against the state you opened it in, so its colours are the
+                             tree's - amber for edited - not the blue that means "two tiers differ".
+                             Both templates are in Controls.xaml. -->
                         <ListBox Style="{StaticResource LineList}" Padding="4"
                                  Visibility="{Binding ShowingComparison, Converter={StaticResource BoolVis}}"
                                  ItemsSource="{Binding ComparisonLines}"
-                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <Border Style="{StaticResource Row.EditDiffLine}">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="40" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="40" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-
-                                            <TextBlock Grid.Column="0" Text="{Binding LeftNumber}"
-                                                       Style="{StaticResource Text.MonoCaption}"
-                                                       TextAlignment="Right" Margin="0,0,8,0"
-                                                       VerticalAlignment="Top" />
-                                            <TextBlock Grid.Column="1" Text="{Binding LeftText}"
-                                                       Style="{StaticResource Text.Mono}"
-                                                       TextWrapping="Wrap" />
-
-                                            <TextBlock Grid.Column="2" Text="{Binding RightNumber}"
-                                                       Style="{StaticResource Text.MonoCaption}"
-                                                       TextAlignment="Right" Margin="10,0,8,0"
-                                                       VerticalAlignment="Top" />
-                                            <TextBlock Grid.Column="3" Text="{Binding RightText}"
-                                                       Style="{StaticResource Text.Mono}"
-                                                       TextWrapping="Wrap" />
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
+                                 ItemTemplate="{StaticResource DiffRow.Edit}"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
                     </Grid>
                 </DockPanel>
             </Border>

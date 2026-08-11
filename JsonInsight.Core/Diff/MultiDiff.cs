@@ -37,6 +37,31 @@ public sealed record MultiCell(string TierId, CellState State, Leaf? Leaf, strin
         _ => Leaf?.DisplayValue ?? Detail ?? string.Empty,
     };
 
+    /// <summary>
+    /// What this cell means, in a sentence — the tooltip both grids show.
+    ///
+    /// <para>
+    /// Computed here because the two grids had written their own and drifted: the Blazor tab explained
+    /// each state, while the WPF template bound the tooltip to <see cref="Detail"/>, which is null for
+    /// a leaf cell — so the desktop grid showed no tooltip at all on precisely the cells whose values
+    /// are trimmed to fit the column.
+    /// </para>
+    ///
+    /// <para>
+    /// A caller that knows <em>why</em> a source could not be read should say that instead of the
+    /// generic <see cref="CellState.Unavailable"/> sentence; nothing at this level knows it.
+    /// </para>
+    /// </summary>
+    public string Tooltip => State switch
+    {
+        CellState.Unavailable =>
+            "This source could not be read, so this key is unknown here — not missing from it.",
+        CellState.Missing => $"{TierId} does not have this key.",
+        CellState.Shape => "Held in an incomparable shape here — see config/aliases.json.",
+        _ when Leaf?.Class == ValueClass.Secret => "Secret — the value is never shown.",
+        _ => Leaf?.DisplayValue ?? Detail ?? string.Empty,
+    };
+
     public bool IsKnown => State != CellState.Unavailable;
 }
 
@@ -47,9 +72,6 @@ public sealed record MultiCell(string TierId, CellState State, Leaf? Leaf, strin
 public sealed record TierColumn(string TierId, FlatConfig? Flat)
 {
     public bool IsAvailable => Flat is not null;
-
-    public static IReadOnlyList<TierColumn> From(IEnumerable<FlatConfig> tiers) =>
-        tiers.Select(t => new TierColumn(t.TierId, t)).ToArray();
 }
 
 /// <summary>One canonical path shown across every selected tier.</summary>

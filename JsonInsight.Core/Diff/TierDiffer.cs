@@ -27,9 +27,6 @@ public sealed class TierDiff
     public int Meaningful => Entries.Count(e => e.IsMeaningful);
 
     public int Expected => Entries.Count(e => e.IsExpected);
-
-    public DiffEntry? Find(string path) =>
-        Entries.FirstOrDefault(e => string.Equals(e.Path, path, StringComparison.Ordinal));
 }
 
 public sealed class TierDiffer

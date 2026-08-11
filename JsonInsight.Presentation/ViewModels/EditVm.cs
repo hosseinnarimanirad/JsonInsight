@@ -95,18 +95,7 @@ public sealed partial class EditRowVm : ObservableObject
         _ => CurrentDisplay,
     };
 
-    public string ActionLabel => Action switch
-    {
-        RowAction.Set => Exists ? "Update" : "Add",
-        RowAction.Delete => "Delete",
-        _ => "Keep",
-    };
-
-    partial void OnActionChanged(RowAction value)
-    {
-        OnPropertyChanged(nameof(ResultDisplay));
-        OnPropertyChanged(nameof(ActionLabel));
-    }
+    partial void OnActionChanged(RowAction value) => OnPropertyChanged(nameof(ResultDisplay));
 
     partial void OnNewValueChanged(string value) => OnPropertyChanged(nameof(ResultDisplay));
 

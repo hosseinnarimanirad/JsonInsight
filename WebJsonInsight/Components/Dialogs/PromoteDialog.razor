@@ -76,28 +76,8 @@
                 </div>
     
                 <div class="card card-flush grid-card">
-                    <div class="difflines-head">
-                        <div class="dl-num"></div>
-                        <div class="dl-text">AS IT IS</div>
-                        <div class="dl-num"></div>
-                        <div class="dl-text">WITH THIS PROMOTED IN</div>
-                    </div>
-                    <div class="difflines">
-                        @foreach (var line in Vm.PreviewLines)
-                        {
-                            <div class="dl-row @LineClass(line)">
-                                <div class="dl-num">@line.LeftNumber</div>
-                                <div class="dl-text dl-left">@line.LeftText</div>
-                                <div class="dl-num">@line.RightNumber</div>
-                                <div class="dl-text dl-right">@line.RightText</div>
-                            </div>
-                        }
-    
-                        @if (Vm.PreviewLines.Count == 0)
-                        {
-                            <div class="grid-empty">Press Preview.</div>
-                        }
-                    </div>
+                    <DiffLinesView Lines="Vm.PreviewLines" LeftHeader="AS IT IS"
+                                   RightHeader="WITH THIS PROMOTED IN" EmptyMessage="Press Preview." />
                 </div>
             </div>
         </div>
@@ -123,7 +103,7 @@
     [Parameter] public EventCallback OnClose { get; set; }
 
     /// <summary>Handed the destination-with-the-subtree-added, for the one push screen to confirm.</summary>
-    [Parameter] public EventCallback<(JsonInsight.Model.TierDocument Tier, System.Text.Json.Nodes.JsonNode Updated, string What)> OnPush { get; set; }
+    [Parameter] public EventCallback<PendingPush> OnPush { get; set; }
 
     private static readonly PromotionAction[] Actions = Enum.GetValues<PromotionAction>();
 
@@ -137,13 +117,8 @@
         }
     }
 
-    private static void OnAction(PromoteLeafVm leaf, ChangeEventArgs e)
-    {
-        if (Enum.TryParse<PromotionAction>(e.Value?.ToString(), out var action))
-        {
-            leaf.Action = action;
-        }
-    }
+    private static void OnAction(PromoteLeafVm leaf, ChangeEventArgs e) =>
+        Choice.Set<PromotionAction>(e, action => leaf.Action = action);
 
     private static string Label(PromotionAction action) => action switch
     {
@@ -155,17 +130,9 @@
 
     private async Task Push()
     {
-        if (Vm.Destination is { } destination && Vm.BuildUpdated() is { } updated)
+        if (Vm.PendingPush() is { } pending)
         {
-            await OnPush.InvokeAsync((destination, updated, Vm.What));
+            await OnPush.InvokeAsync(pending);
         }
     }
-
-    private static string LineClass(DiffLineVm line) => line.Type switch
-    {
-        DiffPlex.DiffBuilder.Model.ChangeType.Inserted => "dl-added",
-        DiffPlex.DiffBuilder.Model.ChangeType.Deleted => "dl-removed",
-        DiffPlex.DiffBuilder.Model.ChangeType.Modified => "dl-modified",
-        _ => string.Empty,
-    };
 }

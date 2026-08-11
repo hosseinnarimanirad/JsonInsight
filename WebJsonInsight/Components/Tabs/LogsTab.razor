@@ -6,7 +6,7 @@
     draw the eye instead took the top of the window and pushed the grid below the fold — and the only
     way to get the room back was to dismiss the findings.
 *@
-@inherits ObservingComponent
+@inherits ObservingComponent<LogVm>
 
 @if (Vm is null)
 {
@@ -53,19 +53,5 @@ else
 }
 
 @code {
-    [Parameter] public LogVm? Vm { get; set; }
-
-    private LogVm? _observed;
-
-    protected override void OnParametersSet()
-    {
-        if (ReferenceEquals(_observed, Vm))
-        {
-            return;
-        }
-
-        StopObserving();
-        _observed = Vm;
-        Observe(Vm, Vm?.Entries);
-    }
+    protected override void ObserveAlso(LogVm? vm) => Observe(vm?.Entries);
 }

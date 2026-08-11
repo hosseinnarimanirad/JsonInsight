@@ -92,28 +92,8 @@
                 </div>
     
                 <div class="card card-flush grid-card">
-                    <div class="difflines-head">
-                        <div class="dl-num"></div>
-                        <div class="dl-text">AS IT IS</div>
-                        <div class="dl-num"></div>
-                        <div class="dl-text">WITH THESE APPLIED</div>
-                    </div>
-                    <div class="difflines">
-                        @foreach (var line in Vm.PreviewLines)
-                        {
-                            <div class="dl-row @LineClass(line)">
-                                <div class="dl-num">@line.LeftNumber</div>
-                                <div class="dl-text dl-left">@line.LeftText</div>
-                                <div class="dl-num">@line.RightNumber</div>
-                                <div class="dl-text dl-right">@line.RightText</div>
-                            </div>
-                        }
-    
-                        @if (Vm.PreviewLines.Count == 0)
-                        {
-                            <div class="grid-empty">Press Preview.</div>
-                        }
-                    </div>
+                    <DiffLinesView Lines="Vm.PreviewLines" LeftHeader="AS IT IS"
+                                   RightHeader="WITH THESE APPLIED" EmptyMessage="Press Preview." />
                 </div>
             </div>
         </div>
@@ -137,7 +117,7 @@
 
     [Parameter] public EventCallback OnClose { get; set; }
 
-    [Parameter] public EventCallback<(JsonInsight.Model.TierDocument Tier, System.Text.Json.Nodes.JsonNode Updated, string What)> OnPush { get; set; }
+    [Parameter] public EventCallback<PendingPush> OnPush { get; set; }
 
     protected override void OnInitialized()
     {
@@ -154,17 +134,9 @@
 
     private async Task Push()
     {
-        if (Vm.Tier is { } tier && Vm.BuildUpdated() is { } updated)
+        if (Vm.PendingPush() is { } pending)
         {
-            await OnPush.InvokeAsync((tier, updated, Vm.What));
+            await OnPush.InvokeAsync(pending);
         }
     }
-
-    private static string LineClass(DiffLineVm line) => line.Type switch
-    {
-        DiffPlex.DiffBuilder.Model.ChangeType.Inserted => "dl-added",
-        DiffPlex.DiffBuilder.Model.ChangeType.Deleted => "dl-removed",
-        DiffPlex.DiffBuilder.Model.ChangeType.Modified => "dl-modified",
-        _ => string.Empty,
-    };
 }

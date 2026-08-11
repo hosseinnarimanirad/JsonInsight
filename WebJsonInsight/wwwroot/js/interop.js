@@ -88,19 +88,8 @@ window.jsonInsight = {
         return element ? (element.selectionStart || 0) : 0;
     },
 
-    // Select a range in the pane and put it on screen. Used by Replace, which does want the caret in
-    // the text afterwards.
-    select: function (element, start, length) {
-        if (!element) {
-            return;
-        }
-
-        element.focus();
-        element.setSelectionRange(start, start + length);
-        window.jsonInsight.scrollTo(element, start);
-    },
-
-    // The same, without stealing focus - which is what stepping through matches needs.
+    // Select a range in the pane and put it on screen, without stealing focus - which is what
+    // stepping through matches needs.
     //
     // The find box has to keep the caret or the second Enter goes into the JSON instead of finding
     // the next match, which is exactly the defect this replaced. The selection is still set, so the

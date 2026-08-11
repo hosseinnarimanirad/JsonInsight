@@ -9,7 +9,7 @@
     The columns are generated from Diff.TierIds at render time, so adding a source grows a column with
     no change here.
 *@
-@inherits ObservingComponent
+@inherits ObservingComponent<TiersVm>
 @inject DialogService Dialogs
 
 @if (Vm is null)
@@ -107,7 +107,7 @@ else
 
             <div class="card card-flush grid-card">
                 <div class="grid-scroll">
-                    <table class="grid" style="--tier-count:@Vm.Diff.TierIds.Count">
+                    <table class="grid">
                         <thead>
                             <tr>
                                 <th class="col-path">PATH</th>
@@ -160,7 +160,7 @@ else
                                     @foreach (var cell in row.Cells)
                                     {
                                         <td class="col-tier cell-@cell.State.ToString().ToLowerInvariant() @(row.IsSecret ? "cell-secret" : "")"
-                                            title="@CellTitle(cell, row)">@cell.Display</td>
+                                            title="@CellTitle(cell)">@cell.Display</td>
                                     }
 
                                     @* Editing starts from the row rather than from a toolbar button,
@@ -219,56 +219,36 @@ else
 }
 
 @code {
-    [Parameter] public TiersVm? Vm { get; set; }
-
-    private TiersVm? _observed;
-
-    protected override void OnParametersSet()
+    protected override void ObserveAlso(TiersVm? vm)
     {
-        if (ReferenceEquals(_observed, Vm))
-        {
-            return;
-        }
-
-        StopObserving();
-        _observed = Vm;
-
         // DocumentsChanged fires when a pull replaces the whole document set, which changes the
         // columns rather than the rows - the header is built from Diff.TierIds and would otherwise
         // keep claiming the previous set.
-        if (_observed is not null)
+        if (vm is not null)
         {
-            _observed.DocumentsChanged += OnDocumentsChanged;
+            vm.DocumentsChanged += OnDocumentsChanged;
         }
 
-        Observe(Vm, Vm?.Rows, Vm?.Sections, Vm?.PullReport);
+        Observe(vm?.Rows, vm?.Sections, vm?.PullReport);
+    }
+
+    protected override void StopObservingAlso(TiersVm? vm)
+    {
+        if (vm is not null)
+        {
+            vm.DocumentsChanged -= OnDocumentsChanged;
+        }
     }
 
     private void OnDocumentsChanged(object? sender, EventArgs e) => _ = InvokeAsync(StateHasChanged);
 
-    protected override void Disposing()
-    {
-        if (_observed is not null)
-        {
-            _observed.DocumentsChanged -= OnDocumentsChanged;
-        }
-    }
+    protected override void Disposing() => StopObservingAlso(Observed);
 
     /// <summary>
-    /// A rollup toggles its own children; an ordinary group collapses. Two different things in the
-    /// view model, and the row knows which it is by carrying a Summary.
+    /// A rollup toggles its own children; an ordinary group collapses. Which one this row is, is the
+    /// view model's to know — see <see cref="TiersVm.ToggleAny"/>.
     /// </summary>
-    private void Toggle(TierRowVm row)
-    {
-        if (row.Summary.Contains("only in", StringComparison.Ordinal))
-        {
-            Vm?.ToggleRollup(row);
-        }
-        else
-        {
-            Vm?.ToggleRowCommand.Execute(row);
-        }
-    }
+    private void Toggle(TierRowVm row) => Vm?.ToggleAny(row);
 
     private string RowClass(TierRowVm row)
     {
@@ -310,12 +290,7 @@ else
     /// editor's text pane, and an unavailable cell, where the honest tooltip is why it could not be
     /// read rather than a value nobody has.
     /// </summary>
-    private string CellTitle(MultiCell cell, TierRowVm row) => cell.State switch
-    {
-        CellState.Unavailable => Vm?.UnavailableReason(cell.TierId) ?? "This source could not be read.",
-        CellState.Missing => $"{cell.TierId} does not have this key.",
-        CellState.Shape => "Held in an incomparable shape here — see config/aliases.json.",
-        _ when row.IsSecret => "Secret — the value is never shown.",
-        _ => cell.Leaf?.DisplayValue ?? string.Empty,
-    };
+    private string CellTitle(MultiCell cell) => cell.State == CellState.Unavailable
+        ? Vm?.UnavailableReason(cell.TierId) ?? cell.Tooltip
+        : cell.Tooltip;
 }

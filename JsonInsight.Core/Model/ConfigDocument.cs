@@ -34,42 +34,8 @@ public sealed record ConfigDocument(string RelativePath)
     /// </summary>
     public string PathUnder(string environmentRoot)
     {
-        var trimmed = (environmentRoot ?? string.Empty).Trim().TrimEnd('/');
+        var trimmed = environmentRoot.Trim().TrimEnd('/');
         return IsRoot ? trimmed : $"{trimmed}/{RelativePath}";
-    }
-
-    /// <summary>
-    /// What this document adds to a snapshot file name, so two documents from the same environment
-    /// cannot land on the same file: <c>app.stage.v34.json</c> beside
-    /// <c>app.stage.resources-config-features.v03.json</c>. Empty for the root document, which
-    /// keeps every existing snapshot named exactly as it is today.
-    /// </summary>
-    public string FileSuffix => IsRoot ? string.Empty : "." + Slug;
-
-    /// <summary>
-    /// The path as one file-name segment: separators become dashes and a trailing <c>.json</c> goes,
-    /// since every one of these is a JSON document and repeating it reads as part of the extension.
-    /// </summary>
-    public string Slug
-    {
-        get
-        {
-            var path = RelativePath;
-            if (path.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
-            {
-                path = path[..^".json".Length];
-            }
-
-            var slug = new string(path.Select(c => char.IsLetterOrDigit(c) || c == '-' ? c : '-').ToArray());
-
-            // Collapse runs, so "resources//config" and "resources/config" cannot name two files.
-            while (slug.Contains("--", StringComparison.Ordinal))
-            {
-                slug = slug.Replace("--", "-", StringComparison.Ordinal);
-            }
-
-            return slug.Trim('-');
-        }
     }
 
     /// <summary>

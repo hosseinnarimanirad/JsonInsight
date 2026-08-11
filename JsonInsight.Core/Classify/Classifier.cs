@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using JsonInsight.Diff;
 using JsonInsight.Model;
+using JsonInsight.Promote;
 
 namespace JsonInsight.Classify;
 
@@ -35,11 +36,7 @@ public sealed class Classifier
     public static Classifier Load(string? file = null)
     {
         file ??= AppPaths.ConfigFile("classify.json");
-        using var document = JsonDocument.Parse(File.ReadAllText(file), new JsonDocumentOptions
-        {
-            CommentHandling = JsonCommentHandling.Skip,
-            AllowTrailingCommas = true,
-        });
+        using var document = JsonDocument.Parse(File.ReadAllText(file), OrdinalJsonWriter.DocumentOptions);
 
         var root = document.RootElement;
         var defaultClass = root.TryGetProperty("default", out var d)
@@ -75,8 +72,6 @@ public sealed class Classifier
 
         return new Classifier(rules, defaultClass);
     }
-
-    public static Classifier Permissive() => new([], ValueClass.Business);
 
     /// <summary>
     /// Precedence is secret &gt; infra &gt; business regardless of rule order, so a key that looks like

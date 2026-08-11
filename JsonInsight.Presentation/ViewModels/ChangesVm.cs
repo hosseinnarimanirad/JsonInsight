@@ -1,8 +1,6 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using DiffPlex.DiffBuilder;
-using DiffPlex.DiffBuilder.Model;
 using System.Text.Json.Nodes;
 using JsonInsight.Editing;
 using JsonInsight.Model;
@@ -70,9 +68,6 @@ public sealed partial class ChangesVm : ObservableObject
     private string? _message;
 
     [ObservableProperty]
-    private bool _previewReady;
-
-    [ObservableProperty]
     private string _targetDescription = string.Empty;
 
     public ObservableCollection<ChangeRowVm> Changes { get; } = [];
@@ -114,7 +109,6 @@ public sealed partial class ChangesVm : ObservableObject
 
     partial void OnTierChanged(TierDocument? value)
     {
-        PreviewReady = false;
         PreviewLines.Clear();
         BuildChangeList();
     }
@@ -174,7 +168,6 @@ public sealed partial class ChangesVm : ObservableObject
         }
 
         _main.Edits.RebaseOn(Tier);
-        PreviewReady = false;
         PreviewLines.Clear();
         BuildChangeList();
         _main.Tiers?.NotifyEditsChanged();
@@ -189,7 +182,6 @@ public sealed partial class ChangesVm : ObservableObject
         }
 
         _main.Edits.Remove(row.Edit);
-        PreviewReady = false;
         PreviewLines.Clear();
         BuildChangeList();
         _main.Tiers?.NotifyEditsChanged();
@@ -234,7 +226,6 @@ public sealed partial class ChangesVm : ObservableObject
     private void Preview()
     {
         PreviewLines.Clear();
-        PreviewReady = false;
 
         if (Tier is null)
         {
@@ -253,27 +244,13 @@ public sealed partial class ChangesVm : ObservableObject
             return;
         }
 
-        var model = SideBySideDiffBuilder.Instance.BuildDiffModel(before, after, false);
-        for (var i = 0; i < Math.Max(model.OldText.Lines.Count, model.NewText.Lines.Count); i++)
+        // Only the rows that differ: the question this screen is open to answer is "did my six edits
+        // do what I meant them to", and the document around them is not part of the answer.
+        foreach (var line in DiffLineVm.Build(before, after, includeUnchanged: false).Lines)
         {
-            var oldLine = i < model.OldText.Lines.Count ? model.OldText.Lines[i] : null;
-            var newLine = i < model.NewText.Lines.Count ? model.NewText.Lines[i] : null;
-            var type = newLine?.Type ?? oldLine?.Type ?? ChangeType.Unchanged;
-
-            if (type == ChangeType.Unchanged)
-            {
-                continue;
-            }
-
-            PreviewLines.Add(new DiffLineVm(
-                oldLine?.Position?.ToString() ?? string.Empty,
-                oldLine?.Text ?? string.Empty,
-                newLine?.Position?.ToString() ?? string.Empty,
-                newLine?.Text ?? string.Empty,
-                type));
+            PreviewLines.Add(line);
         }
 
-        PreviewReady = true;
         Message = PreviewLines.Count == 0
             ? "These changes would not alter the document — every value is already what it is being set to."
             : $"{PreviewLines.Count} changed line(s), against {Tier.Id} as it was read. " +
@@ -303,6 +280,15 @@ public sealed partial class ChangesVm : ObservableObject
             return null;
         }
     }
+
+    /// <summary>
+    /// The push this screen would hand on, or null when there is nothing to hand on. Asked instead of
+    /// spelling out "if there is a tier and the document builds" at each of the two hosts' buttons.
+    /// </summary>
+    public PendingPush? PendingPush() =>
+        Tier is { } tier && BuildUpdated() is { } updated
+            ? new PendingPush(tier, updated, What)
+            : null;
 
     /// <summary>One phrase naming this batch, carried onto the push screen.</summary>
     public string What => Tier is null

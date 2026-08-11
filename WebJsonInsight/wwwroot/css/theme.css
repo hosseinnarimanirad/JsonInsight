@@ -10,8 +10,11 @@
  *      no component re-rendering and nothing reloaded, so switching theme mid-promote cannot lose a
  *      preview or a typed confirmation.
  *   2. Both themes define exactly the same token set. A token present in only one resolves to
- *      nothing after a switch and silently drops a control's colour; WebJsonInsight.Tests asserts the
- *      two blocks below have identical key sets, the same way JsonInsight.Tests does for the XAML.
+ *      nothing after a switch and silently drops a control's colour; WebJsonInsight.Tests' ThemeTests
+ *      asserts the two blocks below have identical key sets, that every Brush.* key in Dark.xaml has
+ *      a token here under the translated name (Brush.SurfaceAlt -> --brush-surface-alt), and that the
+ *      few tokens this file adds beyond the XAML set are exactly the documented ones. JsonInsight.Tests
+ *      applies the first of those to the XAML pair.
  */
 
 :root,

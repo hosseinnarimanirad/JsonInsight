@@ -153,9 +153,9 @@ public sealed class EditValidator
 
         if (mismatched.Length > 0)
         {
-            var describe = string.Join(", ", mismatched.Select(x => $"{x.Id}: {Describe(x.Leaf!.Kind)}"));
+            var describe = string.Join(", ", mismatched.Select(x => $"{x.Id}: {JsonKinds.Describe(x.Leaf!.Kind)}"));
             yield return new EditWarning(EditWarningLevel.Warn, edit.Path,
-                $"written as {Describe(edit.NewKind)} while other tiers hold it as {describe}.");
+                $"written as {JsonKinds.Describe(edit.NewKind)} while other tiers hold it as {describe}.");
         }
 
         if (edit.NewValue is { } value && value.StartsWith("<<SET-FOR-", StringComparison.Ordinal))
@@ -169,17 +169,6 @@ public sealed class EditValidator
     /// <summary>True and False are two JsonValueKind members for one JSON type, so they never mismatch.</summary>
     private static bool BothNumericish(JsonValueKind a, JsonValueKind b) =>
         a is JsonValueKind.True or JsonValueKind.False && b is JsonValueKind.True or JsonValueKind.False;
-
-    private static string Describe(JsonValueKind kind) => kind switch
-    {
-        JsonValueKind.True or JsonValueKind.False => "boolean",
-        JsonValueKind.Number => "number",
-        JsonValueKind.String => "string",
-        JsonValueKind.Null => "null",
-        JsonValueKind.Array => "array",
-        JsonValueKind.Object => "object",
-        _ => kind.ToString().ToLowerInvariant(),
-    };
 
     private Dictionary<string, JsonValueKind> KnownPaths()
     {

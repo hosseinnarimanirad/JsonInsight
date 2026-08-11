@@ -7,42 +7,6 @@
              d:DataContext="{d:DesignInstance Type=vm:RawDiffVm}"
              mc:Ignorable="d">
 
-    <UserControl.Resources>
-        <!--
-            The wash comes from Row.DiffLine, keyed on DiffPlex's change type.
-
-            Laid out like the JSON editor's comparison, and wrapping for the same reason: a line
-            holding a PEM block or a 900-character token used to run off to the right and take the
-            whole right-hand column with it, so a two-column diff read as a one-column one until you
-            scrolled sideways to find the other side. Wrapping keeps both columns on screen at every
-            width, which is the only arrangement in which the pane answers the question it is for.
-        -->
-        <DataTemplate x:Key="DiffRow">
-            <Border Style="{StaticResource Row.DiffLine}">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="46" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="46" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="{Binding LeftNumber}"
-                               Style="{StaticResource Text.MonoCaption}"
-                               TextAlignment="Right" Margin="0,0,10,0"
-                               VerticalAlignment="Top" />
-                    <TextBlock Grid.Column="1" Text="{Binding LeftText}" Style="{StaticResource Text.Mono}"
-                               TextWrapping="Wrap" />
-                    <TextBlock Grid.Column="2" Text="{Binding RightNumber}"
-                               Style="{StaticResource Text.MonoCaption}"
-                               TextAlignment="Right" Margin="10,0,10,0"
-                               VerticalAlignment="Top" />
-                    <TextBlock Grid.Column="3" Text="{Binding RightText}" Style="{StaticResource Text.Mono}"
-                               TextWrapping="Wrap" />
-                </Grid>
-            </Border>
-        </DataTemplate>
-    </UserControl.Resources>
-
     <DockPanel>
         <Border DockPanel.Dock="Top" Style="{StaticResource Card}" Margin="0,0,0,10">
             <StackPanel>
@@ -64,6 +28,9 @@
             </StackPanel>
         </Border>
 
+        <!-- DiffRow, not DiffRow.Edit: this tab compares two tiers, so a modified line takes the
+             blue that means "these two differ" rather than the editor's amber for "you changed
+             this". The two washes are Row.DiffLine and Row.EditDiffLine in Controls.xaml. -->
         <Border Style="{StaticResource Card.Flush}">
             <ListBox Style="{StaticResource LineList}"
                      ItemsSource="{Binding Lines}" ItemTemplate="{StaticResource DiffRow}"

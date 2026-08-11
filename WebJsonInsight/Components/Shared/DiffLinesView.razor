@@ -1,0 +1,83 @@
+@*
+    One line diff, rendered: the two-column header, the rows, and the message that stands in for them
+    when there are none.
+
+    Five screens showed a diff and five copies of this block existed — the editor's comparison, push,
+    promote, pending changes and the Text diff tab. They had already come apart: two of the five
+    ChangeType switches were missing the Imaginary arm, so on those two a padding row lost the wash
+    that says which side the line is missing from. The switch lives here now, once, next to the
+    markup whose classes it names.
+
+    Four columns: a line number and its text for each side, laid out by .difflines-head / .dl-row in
+    app.css. Both sides are always rendered, including on the two one-sided-looking previews — a
+    removed line needs somewhere to appear, and a changed one has to show what it changed from.
+*@
+
+@if (HasHeader)
+{
+    <div class="difflines-head">
+        <div class="dl-num"></div>
+        <div class="dl-text">@LeftHeader</div>
+        <div class="dl-num"></div>
+        <div class="dl-text">@RightHeader</div>
+    </div>
+}
+
+<div class="difflines">
+    @foreach (var line in Lines)
+    {
+        <div class="dl-row @LineClass(line)">
+            <div class="dl-num">@line.LeftNumber</div>
+            <div class="dl-text dl-left">@line.LeftText</div>
+            <div class="dl-num">@line.RightNumber</div>
+            <div class="dl-text dl-right">@line.RightText</div>
+        </div>
+    }
+
+    @if (Lines.Count == 0)
+    {
+        <div class="grid-empty">@EmptyMessage</div>
+    }
+</div>
+
+@code {
+    /// <summary>The rows to render. Every caller passes a view model's own collection.</summary>
+    [Parameter, EditorRequired] public IReadOnlyList<DiffLineVm> Lines { get; set; } = [];
+
+    /// <summary>
+    /// The column headings. Optional because the Tier editor's comparison has none: it sits directly
+    /// under a pane header that already says which two states are being compared, and a second row of
+    /// labels there costs a line of the diff to repeat it.
+    /// </summary>
+    [Parameter] public string? LeftHeader { get; set; }
+
+    /// <inheritdoc cref="LeftHeader" />
+    [Parameter] public string? RightHeader { get; set; }
+
+    /// <summary>
+    /// What to say instead of rows. Every caller has its own, and they are not interchangeable:
+    /// "press Preview" is an instruction, "nothing differs" is a finding, and showing one where the
+    /// other belongs is how an empty diff comes to read as a completed one.
+    /// </summary>
+    [Parameter] public string EmptyMessage { get; set; } = string.Empty;
+
+    private bool HasHeader => !string.IsNullOrEmpty(LeftHeader) || !string.IsNullOrEmpty(RightHeader);
+
+    /// <summary>
+    /// The one place a DiffPlex change type becomes a CSS class.
+    ///
+    /// <para>
+    /// Imaginary is the placeholder DiffPlex pairs with a real line on the other side, so it is a
+    /// row with nothing in one half. It gets its own wash rather than falling through to no class at
+    /// all, because an unstyled blank row reads as a line that is genuinely empty in both documents.
+    /// </para>
+    /// </summary>
+    private static string LineClass(DiffLineVm line) => line.Type switch
+    {
+        DiffPlex.DiffBuilder.Model.ChangeType.Inserted => "dl-added",
+        DiffPlex.DiffBuilder.Model.ChangeType.Deleted => "dl-removed",
+        DiffPlex.DiffBuilder.Model.ChangeType.Modified => "dl-modified",
+        DiffPlex.DiffBuilder.Model.ChangeType.Imaginary => "dl-imaginary",
+        _ => string.Empty,
+    };
+}

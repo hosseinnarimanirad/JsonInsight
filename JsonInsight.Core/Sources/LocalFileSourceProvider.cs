@@ -160,10 +160,8 @@ public sealed class LocalFileSourceProvider : ISourceProvider
         var baseline = OrdinalJsonWriter.SerializeToText(document.Root);
         var changedUnderneath = !string.Equals(baseline, liveText, StringComparison.Ordinal);
 
-        // A file that changed underneath is not a warning any more — PushPlan.Stale refuses the write
+        // Nothing is said here about a file that changed underneath: PushPlan.Stale refuses the write
         // and says what to do instead, exactly as it does for a Vault secret that moved.
-        var warnings = new List<string>();
-
         return Task.FromResult(new PushPreflight(
             new PushPlan(
                 document.Id,
@@ -174,8 +172,7 @@ public sealed class LocalFileSourceProvider : ISourceProvider
                 liveText,
                 payload,
                 0,
-                what,
-                warnings)
+                what)
             {
                 Kind = SourceKind.LocalFile,
             },

@@ -9,7 +9,7 @@
     what they do in the WPF app: the same two-press delete, the same token migration on rename, the
     same refusal of a duplicate name.
 *@
-@inherits ObservingComponent
+@inherits ObservingComponent<ProjectsVm>
 
 @if (Vm is null)
 {
@@ -156,23 +156,11 @@ else
 }
 
 @code {
-    [Parameter] public ProjectsVm? Vm { get; set; }
-
-    private ProjectsVm? _observed;
-
-    protected override void OnParametersSet()
+    protected override void ObserveAlso(ProjectsVm? vm)
     {
-        if (ReferenceEquals(_observed, Vm))
-        {
-            return;
-        }
-
-        StopObserving();
-        _observed = Vm;
-
         // The rows too, and each row individually: Renaming and ConfirmingDelete live on the row, and
         // a screen watching only the collection would not re-render when Delete was pressed once.
-        Observe(Vm, Vm?.Items, Vm?.CopyChoices);
+        Observe(vm?.Items, vm?.CopyChoices);
         ObserveRows();
     }
 

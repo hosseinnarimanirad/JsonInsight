@@ -119,3 +119,62 @@ public abstract class ObservingComponent : ComponentBase, IDisposable
     {
     }
 }
+
+/// <summary>
+/// A component whose whole subject is one view model handed to it as a parameter — every tab, and the
+/// projects screen.
+///
+/// <para>
+/// These view models are replaced rather than mutated: opening a project builds a new <c>MainVm</c>, so
+/// every tab is handed a different object and has to move its subscriptions across. Each of them spelled
+/// that out identically — bail if it is the same instance, drop the old subscriptions, take the new
+/// ones — which is seven chances to get wrong a swap whose failure modes are both silent: a tab that
+/// keeps the old subscriptions renders a document nobody is looking at and holds it alive, and one that
+/// drops them without taking new ones simply stops updating.
+/// </para>
+/// </summary>
+/// <typeparam name="TVm">The view model this component shows.</typeparam>
+public abstract class ObservingComponent<TVm> : ObservingComponent where TVm : class
+{
+    [Parameter] public TVm? Vm { get; set; }
+
+    /// <summary>
+    /// The view model the current subscriptions belong to, which is the previous <see cref="Vm"/> while
+    /// a swap is in progress. For a component that has to unhook something by hand.
+    /// </summary>
+    protected TVm? Observed { get; private set; }
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(Observed, Vm))
+        {
+            return;
+        }
+
+        StopObserving();
+        StopObservingAlso(Observed);
+
+        Observed = Vm;
+
+        Observe(Vm);
+        ObserveAlso(Vm);
+    }
+
+    /// <summary>
+    /// Anything besides the view model itself whose changes must re-render this component: the
+    /// collections it shows, and any plain <c>event</c> it raises — <see cref="Observe(object?)"/> only
+    /// understands the two notifying interfaces. Called with the new view model once the old
+    /// subscriptions are gone.
+    /// </summary>
+    protected virtual void ObserveAlso(TVm? vm)
+    {
+    }
+
+    /// <summary>
+    /// The other half of <see cref="ObserveAlso"/>, called with the outgoing view model. Only needed for
+    /// a plain event, since <see cref="StopObserving"/> already releases everything else.
+    /// </summary>
+    protected virtual void StopObservingAlso(TVm? vm)
+    {
+    }
+}

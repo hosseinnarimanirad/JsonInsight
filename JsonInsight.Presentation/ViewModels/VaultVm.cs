@@ -641,57 +641,53 @@ public sealed partial class VaultVm : ObservableObject
             return;
         }
 
-        row.Searching = true;
-        row.Status = "Searching this Vault…";
-
-        try
-        {
-            var settings = BuildSettings();
-            var result = await new VaultBrowser(settings)
-                .BrowseAsync(row.ToConnection(), row.TierId)
-                .ConfigureAwait(true);
-
-            var found = result.Paths;
-
-            // The path this row already reads stays in the list whatever the search returned. A token
-            // that cannot list the mount still reads the secret perfectly well, and a picker that
-            // dropped the current answer would make a working row look misconfigured.
-            var chosen = row.SecretPath;
-
-            row.KnownPaths.Clear();
-            foreach (var path in found)
+        // Searching, not Busy: a search is metadata only and reads nothing, so it must not block — or
+        // be blocked by — the Test and Load on the same row, which are the pair that touch values.
+        await BusyGuard.RunAsync(
+            searching => row.Searching = searching,
+            async () =>
             {
-                row.KnownPaths.Add(path);
-            }
+                row.Status = "Searching this Vault…";
 
-            if (!string.IsNullOrWhiteSpace(chosen) && !row.KnownPaths.Contains(chosen, StringComparer.OrdinalIgnoreCase))
-            {
-                row.KnownPaths.Insert(0, chosen);
-            }
+                var settings = BuildSettings();
+                var result = await new VaultBrowser(settings)
+                    .BrowseAsync(row.ToConnection(), row.TierId)
+                    .ConfigureAwait(true);
 
-            row.SecretPath = chosen;
+                var found = result.Paths;
 
-            Problems.Clear();
-            foreach (var problem in result.Problems)
-            {
-                Problems.Add(problem);
-            }
+                // The path this row already reads stays in the list whatever the search returned. A token
+                // that cannot list the mount still reads the secret perfectly well, and a picker that
+                // dropped the current answer would make a working row look misconfigured.
+                var chosen = row.SecretPath;
 
-            var jsons = found.Count(p => p.EndsWith(".json", StringComparison.OrdinalIgnoreCase));
+                row.KnownPaths.Clear();
+                foreach (var path in found)
+                {
+                    row.KnownPaths.Add(path);
+                }
 
-            row.Status = found.Count == 0
-                ? "Nothing found. The token may not have list permission here — a path typed in by hand still works."
-                : $"{found.Count} secret(s) found, {jsons} of them .json. The list is not saved; it is " +
-                  "re-found whenever you press Search.";
-        }
-        catch (Exception ex)
-        {
-            row.Status = $"Search failed: {ex.Message}";
-        }
-        finally
-        {
-            row.Searching = false;
-        }
+                if (!string.IsNullOrWhiteSpace(chosen) && !row.KnownPaths.Contains(chosen, StringComparer.OrdinalIgnoreCase))
+                {
+                    row.KnownPaths.Insert(0, chosen);
+                }
+
+                row.SecretPath = chosen;
+
+                Problems.Clear();
+                foreach (var problem in result.Problems)
+                {
+                    Problems.Add(problem);
+                }
+
+                var jsons = found.Count(p => p.EndsWith(".json", StringComparison.OrdinalIgnoreCase));
+
+                row.Status = found.Count == 0
+                    ? "Nothing found. The token may not have list permission here — a path typed in by hand still works."
+                    : $"{found.Count} secret(s) found, {jsons} of them .json. The list is not saved; it is " +
+                      "re-found whenever you press Search.";
+            },
+            ex => row.Status = $"Search failed: {ex.Message}");
     }
 
     /// <summary>Picks the file a local-file source reads, so a path can be chosen rather than typed.</summary>
@@ -778,34 +774,34 @@ public sealed partial class VaultVm : ObservableObject
             return;
         }
 
-        row.Busy = true;
-        row.Status = "Loading…";
-        try
-        {
-            var result = await provider.LoadAsync(definition, settings).ConfigureAwait(true);
-
-            if (result.Document is not { } document)
+        await BusyGuard.RunAsync(
+            busy => row.Busy = busy,
+            async () =>
             {
-                row.Status = result.Problem ?? "Could not be read.";
-                _main.Log.Warn($"{row.Label} could not be loaded — {row.Status}");
-                return;
-            }
+                row.Status = "Loading…";
 
-            _main.AdoptDocument(document);
+                var result = await provider.LoadAsync(definition, settings).ConfigureAwait(true);
 
-            row.Status = $"Loaded — {document.Flat.Count} keys. It is on the other tabs now; " +
-                         "no need to pull.";
-            _main.Log.Info($"{row.Label} loaded on its own — {document.Flat.Count} keys.");
-        }
-        catch (Exception ex)
-        {
-            row.Status = ex.Message;
-            _main.Log.Error($"{row.Label} could not be loaded — {ex.Message}");
-        }
-        finally
-        {
-            row.Busy = false;
-        }
+                if (result.Document is not { } document)
+                {
+                    row.Status = result.Problem ?? "Could not be read.";
+                    _main.Log.Warn($"{row.Label} could not be loaded — {row.Status}");
+                    return;
+                }
+
+                _main.AdoptDocument(document);
+
+                row.Status = $"Loaded — {document.Flat.Count} keys. It is on the other tabs now; " +
+                             "no need to pull.";
+                _main.Log.Info($"{row.Label} loaded on its own — {document.Flat.Count} keys.");
+            },
+            // A source that could not be read is a finding rather than a status line that scrolls
+            // past, so this one logs as well — the row says what happened, the Logs tab keeps it.
+            ex =>
+            {
+                row.Status = ex.Message;
+                _main.Log.Error($"{row.Label} could not be loaded — {ex.Message}");
+            });
     }
 
     /// <summary>This row as the catalog would describe it, for a read that goes through a provider.</summary>
@@ -847,32 +843,33 @@ public sealed partial class VaultVm : ObservableObject
 
         var connection = row.ToConnection();
 
-        row.Busy = true;
-        row.Status = $"Reading {connection.SecretPath}…";
-        try
-        {
-            using var client = new VaultClient(connection);
-            var pulled = await client.ReadAsync(connection.SecretPath).ConfigureAwait(true);
+        await BusyGuard.RunAsync(
+            busy => row.Busy = busy,
+            async () =>
+            {
+                row.Status = $"Reading {connection.SecretPath}…";
 
-            var keys = _flattener.Flatten(row.TierId, OrdinalJsonWriter.Parse(pulled.Json)).Count;
+                using var client = new VaultClient(connection);
+                var pulled = await client.ReadAsync(connection.SecretPath).ConfigureAwait(true);
 
-            // This is what turns Load on, and the only thing that does. Set after the read rather
-            // than around it, so a token that authenticated but a path that is not there does not
-            // count as a source having been reached.
-            row.TestPassed = true;
+                var keys = _flattener.Flatten(row.TierId, OrdinalJsonWriter.Parse(pulled.Json)).Count;
 
-            row.Status = $"{connection.SecretPath} — Vault version {pulled.Version}, {keys} keys. " +
-                         "Nothing was kept; Load is on now, and is what puts it on screen.";
-        }
-        catch (Exception ex)
-        {
-            row.TestPassed = false;
-            row.Status = ex.Message;
-        }
-        finally
-        {
-            row.Busy = false;
-        }
+                // This is what turns Load on, and the only thing that does. Set after the read rather
+                // than around it, so a token that authenticated but a path that is not there does not
+                // count as a source having been reached.
+                row.TestPassed = true;
+
+                row.Status = $"{connection.SecretPath} — Vault version {pulled.Version}, {keys} keys. " +
+                             "Nothing was kept; Load is on now, and is what puts it on screen.";
+            },
+            // The failure arm puts TestPassed back down as well: a read that threw is a source that was
+            // not reached, and leaving Load switched on from an earlier successful test would offer to
+            // put a document on the other tabs that this row can no longer fetch.
+            ex =>
+            {
+                row.TestPassed = false;
+                row.Status = ex.Message;
+            });
     }
 
     /// <summary>
@@ -888,39 +885,39 @@ public sealed partial class VaultVm : ObservableObject
             return;
         }
 
-        row.Busy = true;
-        row.Status = $"Reading {row.LocalFilePath}…";
-        try
-        {
-            var definition = new TierDefinition
+        await BusyGuard.RunAsync(
+            busy => row.Busy = busy,
+            async () =>
             {
-                Id = row.TierId,
-                Label = row.Label,
-                Kind = SourceKind.LocalFile,
-                LocalFilePath = row.LocalFilePath.Trim(),
-            };
+                row.Status = $"Reading {row.LocalFilePath}…";
 
-            var result = await new LocalFileSourceProvider(_flattener)
-                .LoadAsync(definition, BuildSettings())
-                .ConfigureAwait(true);
+                var definition = new TierDefinition
+                {
+                    Id = row.TierId,
+                    Label = row.Label,
+                    Kind = SourceKind.LocalFile,
+                    LocalFilePath = row.LocalFilePath.Trim(),
+                };
 
-            // A file that parsed is a source that was reached, which is the same bar the Vault half
-            // clears above — so it turns Load on the same way.
-            row.TestPassed = result.Document is not null;
+                var result = await new LocalFileSourceProvider(_flattener)
+                    .LoadAsync(definition, BuildSettings())
+                    .ConfigureAwait(true);
 
-            row.Status = result.Document is { } document
-                ? $"{document.FilePath} — {document.Flat.Count} keys, {result.Detail}. Load is on now."
-                : result.Problem ?? "Could not be read.";
-        }
-        catch (Exception ex)
-        {
-            row.TestPassed = false;
-            row.Status = ex.Message;
-        }
-        finally
-        {
-            row.Busy = false;
-        }
+                // A file that parsed is a source that was reached, which is the same bar the Vault half
+                // clears above — so it turns Load on the same way.
+                row.TestPassed = result.Document is not null;
+
+                row.Status = result.Document is { } document
+                    ? $"{document.FilePath} — {document.Flat.Count} keys, {result.Detail}. Load is on now."
+                    : result.Problem ?? "Could not be read.";
+            },
+            // Same failure arm as the Vault half, for the same reason: a file that could not be read is
+            // not a source that was reached, whatever an earlier test decided.
+            ex =>
+            {
+                row.TestPassed = false;
+                row.Status = ex.Message;
+            });
     }
 
     /// <summary>The settings exactly as the tab currently shows them, ready to test with or save.</summary>

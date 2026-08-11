@@ -38,8 +38,6 @@ public sealed partial class TierRowVm : ObservableObject
 
     public bool IsSecret => Class == ValueClass.Secret;
 
-    public bool IsExpected => Node.Row?.IsExpected ?? false;
-
     public bool HasShape => Node.Row?.AnyShape ?? Node.HasShapeDifference;
 
     /// <summary>
@@ -106,11 +104,11 @@ public sealed partial class TiersVm : ObservableObject
     private TierRowVm? _selectedRow;
 
     /// <summary>
-    /// True while this tab's pull is in flight, and only a re-entry guard. What the button disables
-    /// itself on is <see cref="MainVm.VaultBusy"/>, which the startup read raises too.
+    /// True while this tab's pull is in flight, and only a re-entry guard — nothing binds it, so it
+    /// is a plain bool rather than an observable one. What the button disables itself on is
+    /// <see cref="MainVm.VaultBusy"/>, which the startup read raises too.
     /// </summary>
-    [ObservableProperty]
-    private bool _busy;
+    private bool Busy { get; set; }
 
     /// <summary>The result of the last pull, one line per tier. Empty until one has run.</summary>
     public ObservableCollection<string> PullReport { get; } = [];
@@ -123,8 +121,6 @@ public sealed partial class TiersVm : ObservableObject
     public ObservableCollection<SectionVm> Sections { get; } = [];
 
     public IReadOnlyList<TierDocument> Documents => _documents;
-
-    public IReadOnlyList<TierUnavailable> Unavailable => _unavailable;
 
     /// <summary>
     /// One column per configured tier, in the order tiers.json gives them, whether or not Vault
@@ -179,9 +175,6 @@ public sealed partial class TiersVm : ObservableObject
     public string PendingLabel => Edits.IsEmpty
         ? "no pending changes"
         : $"{Edits.Count} pending — {Edits.Summary()}";
-
-    /// <summary>Whether any tier is currently showing live Vault values, for the header caption.</summary>
-    public bool AnyFromVault => _documents.Any(d => d.IsFromVault);
 
     public string SourceLabel
     {
@@ -286,35 +279,29 @@ public sealed partial class TiersVm : ObservableObject
             return;
         }
 
-        Busy = true;
-        PullReport.Clear();
-        Report("Reading every source…");
-
-        try
-        {
-            var report = await _main.RefreshFromVaultAsync();
-
-            if (report is null)
+        await BusyGuard.RunAsync(
+            busy => Busy = busy,
+            async () =>
             {
-                Report("Nothing to pull — no tier names a vaultPath in tiers.json.");
-                return;
-            }
+                PullReport.Clear();
+                Report("Reading every source…");
 
-            foreach (var line in report.Lines)
-            {
-                PullReport.Add(line.Text);
-            }
+                var report = await _main.RefreshFromVaultAsync();
 
-            Report(report.Summary);
-        }
-        catch (Exception ex)
-        {
-            Report($"Pull failed: {ex.Message}");
-        }
-        finally
-        {
-            Busy = false;
-        }
+                if (report is null)
+                {
+                    Report("Nothing to pull — no tier names a vaultPath in tiers.json.");
+                    return;
+                }
+
+                foreach (var line in report.Lines)
+                {
+                    PullReport.Add(line.Text);
+                }
+
+                Report(report.Summary);
+            },
+            ex => Report($"Pull failed: {ex.Message}"));
     }
 
     /// <summary>
@@ -351,8 +338,6 @@ public sealed partial class TiersVm : ObservableObject
         Rebuild();
 
         OnPropertyChanged(nameof(Documents));
-        OnPropertyChanged(nameof(Unavailable));
-        OnPropertyChanged(nameof(AnyFromVault));
         OnPropertyChanged(nameof(SourceLabel));
         DocumentsChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -462,6 +447,30 @@ public sealed partial class TiersVm : ObservableObject
         Rebuild();
     }
 
+    /// <summary>
+    /// Opening a group row, whichever of the two kinds it is: a rolled-up subtree expands into its own
+    /// children, an ordinary group collapses.
+    ///
+    /// <para>
+    /// Asked here rather than decided in each view, because the two views did not decide it the same
+    /// way. WPF read <see cref="TierRowVm.CanPromote"/>, which is the actual property; the Blazor tab
+    /// searched the row's <see cref="TierRowVm.Summary"/> for the words "only in" — so rewording a
+    /// display string would have silently turned every rollup into an ordinary group there and nowhere
+    /// else.
+    /// </para>
+    /// </summary>
+    public void ToggleAny(TierRowVm row)
+    {
+        if (row.CanPromote)
+        {
+            ToggleRollup(row);
+        }
+        else
+        {
+            ToggleRowCommand.Execute(row);
+        }
+    }
+
     private IEnumerable<string> PresentTiers(DiffNode node) =>
         Diff.TierIds.Except(node.UniformlyMissingFrom ?? [], StringComparer.Ordinal);
 
@@ -520,10 +529,6 @@ public sealed partial class TiersVm : ObservableObject
         Filter.Contains('*', StringComparison.Ordinal)
             ? node.LeafRows.Any(r => PathGlob.IsMatch(r.Path, Filter))
             : node.LeafRows.Any(r => r.Path.Contains(Filter, StringComparison.OrdinalIgnoreCase));
-
-    /// <summary>Every visible leaf path, which is what "edit everything matching the filter" acts on.</summary>
-    public IReadOnlyList<string> VisibleLeafPaths =>
-        Rows.SelectMany(r => r.LeafPaths).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
 }
 
 public sealed record SectionVm(string Name, int Keys, int Missing, int Meaningful)

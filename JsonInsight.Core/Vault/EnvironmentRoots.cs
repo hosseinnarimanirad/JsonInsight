@@ -33,7 +33,7 @@ public static class EnvironmentRoots
 
         foreach (var (id, root) in known)
         {
-            var trimmed = (root ?? string.Empty).Trim().Trim('/');
+            var trimmed = root.Trim().Trim('/');
             var suffix = "/" + id;
 
             if (id.Equals(tierId, StringComparison.OrdinalIgnoreCase) ||

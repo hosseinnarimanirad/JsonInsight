@@ -98,20 +98,6 @@ public sealed partial class JsonCompareVm : ObservableObject
         _aliases = aliases;
     }
 
-    /// <summary>Pre-selects two files, e.g. the two writable snapshots, so the tab opens on something useful.</summary>
-    public void Preselect(string? left, string? right)
-    {
-        if (left is not null && File.Exists(left))
-        {
-            LeftPath = left;
-        }
-
-        if (right is not null && File.Exists(right))
-        {
-            RightPath = right;
-        }
-    }
-
     partial void OnLeftPathChanged(string value) => Reload(left: true);
 
     partial void OnRightPathChanged(string value) => Reload(left: false);

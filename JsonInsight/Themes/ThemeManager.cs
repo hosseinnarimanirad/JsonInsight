@@ -27,8 +27,8 @@ public static class ThemeManager
     {
         Current = theme;
 
-        // The headless modes (--check, --verify-roundtrip) and the test harness run without the
-        // application dictionaries in place; there is nothing to recolour, so leave it alone.
+        // The headless mode (--check) and the test harness run without the application dictionaries
+        // in place; there is nothing to recolour, so leave it alone.
         var dictionaries = Application.Current?.Resources.MergedDictionaries;
         if (dictionaries is null || dictionaries.Count == 0)
         {

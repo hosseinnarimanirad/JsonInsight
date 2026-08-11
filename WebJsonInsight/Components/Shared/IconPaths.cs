@@ -79,8 +79,6 @@ internal static class IconPaths
 
         "push" => """<path d="M12 20.5v-11M7.5 14l4.5-4.5 4.5 4.5M4.5 4.5h15" />""",
 
-        "promote" => """<path d="M12 19V7.5M7 12.5 12 7.5l5 5" /><path d="M5 4.5h14" />""",
-
         //  — the row overflow menu. Vertical, which is the arrangement that reads as "more for
         // this row" rather than "more of this toolbar".
         "more" => """
@@ -99,11 +97,6 @@ internal static class IconPaths
             """,
 
         "moon" => """<path d="M20 14.4A8.5 8.5 0 0 1 9.6 4 8.6 8.6 0 1 0 20 14.4Z" />""",
-
-        "file" => """
-            <path d="M14 3.5H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8.5L14 3.5Z" />
-            <path d="M13.8 3.7v5h5" />
-            """,
 
         "folder" => """
             <path d="M3.5 6.8A1.8 1.8 0 0 1 5.3 5h4l2 2.6h7.4a1.8 1.8 0 0 1 1.8 1.8v8.4a1.8 1.8 0 0 1-1.8 1.8H5.3a1.8 1.8 0 0 1-1.8-1.8V6.8Z" />

@@ -1,14 +1,18 @@
 using System.IO;
 using System.Text.Json;
 using JsonInsight.Model;
+using JsonInsight.Promote;
 
 namespace JsonInsight.Diff;
 
+/// <summary>
+/// How an alias is compared. One member, deliberately: aliases.json used to document a second,
+/// <c>identity</c>, that rewrote a path prefix at load time and diffed normally — it was never
+/// built, and a mode that only exists in the note is worse than no mode at all. The enum stays
+/// because an alias declaring how it is compared is the shape the config file already has.
+/// </summary>
 public enum AliasComparison
 {
-    /// <summary>Same shape under a different name: rewrite the path and diff normally.</summary>
-    Identity,
-
     /// <summary>Equivalent in purpose but structurally different: report once, do not pretend to compare.</summary>
     ShapeOnly,
 }
@@ -57,18 +61,12 @@ public sealed class AliasSet
 
     private AliasSet(List<AliasDefinition> aliases) => _aliases = aliases;
 
-    public IReadOnlyList<AliasDefinition> Definitions => _aliases;
-
     public static AliasSet Empty() => new([]);
 
     public static AliasSet Load(string? file = null)
     {
         file ??= AppPaths.ConfigFile("aliases.json");
-        using var document = JsonDocument.Parse(File.ReadAllText(file), new JsonDocumentOptions
-        {
-            CommentHandling = JsonCommentHandling.Skip,
-            AllowTrailingCommas = true,
-        });
+        using var document = JsonDocument.Parse(File.ReadAllText(file), OrdinalJsonWriter.DocumentOptions);
 
         var aliases = new List<AliasDefinition>();
         if (document.RootElement.TryGetProperty("aliases", out var list))
@@ -84,10 +82,7 @@ public sealed class AliasSet
                 aliases.Add(new AliasDefinition
                 {
                     Id = element.GetProperty("id").GetString() ?? "(unnamed)",
-                    Comparison = element.TryGetProperty("comparison", out var c) &&
-                                 string.Equals(c.GetString(), "identity", StringComparison.OrdinalIgnoreCase)
-                        ? AliasComparison.Identity
-                        : AliasComparison.ShapeOnly,
+                    Comparison = AliasComparison.ShapeOnly,
                     Members = members,
                     When = element.TryGetProperty("when", out var w) ? w.GetString() : null,
                     Note = element.TryGetProperty("note", out var n) ? n.GetString() : null,
@@ -101,78 +96,46 @@ public sealed class AliasSet
     /// <summary>
     /// Works out which aliases actually apply to a given tier pair, expanding any wildcard in the
     /// member patterns against the paths those tiers really contain.
+    ///
+    /// <para>
+    /// The two-tier case of <see cref="ResolveMulti"/> rather than a second copy of the engagement
+    /// rules, which is what it was. Whether an alias engages, whether a wildcard may be expanded, and
+    /// what <c>memberKeysDiffer</c> means are three questions the Compare-files tab and the All tiers
+    /// tab have to answer identically — written twice, one screen eventually hides a difference the
+    /// other shows, with nothing failing to say so.
+    /// </para>
+    ///
+    /// <para>
+    /// The one thing rebuilt here rather than taken from the <see cref="MultiAlias"/> is the display
+    /// path. The N-tier form has no left and right to put in order so it sorts the distinct roots
+    /// ordinally; a pair reads in the direction the user chose — <c>Redis / RedisCache</c> comparing
+    /// stage to beta, <c>RedisCache / Redis</c> comparing beta to stage.
+    /// </para>
+    ///
+    /// <para>
+    /// The two configs are expected to carry different <see cref="FlatConfig.TierId"/>s, as every
+    /// caller's do. Everything an alias feeds — <see cref="MultiAlias.RootsByTier"/>, MultiDiff's
+    /// cells, the grid's columns — is keyed by tier id, so a pair sharing one is not a comparison
+    /// this engine can express in the first place.
+    /// </para>
     /// </summary>
-    public IReadOnlyList<ResolvedAlias> Resolve(FlatConfig left, FlatConfig right)
-    {
-        var resolved = new List<ResolvedAlias>();
-
-        foreach (var alias in _aliases.Where(a => a.Comparison == AliasComparison.ShapeOnly))
-        {
-            var leftPattern = alias.PatternFor(left.TierId);
-            var rightPattern = alias.PatternFor(right.TierId);
-            if (leftPattern is null || rightPattern is null)
+    public IReadOnlyList<ResolvedAlias> Resolve(FlatConfig left, FlatConfig right) =>
+        ResolveMulti([left, right])
+            .Select(alias =>
             {
-                continue;
-            }
+                var leftRoot = alias.RootsByTier[left.TierId];
+                var rightRoot = alias.RootsByTier[right.TierId];
 
-            var wildcarded = leftPattern.Contains('*') || rightPattern.Contains('*');
-            if (!wildcarded)
-            {
-                TryAdd(alias, leftPattern, rightPattern, left, right, resolved);
-                continue;
-            }
-
-            if (!string.Equals(leftPattern, rightPattern, StringComparison.Ordinal))
-            {
-                // Aligning two *different* wildcard patterns would be guesswork about which
-                // instantiation pairs with which. Refuse rather than guess.
-                continue;
-            }
-
-            foreach (var root in ExpandRoots(leftPattern, left, right))
-            {
-                TryAdd(alias, root, root, left, right, resolved);
-            }
-        }
-
-        return resolved;
-    }
-
-    private static void TryAdd(
-        AliasDefinition alias,
-        string leftRoot,
-        string rightRoot,
-        FlatConfig left,
-        FlatConfig right,
-        List<ResolvedAlias> resolved)
-    {
-        var leftLeaves = left.Subtree(leftRoot).ToArray();
-        var rightLeaves = right.Subtree(rightRoot).ToArray();
-
-        // If one side has nothing at all, the concept is genuinely missing from that tier. That is
-        // an ordinary "only in" finding and must stay visible, not be softened into "shapes differ".
-        if (leftLeaves.Length == 0 || rightLeaves.Length == 0)
-        {
-            return;
-        }
-
-        var engages = alias.When switch
-        {
-            "memberKeysDiffer" => !ChildKeys(leftLeaves, leftRoot).SetEquals(ChildKeys(rightLeaves, rightRoot)),
-            _ => !string.Equals(leftRoot, rightRoot, StringComparison.Ordinal),
-        };
-
-        if (!engages)
-        {
-            return;
-        }
-
-        var display = string.Equals(leftRoot, rightRoot, StringComparison.Ordinal)
-            ? leftRoot
-            : $"{leftRoot} / {rightRoot}";
-
-        resolved.Add(new ResolvedAlias(alias.Id, leftRoot, rightRoot, display, alias.Note));
-    }
+                return new ResolvedAlias(
+                    alias.Id,
+                    leftRoot,
+                    rightRoot,
+                    string.Equals(leftRoot, rightRoot, StringComparison.Ordinal)
+                        ? leftRoot
+                        : $"{leftRoot} / {rightRoot}",
+                    alias.Note);
+            })
+            .ToArray();
 
     /// <summary>
     /// The N-tier form used by the side-by-side view. An alias engages only when every tier
@@ -212,6 +175,8 @@ public sealed class AliasSet
             {
                 if (patterns.Values.Distinct(StringComparer.Ordinal).Count() != 1)
                 {
+                    // Aligning two *different* wildcard patterns would be guesswork about which
+                    // instantiation pairs with which. Refuse rather than guess.
                     continue;
                 }
 
@@ -241,6 +206,9 @@ public sealed class AliasSet
             var leaves = tier.Subtree(roots[tier.TierId]).ToArray();
             if (leaves.Length == 0)
             {
+                // A tier with nothing at all under the root is genuinely missing the concept. That
+                // is an ordinary "only in" finding and must stay visible, not be softened into
+                // "shapes differ" — so the alias is abandoned for every tier, not just this one.
                 return;
             }
 
@@ -268,6 +236,7 @@ public sealed class AliasSet
             tiers.ToDictionary(t => t.TierId, t => leavesByTier[t.TierId].Length, StringComparer.Ordinal)));
     }
 
+    /// <summary>Every concrete path in any of the tiers that a wildcard root pattern matches.</summary>
     private static IEnumerable<string> ExpandRootsAcross(string pattern, IReadOnlyList<FlatConfig> tiers)
     {
         var depth = pattern.Split(':').Length;
@@ -308,29 +277,5 @@ public sealed class AliasSet
         }
 
         return keys;
-    }
-
-    /// <summary>Every concrete path in either tier that a wildcard root pattern matches.</summary>
-    private static IEnumerable<string> ExpandRoots(string pattern, FlatConfig left, FlatConfig right)
-    {
-        var depth = pattern.Split(':').Length;
-        var roots = new HashSet<string>(StringComparer.Ordinal);
-
-        foreach (var path in left.Paths.Concat(right.Paths))
-        {
-            var segments = ConfigPath.Split(path);
-            if (segments.Length < depth)
-            {
-                continue;
-            }
-
-            var candidate = string.Join(':', segments.Take(depth));
-            if (PathGlob.IsMatch(candidate, pattern))
-            {
-                roots.Add(candidate);
-            }
-        }
-
-        return roots.Order(StringComparer.Ordinal);
     }
 }

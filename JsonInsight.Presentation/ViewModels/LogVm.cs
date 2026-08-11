@@ -68,8 +68,12 @@ public sealed partial class LogVm : ObservableObject
 
     public bool IsEmpty => Entries.Count == 0;
 
-    /// <summary>How many entries are worth acting on — what the tab badge counts.</summary>
-    public int ProblemCount => Entries.Count(e => e.Level != LogLevel.Info);
+    /// <summary>
+    /// How many entries are worth acting on — what the tab badge counts. Nothing outside reads the
+    /// number itself; the views take it through <see cref="Badge"/>, <see cref="HasProblems"/> and
+    /// <see cref="Summary"/>, which are the members that notify.
+    /// </summary>
+    private int ProblemCount => Entries.Count(e => e.Level != LogLevel.Info);
 
     public bool HasProblems => ProblemCount > 0;
 
@@ -126,7 +130,6 @@ public sealed partial class LogVm : ObservableObject
     private void Changed()
     {
         OnPropertyChanged(nameof(IsEmpty));
-        OnPropertyChanged(nameof(ProblemCount));
         OnPropertyChanged(nameof(HasProblems));
         OnPropertyChanged(nameof(Badge));
         OnPropertyChanged(nameof(Summary));

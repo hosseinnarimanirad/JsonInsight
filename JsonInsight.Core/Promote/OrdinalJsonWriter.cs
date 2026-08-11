@@ -43,10 +43,24 @@ public static class OrdinalJsonWriter
         SkipValidation = false,
     };
 
+    /// <summary>
+    /// How every JSON this app reads is parsed: the compared documents, the four hand-authored rule
+    /// files under <c>config/</c>, and this app's own appsettings.json and secrets.json.
+    ///
+    /// <para>
+    /// One object rather than the six inline copies there used to be. Each was spelled the same way,
+    /// which is the problem: "did the reader that produced this tolerate a trailing comma" is not a
+    /// question anyone should have to answer per call site, and six copies is six chances for the
+    /// answer to stop being the same one.
+    /// </para>
+    /// </summary>
     public static JsonDocumentOptions DocumentOptions { get; } = new()
     {
-        // dev/appsettings.json carries 119 whole-line // comments. We skip them on read and
-        // never write that file back, which is why skipping is safe here.
+        // dev/appsettings.json carries 119 whole-line // comments and the rule files under config/
+        // are commented throughout. They are skipped on read, which is safe because nothing that is
+        // read with comments in it is ever written back from the parsed tree: this app's own
+        // appsettings.json is rewritten, but it carries its notes as a "// note" *key* rather than
+        // as comments, precisely so that round trip loses nothing.
         CommentHandling = JsonCommentHandling.Skip,
         AllowTrailingCommas = true,
         MaxDepth = 128,
@@ -68,8 +82,6 @@ public static class OrdinalJsonWriter
     /// </summary>
     public static JsonNode? ParseAllowingNull(string text) =>
         JsonNode.Parse(text, nodeOptions: null, DocumentOptions);
-
-    public static JsonNode ParseFile(string path) => Parse(ReadText(path));
 
     /// <summary>Reads a file as UTF-8, stripping a BOM if one is present.</summary>
     public static string ReadText(string path)
@@ -148,8 +160,8 @@ public static class OrdinalJsonWriter
     ///
     /// <para>
     /// A separate options object rather than a flag on <see cref="Options"/>: that one defines the
-    /// exact byte format of the snapshot files and is what the round-trip guard measures against, so
-    /// it stays immutable. This is display only - nothing compact is ever written to disk.
+    /// exact byte format every write leaves in, so it stays immutable. This is display only -
+    /// nothing compact is ever written to disk.
     /// </para>
     /// </summary>
     public static string SerializeCompactToText(JsonNode node, bool sort = true)
@@ -172,103 +184,4 @@ public static class OrdinalJsonWriter
         SkipValidation = false,
     };
 
-    /// <summary>
-    /// Re-serializes a file's own content and compares bytes. This is the guard that runs before
-    /// any write: if the writer cannot reproduce the file it was given, it has no business
-    /// producing the file's replacement, and the app stays read-only.
-    /// </summary>
-    public static RoundTripResult VerifyRoundTrip(string path)
-    {
-        byte[] original;
-        try
-        {
-            original = File.ReadAllBytes(path);
-        }
-        catch (Exception ex)
-        {
-            return RoundTripResult.Failed(path, 0, 0, $"Could not read file: {ex.Message}");
-        }
-
-        byte[] produced;
-        try
-        {
-            produced = Serialize(Parse(DecodeUtf8(original)));
-        }
-        catch (Exception ex)
-        {
-            return RoundTripResult.Failed(path, original.Length, 0, $"Could not re-serialize: {ex.Message}");
-        }
-
-        if (original.AsSpan().SequenceEqual(produced))
-        {
-            return new RoundTripResult(path, true, original.Length, produced.Length, null);
-        }
-
-        return RoundTripResult.Failed(path, original.Length, produced.Length,
-            DescribeFirstDifference(original, produced));
-    }
-
-    /// <summary>Locates the first differing line so a failure is actionable rather than "bytes differ".</summary>
-    private static string DescribeFirstDifference(byte[] expected, byte[] actual)
-    {
-        var expectedLines = SplitLines(DecodeUtf8(expected));
-        var actualLines = SplitLines(DecodeUtf8(actual));
-
-        var shared = Math.Min(expectedLines.Length, actualLines.Length);
-        for (var i = 0; i < shared; i++)
-        {
-            if (!string.Equals(expectedLines[i], actualLines[i], StringComparison.Ordinal))
-            {
-                return $"First difference at line {i + 1}:\r\n" +
-                       $"  on disk : {Truncate(expectedLines[i])}\r\n" +
-                       $"  produced: {Truncate(actualLines[i])}";
-            }
-        }
-
-        if (expectedLines.Length != actualLines.Length)
-        {
-            return $"Line count differs: on disk {expectedLines.Length}, produced {actualLines.Length}.";
-        }
-
-        // Lines match as text but bytes differ: line endings, BOM, or a trailing newline.
-        var expectedCrLf = CountOccurrences(expected, "\r\n"u8);
-        var actualCrLf = CountOccurrences(actual, "\r\n"u8);
-        return $"Text matches but bytes differ (CRLF on disk {expectedCrLf}, produced {actualCrLf}) " +
-               "- check BOM, line endings, or a trailing newline.";
-    }
-
-    private static string[] SplitLines(string text) =>
-        text.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
-
-    private static string Truncate(string value, int max = 120) =>
-        value.Length <= max ? value : value[..max] + "…";
-
-    private static int CountOccurrences(ReadOnlySpan<byte> haystack, ReadOnlySpan<byte> needle)
-    {
-        var count = 0;
-        var index = haystack.IndexOf(needle);
-        while (index >= 0)
-        {
-            count++;
-            haystack = haystack[(index + needle.Length)..];
-            index = haystack.IndexOf(needle);
-        }
-
-        return count;
-    }
-}
-
-public sealed record RoundTripResult(
-    string Path,
-    bool Passed,
-    int OriginalBytes,
-    int ProducedBytes,
-    string? Detail)
-{
-    public static RoundTripResult Failed(string path, int original, int produced, string detail) =>
-        new(path, false, original, produced, detail);
-
-    public string Summary => Passed
-        ? $"PASS  {System.IO.Path.GetFileName(Path)}  ({OriginalBytes:N0} bytes)"
-        : $"FAIL  {System.IO.Path.GetFileName(Path)}  (on disk {OriginalBytes:N0} bytes, produced {ProducedBytes:N0})";
 }

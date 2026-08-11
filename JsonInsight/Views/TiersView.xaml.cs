@@ -115,7 +115,7 @@ public partial class TiersView : UserControl
 
     /// <summary>
     /// A ContentPresenter bound to one cell of the row. The implicit DataTemplate for MultiCell in
-    /// Theme.xaml then supplies the colouring, so the styling is not duplicated per column.
+    /// Controls.xaml then supplies the colouring, so the styling is not duplicated per column.
     /// </summary>
     private static DataTemplate BuildCellTemplate(int index)
     {
@@ -132,14 +132,7 @@ public partial class TiersView : UserControl
     {
         if (DataContext is TiersVm vm && vm.SelectedRow is { IsGroup: true } row)
         {
-            if (row.CanPromote)
-            {
-                vm.ToggleRollup(row);
-            }
-            else
-            {
-                vm.ToggleRowCommand.Execute(row);
-            }
+            vm.ToggleAny(row);
         }
     }
 

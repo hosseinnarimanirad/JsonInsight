@@ -85,10 +85,6 @@ public sealed class DocumentEditor
     /// <summary>The node as it stood when this document was opened. Null if it did not exist then.</summary>
     public JsonNode? FindOriginal(string path) => JsonNavigator.Find(Original, path);
 
-    /// <summary>The canonical text of a node as it stood when opened — what a tombstone shows.</summary>
-    public string OriginalTextAt(string path) =>
-        TextOf(Original, path, "was not in this document when it was opened");
-
     /// <summary>
     /// True when the document holds this key, whatever it holds — a key set to JSON <c>null</c>
     /// included.
@@ -310,18 +306,11 @@ public sealed class DocumentEditor
                 : throw new InvalidOperationException($"'{path}' is past the end of an array of {array.Count}.");
         }
 
-        for (var i = 0; i < array.Count; i++)
-        {
-            if (array[i] is JsonObject item &&
-                item[identityField!] is JsonValue value &&
-                value.TryGetValue<string>(out var text) &&
-                string.Equals(text, identityValue, StringComparison.Ordinal))
-            {
-                return (array, i);
-            }
-        }
+        var found = JsonNavigator.IndexOfIdentity(array, identityField!, identityValue);
 
-        throw new InvalidOperationException($"'{path}' is not in this document.");
+        return found >= 0
+            ? (array, found)
+            : throw new InvalidOperationException($"'{path}' is not in this document.");
     }
 
     /// <summary>True when this path names an array element rather than a key.</summary>

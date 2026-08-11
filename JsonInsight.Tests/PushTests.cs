@@ -190,7 +190,7 @@ public sealed class PushGateTests(SampleFiles files)
     public async Task A_push_built_on_a_version_vault_has_moved_past_is_refused_before_anything_is_sent()
     {
         var plan = new PushPlan("stage", "https://vault.invalid:8200", "kv/app/stage",
-            LiveVersion: 36, null, "{}", """{"A":1}""", BaseVersion: 34, "3 queued key change(s)", []);
+            LiveVersion: 36, null, "{}", """{"A":1}""", BaseVersion: 34, "3 queued key change(s)");
 
         // vault.invalid would not resolve, so a request reaching the network fails the test by hanging
         // or throwing rather than by returning this.
@@ -214,7 +214,7 @@ public sealed class PushGateTests(SampleFiles files)
     public async Task A_moved_secret_that_already_holds_this_is_reported_as_identical_rather_than_stale()
     {
         var plan = new PushPlan("stage", "https://vault.invalid:8200", "kv/app/stage",
-            LiveVersion: 36, null, """{"A":1}""", """{"A":1}""", BaseVersion: 34, "no change", []);
+            LiveVersion: 36, null, """{"A":1}""", """{"A":1}""", BaseVersion: 34, "no change");
 
         var result = await new VaultPusher(files.Flattener)
             .PushAsync(files.Stage, plan, Configured());
@@ -289,7 +289,7 @@ public sealed class PushPlanTests
 {
     private static PushPlan Plan(string live, string payload, int liveVersion = 34, int? baseVersion = 34) =>
         new("stage", "https://vault.test:8200", "kv/app/stage",
-            liveVersion, null, live, payload, baseVersion, "3 queued key change(s)", []);
+            liveVersion, null, live, payload, baseVersion, "3 queued key change(s)");
 
     [Fact]
     public void A_payload_vault_already_holds_is_identical_and_not_worth_a_version()
@@ -338,7 +338,7 @@ public sealed class PushPlanTests
     public void A_local_file_that_changed_underneath_refuses_the_write_in_its_own_words()
     {
         var moved = new PushPlan("stage", "local disk", @"C:\snapshots\stage.json",
-            1, null, "{}", """{"A":1}""", 0, "3 queued key change(s)", [])
+            1, null, "{}", """{"A":1}""", 0, "3 queued key change(s)")
         {
             Kind = SourceKind.LocalFile,
         };

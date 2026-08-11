@@ -71,18 +71,38 @@ public static class JsonNavigator
             return i >= 0 && i < array.Count ? array[i] : null;
         }
 
-        foreach (var element in array)
+        var found = IndexOfIdentity(array, identityField!, identityValue);
+        return found < 0 ? null : array[found];
+    }
+
+    /// <summary>
+    /// The position of the element whose <paramref name="identityField"/> holds
+    /// <paramref name="identityValue"/>, or -1 when no element does.
+    ///
+    /// <para>
+    /// The single place the identity match is spelled out. There were two — <see cref="Step"/> wants
+    /// the element and <c>DocumentEditor.ElementSlot</c> wants the slot to assign into — and with
+    /// them two copies of the rule that only a <em>string</em>-valued identity field counts, so
+    /// <c>WriteTo[Name=Seq]</c> matches the sink whose Name is the string "Seq" and never a number, a
+    /// boolean, or an object that happens to stringify to it. Navigating to an element and replacing
+    /// that same element have to pick the same one or an edit lands somewhere other than where the
+    /// tree showed it.
+    /// </para>
+    /// </summary>
+    internal static int IndexOfIdentity(JsonArray array, string identityField, string? identityValue)
+    {
+        for (var i = 0; i < array.Count; i++)
         {
-            if (element is JsonObject item &&
-                item[identityField!] is JsonValue value &&
+            if (array[i] is JsonObject item &&
+                item[identityField] is JsonValue value &&
                 value.TryGetValue<string>(out var text) &&
                 string.Equals(text, identityValue, StringComparison.Ordinal))
             {
-                return element;
+                return i;
             }
         }
 
-        return null;
+        return -1;
     }
 
     /// <summary>

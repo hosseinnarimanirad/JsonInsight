@@ -7,8 +7,8 @@ using JsonInsight.Promote;
 namespace JsonInsight.Editing;
 
 /// <summary>
-/// Applies a change set to a copy of a tier's node tree. Touches no file — <see cref="SnapshotWriter"/>
-/// owns that, exactly as it does for Promote.
+/// Applies a change set to a copy of a tier's node tree. Touches no source — the write path
+/// (<c>VaultPusher</c> and <c>LocalFileSourceProvider</c>) owns that, exactly as it does for Promote.
 /// </summary>
 public static class EditApplier
 {
@@ -145,35 +145,4 @@ public static class EditApplier
         }
     }
 
-    /// <summary>
-    /// The leaf paths the edited document should end up with: what it has now, plus every add,
-    /// minus every delete and everything beneath it. <see cref="SnapshotWriter"/> compares the
-    /// re-parsed bytes against this, so a writer that dropped or invented a key is caught before
-    /// the file is kept rather than discovered later in a diff.
-    /// </summary>
-    public static HashSet<string> ExpectedPaths(TierDocument destination, IReadOnlyList<PendingEdit> edits)
-    {
-        var expected = destination.Flat.Paths.ToHashSet(StringComparer.Ordinal);
-
-        foreach (var edit in edits)
-        {
-            switch (edit.Kind)
-            {
-                case EditKind.Delete:
-                    foreach (var leaf in destination.Flat.Subtree(edit.Path))
-                    {
-                        expected.Remove(leaf.Path);
-                    }
-
-                    break;
-
-                case EditKind.Add:
-                case EditKind.Update:
-                    expected.Add(edit.Path);
-                    break;
-            }
-        }
-
-        return expected;
-    }
 }

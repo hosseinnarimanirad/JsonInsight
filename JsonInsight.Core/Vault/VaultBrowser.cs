@@ -1,15 +1,12 @@
 namespace JsonInsight.Vault;
 
-/// <summary>One secret found in Vault, and the address it was found on.</summary>
-public sealed record FoundSecret(string Path, string Address);
+/// <summary>One secret found in Vault.</summary>
+public sealed record FoundSecret(string Path);
 
 public sealed record VaultBrowseResult(
     IReadOnlyList<FoundSecret> Secrets,
     IReadOnlyList<string> Problems)
 {
-    /// <summary>Which tier's connection was read, or null when none could be.</summary>
-    public string? Source { get; init; }
-
     public IReadOnlyList<string> Paths => Secrets
         .Select(s => s.Path)
         .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -53,10 +50,11 @@ public sealed class VaultBrowser
     private readonly VaultSettings _settings;
 
     /// <summary>
-    /// The tier to read comes from <see cref="VaultSettings.BrowseFrom"/> rather than from a
-    /// parameter beside it. Two ways to say the same thing is one too many: the first version of
-    /// this took both, and the caller that forgot the parameter silently browsed a different tier
-    /// from the one the settings named.
+    /// The settings are taken for one thing only: the mounts the configured paths already name, which
+    /// is what gets walked when the token cannot enumerate Vault's own. Which server is browsed is
+    /// <em>not</em> read from here — <see cref="BrowseAsync(VaultConnection, string, CancellationToken)"/>
+    /// is handed the connection, because a row carries its own address and token now and "the Vault"
+    /// stopped being one thing to walk.
     /// </summary>
     public VaultBrowser(VaultSettings settings) => _settings = settings;
 
@@ -85,37 +83,42 @@ public sealed class VaultBrowser
             ]));
         }
 
-        return BrowseAsync(new Endpoint(connection, tierId), cancellationToken);
+        return BrowseAsync(connection, cancellationToken);
     }
 
-    private async Task<VaultBrowseResult> BrowseAsync(Endpoint endpoint, CancellationToken cancellationToken)
+    /// <summary>
+    /// The walk itself, taking the connection alone. It used to take a private <c>Endpoint</c> record
+    /// pairing the connection with the tier id, which existed for a field on the result that has
+    /// since gone: which source a browse came from is already known to the caller that asked, so
+    /// threading it down three signatures only to hand it back up was answering a question nothing
+    /// down here was asking.
+    /// </summary>
+    private async Task<VaultBrowseResult> BrowseAsync(VaultConnection connection, CancellationToken cancellationToken)
     {
         var secrets = new List<FoundSecret>();
         var problems = new List<string>();
 
         try
         {
-            using var client = new VaultClient(endpoint.Connection);
-            var mounts = await MountsFor(client, endpoint, problems, cancellationToken).ConfigureAwait(false);
+            using var client = new VaultClient(connection);
+            var mounts = await MountsFor(client, connection, problems, cancellationToken).ConfigureAwait(false);
 
             foreach (var mount in mounts)
             {
-                await WalkAsync(client, mount, endpoint, secrets, problems, cancellationToken).ConfigureAwait(false);
+                await WalkAsync(client, mount, connection, secrets, problems, cancellationToken).ConfigureAwait(false);
             }
         }
         catch (Exception ex)
         {
-            problems.Add($"{endpoint.Connection.Address}: {ex.Message}");
+            problems.Add($"{connection.Address}: {ex.Message}");
         }
 
-        return new VaultBrowseResult(secrets, problems) { Source = endpoint.TierId };
+        return new VaultBrowseResult(secrets, problems);
     }
-
-    private sealed record Endpoint(VaultConnection Connection, string TierId);
 
     private async Task<IReadOnlyList<string>> MountsFor(
         VaultClient client,
-        Endpoint endpoint,
+        VaultConnection connection,
         List<string> problems,
         CancellationToken cancellationToken)
     {
@@ -126,7 +129,7 @@ public sealed class VaultBrowser
         }
         catch (Exception ex)
         {
-            problems.Add($"{endpoint.Connection.Address}: could not list mounts — {ex.Message}");
+            problems.Add($"{connection.Address}: could not list mounts — {ex.Message}");
         }
 
         if (listed is { Count: > 0 })
@@ -136,7 +139,7 @@ public sealed class VaultBrowser
 
         var known = KnownMounts();
         problems.Add(
-            $"{endpoint.Connection.Address}: this token cannot list Vault's mounts, so only the ones " +
+            $"{connection.Address}: this token cannot list Vault's mounts, so only the ones " +
             $"already in your paths were searched ({string.Join(", ", known)}). A path typed in by hand still works.");
 
         return known;
@@ -165,7 +168,7 @@ public sealed class VaultBrowser
     private static async Task WalkAsync(
         VaultClient client,
         string mount,
-        Endpoint endpoint,
+        VaultConnection connection,
         List<FoundSecret> secrets,
         List<string> problems,
         CancellationToken cancellationToken)
@@ -205,7 +208,7 @@ public sealed class VaultBrowser
 
                 if (!isFolder)
                 {
-                    secrets.Add(new FoundSecret(child, endpoint.Connection.Address));
+                    secrets.Add(new FoundSecret(child));
                 }
 
                 // A name can be both a secret and a folder, which is exactly how these tiers are
@@ -224,7 +227,7 @@ public sealed class VaultBrowser
         if (truncated)
         {
             problems.Add(
-                $"{mount} on {endpoint.Connection.Address}: stopped at {MaxListings} folders or " +
+                $"{mount} on {connection.Address}: stopped at {MaxListings} folders or " +
                 $"{MaxDepth} levels — the list may be incomplete.");
         }
     }

@@ -77,44 +77,49 @@ public sealed partial class RestartVm : ObservableObject
             return;
         }
 
-        Busy = true;
-        Problem = string.Empty;
-        Notes.Clear();
-        Notes.Add($"POST {Url}");
-        OnPropertyChanged(nameof(CanCall));
-
-        try
-        {
-            var connection = _row.ToConnection();
-
-            var result = _live
-                ? await Call(connection, Token.Trim()).ConfigureAwait(true)
-                : new RestartResult(true, 202, "Restart accepted — HTTP 202. (test harness, nothing was sent)", null);
-
-            Notes.Add(result.Message);
-
-            if (!string.IsNullOrWhiteSpace(result.Body))
+        // CanCall is computed from Busy and is what the button is bound to, so its notification has to
+        // travel with the flag in both directions — including out of a failure, where the button has to
+        // come back to let the call be tried again.
+        await BusyGuard.RunAsync(
+            busy =>
             {
-                Notes.Add(result.Body!);
-            }
+                Busy = busy;
+                OnPropertyChanged(nameof(CanCall));
+            },
+            async () =>
+            {
+                Problem = string.Empty;
+                Notes.Clear();
+                Notes.Add($"POST {Url}");
 
-            // Inconclusive is not a failure. Saying otherwise sends somebody to press it again against
-            // an environment already on its way down.
-            Completed = result.Ok || result.Inconclusive;
-            Problem = result.Ok || result.Inconclusive ? string.Empty : result.Message;
+                var connection = _row.ToConnection();
 
-            _row.Status = result.Message;
-        }
-        catch (Exception ex)
-        {
-            Problem = $"Restart failed: {ex.Message}";
-            Notes.Add(Problem);
-        }
-        finally
-        {
-            Busy = false;
-            OnPropertyChanged(nameof(CanCall));
-        }
+                var result = _live
+                    ? await Call(connection, Token.Trim()).ConfigureAwait(true)
+                    : new RestartResult(true, 202, "Restart accepted — HTTP 202. (test harness, nothing was sent)", null);
+
+                Notes.Add(result.Message);
+
+                if (!string.IsNullOrWhiteSpace(result.Body))
+                {
+                    Notes.Add(result.Body!);
+                }
+
+                // Inconclusive is not a failure. Saying otherwise sends somebody to press it again against
+                // an environment already on its way down.
+                Completed = result.Ok || result.Inconclusive;
+                Problem = result.Ok || result.Inconclusive ? string.Empty : result.Message;
+
+                _row.Status = result.Message;
+            },
+            // The failure goes into the note list as well as the problem line: the notes are the record
+            // of which half went wrong, and a call that was accepted and then failed reads as nothing at
+            // all if only the last line survives.
+            ex =>
+            {
+                Problem = $"Restart failed: {ex.Message}";
+                Notes.Add(Problem);
+            });
     }
 
     /// <summary>

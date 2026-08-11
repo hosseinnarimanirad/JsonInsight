@@ -20,7 +20,7 @@
                        @oninput="e => Vm.BulkValue = e.Value?.ToString() ?? string.Empty" />
     
                 <select class="field" value="@Vm.BulkKind"
-                        @onchange="e => { if (Enum.TryParse<System.Text.Json.JsonValueKind>(e.Value?.ToString(), out var k)) Vm.BulkKind = k; }">
+                        @onchange="e => Choice.Set<System.Text.Json.JsonValueKind>(e, k => Vm.BulkKind = k)">
                     @foreach (var option in EditVm.KindOptions)
                     {
                         <option value="@option.Kind" selected="@(option.Kind == Vm.BulkKind)">@option.Label</option>
@@ -141,21 +141,11 @@
         }
     }
 
-    private static void OnAction(EditRowVm row, ChangeEventArgs e)
-    {
-        if (Enum.TryParse<RowAction>(e.Value?.ToString(), out var action))
-        {
-            row.Action = action;
-        }
-    }
+    private static void OnAction(EditRowVm row, ChangeEventArgs e) =>
+        Choice.Set<RowAction>(e, action => row.Action = action);
 
-    private static void OnKind(EditRowVm row, ChangeEventArgs e)
-    {
-        if (Enum.TryParse<System.Text.Json.JsonValueKind>(e.Value?.ToString(), out var kind))
-        {
-            row.Kind = kind;
-        }
-    }
+    private static void OnKind(EditRowVm row, ChangeEventArgs e) =>
+        Choice.Set<System.Text.Json.JsonValueKind>(e, kind => row.Kind = kind);
 
     private void Queue() => Vm.QueueCommand.Execute(null);
 }

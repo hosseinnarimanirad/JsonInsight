@@ -132,18 +132,6 @@
                        FontSize="12" TextWrapping="Wrap" />
         </Border>
 
-        <Border DockPanel.Dock="Bottom" Style="{StaticResource Notice.Warn}" Margin="0,10,0,0"
-                Visibility="{Binding Warnings.Count, Converter={StaticResource NotEmptyVis}}">
-            <ItemsControl ItemsSource="{Binding Warnings}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <TextBlock Text="{Binding}" Foreground="{DynamicResource Brush.Shape}"
-                                   FontSize="12" TextWrapping="Wrap" Margin="0,1" />
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </Border>
-
         <!-- The comparison. Laid out as Vault | local, the same way round as every other two-sided
              view in the app: what is there now on the left, what would replace it on the right. -->
         <Border Style="{StaticResource Card.Flush}">
@@ -161,38 +149,12 @@
                     </Grid>
                 </Border>
 
+                <!-- DiffRow.Edit rather than DiffRow: what is being confirmed here is an edit going
+                     out, so a modified line takes the same amber the editor gave it rather than the
+                     blue that means "two tiers differ". Both templates are in Controls.xaml. -->
                 <ListBox Style="{StaticResource LineList}" ItemsSource="{Binding Lines}" Padding="4"
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <!-- Wrapping rather than scrolling sideways: these values include PEM
-                                 blocks and 900-character tokens, and a line that runs off to the
-                                 right takes the other column with it. -->
-                            <Border Style="{StaticResource Row.EditDiffLine}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="46" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="46" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="{Binding LeftNumber}"
-                                               Style="{StaticResource Text.MonoCaption}"
-                                               TextAlignment="Right" Margin="0,0,10,0"
-                                               VerticalAlignment="Top" />
-                                    <TextBlock Grid.Column="1" Text="{Binding LeftText}"
-                                               Style="{StaticResource Text.Mono}" TextWrapping="Wrap" />
-                                    <TextBlock Grid.Column="2" Text="{Binding RightNumber}"
-                                               Style="{StaticResource Text.MonoCaption}"
-                                               TextAlignment="Right" Margin="10,0,10,0"
-                                               VerticalAlignment="Top" />
-                                    <TextBlock Grid.Column="3" Text="{Binding RightText}"
-                                               Style="{StaticResource Text.Mono}" TextWrapping="Wrap" />
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
+                         ItemTemplate="{StaticResource DiffRow.Edit}"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
             </DockPanel>
         </Border>
     </DockPanel>

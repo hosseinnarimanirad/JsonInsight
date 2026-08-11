@@ -128,7 +128,10 @@ public static class TextFinder
         var count = 0;
         var at = 0;
 
-        while (at <= text.Length)
+        // Unconditional, deliberately. `at` only ever advances to just past a match, which can never
+        // exceed text.Length, so the loop's one real exit is IndexOf finding nothing — and a bound in
+        // the condition would have read as a second guard against a runaway that cannot occur.
+        while (true)
         {
             var hit = text.IndexOf(term, at, comparison);
             if (hit < 0)

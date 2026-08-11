@@ -72,11 +72,6 @@ public sealed class TierDocument
 
     public bool IsFromVault => Origin == TierOrigin.Vault;
 
-    /// <summary>What to call this on screen: the version for a Vault tier, the file name for a local one.</summary>
-    public string DisplayName => Origin == TierOrigin.Vault
-        ? $"v{VaultVersion:00}"
-        : System.IO.Path.GetFileName(FilePath ?? "(no file)");
-
     /// <summary>
     /// The shortest true thing about where this came from, for somewhere with one line to spare — a
     /// grid column header, a chip beside a tier picker.

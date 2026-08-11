@@ -31,8 +31,8 @@ public static class PhotinoPlatform
 /// <para>
 /// Set by <c>ClipboardInterop</c> rather than written here: the browser clipboard API is
 /// asynchronous and permission-gated, and <see cref="IClipboard.SetText"/> is neither. The interop
-/// object is assigned once the Blazor runtime is up; before that — and in a test — the buffer simply
-/// holds the last value, which is what <see cref="LastCopied"/> is for.
+/// object is assigned once the Blazor runtime is up; before that — and in a test — there is no
+/// writer attached and the text goes nowhere.
 /// </para>
 /// </summary>
 public sealed class PhotinoClipboard : IClipboard
@@ -40,13 +40,8 @@ public sealed class PhotinoClipboard : IClipboard
     /// <summary>Set by the layout once JS interop is available. Null until then.</summary>
     public static Func<string, Task>? Writer { get; set; }
 
-    /// <summary>The last text handed to this clipboard, whether or not a writer was attached.</summary>
-    public static string LastCopied { get; private set; } = string.Empty;
-
     public void SetText(string text)
     {
-        LastCopied = text;
-
         // Fire-and-forget: the view model's Copy command is synchronous, and there is nothing useful
         // to do with a failure the user has not been shown anyway - the pane still holds the text.
         _ = Writer?.Invoke(text);

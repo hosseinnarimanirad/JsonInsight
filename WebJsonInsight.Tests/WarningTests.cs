@@ -131,7 +131,6 @@ public sealed class WarningTests
         main.Seed(documents);
 
         Assert.Single(main.Problems);
-        Assert.Equal("1 problem", main.ProblemsHeading);
     }
 
     /// <summary>

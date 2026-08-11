@@ -60,11 +60,6 @@
                 <div class="notice notice-danger"><Icon Name="warn" /> <span>@Vm.Problem</span></div>
             }
     
-            @foreach (var warning in Vm.Warnings)
-            {
-                <div class="notice notice-warn"><Icon Name="warn" /> <span>@warning</span></div>
-            }
-    
             @if (!string.IsNullOrEmpty(Vm.Message))
             {
                 <div class="notice notice-info">@Vm.Message</div>
@@ -79,33 +74,8 @@
             }
     
             <div class="card card-flush push-diff">
-                <div class="difflines-head">
-                    <div class="dl-num"></div>
-                    <div class="dl-text">@Vm.LeftHeader</div>
-                    <div class="dl-num"></div>
-                    <div class="dl-text">@Vm.RightHeader</div>
-                </div>
-    
-                <div class="difflines">
-                    @foreach (var line in Vm.Lines)
-                    {
-                        <div class="dl-row @LineClass(line)">
-                            <div class="dl-num">@line.LeftNumber</div>
-                            <div class="dl-text dl-left">@line.LeftText</div>
-                            <div class="dl-num">@line.RightNumber</div>
-                            <div class="dl-text dl-right">@line.RightText</div>
-                        </div>
-                    }
-    
-                    @if (Vm.Lines.Count == 0)
-                    {
-                        <div class="grid-empty">
-                            @(Vm.HasChecked
-                                ? "Nothing differs. A payload byte-identical to what is already there is refused rather than uploaded — a version that changes nothing is noise in a history whose whole value is that every entry means something."
-                                : "Press Check to read what this would replace and diff against it.")
-                        </div>
-                    }
-                </div>
+                <DiffLinesView Lines="Vm.Lines" LeftHeader="@Vm.LeftHeader" RightHeader="@Vm.RightHeader"
+                               EmptyMessage="@EmptyMessage" />
             </div>
         </div>
     </ChildContent>
@@ -142,7 +112,7 @@
 
     [Parameter] public EventCallback OnClose { get; set; }
 
-    protected override void OnInitialized() => Observe(Vm, Vm.Lines, Vm.Warnings, Vm.Notes, Vm.Tiers);
+    protected override void OnInitialized() => Observe(Vm, Vm.Lines, Vm.Notes, Vm.Tiers);
 
     /// <summary>
     /// The push screen reads the secret live as it opens, because the comparison being confirmed has
@@ -156,12 +126,10 @@
         }
     }
 
-    private static string LineClass(DiffLineVm line) => line.Type switch
-    {
-        DiffPlex.DiffBuilder.Model.ChangeType.Inserted => "dl-added",
-        DiffPlex.DiffBuilder.Model.ChangeType.Deleted => "dl-removed",
-        DiffPlex.DiffBuilder.Model.ChangeType.Modified => "dl-modified",
-        DiffPlex.DiffBuilder.Model.ChangeType.Imaginary => "dl-imaginary",
-        _ => string.Empty,
-    };
+    // No rows means one of two entirely different things, and this screen is the one place where
+    // saying the wrong one would be read as permission to stop: either the check has not run yet, or
+    // it ran and found nothing to send.
+    private string EmptyMessage => Vm.HasChecked
+        ? "Nothing differs. A payload byte-identical to what is already there is refused rather than uploaded — a version that changes nothing is noise in a history whose whole value is that every entry means something."
+        : "Press Check to read what this would replace and diff against it.";
 }

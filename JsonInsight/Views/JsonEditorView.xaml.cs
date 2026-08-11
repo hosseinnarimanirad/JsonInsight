@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -58,17 +59,18 @@ public partial class JsonEditorView : UserControl
     }
 
     /// <summary>
-    /// Raised with the tier to upload. The dialog is opened by the window rather than from here, for
-    /// the same reason the promote and edit dialogs are: a view model that opens windows cannot be
-    /// constructed in a test, and these ones are.
+    /// Raised with everything the push screen needs to review this tab's work. The dialog is opened by
+    /// the window rather than from here, for the same reason the promote and edit dialogs are: a view
+    /// model that opens windows cannot be constructed in a test, and these ones are.
     /// </summary>
-    public event EventHandler<Model.TierDocument>? PushRequested;
+    public event EventHandler<PushRequest>? PushRequested;
 
     private void OnPushClick(object sender, RoutedEventArgs e)
     {
-        if (Vm is { Tier: { } tier })
+        if (Vm is { Tier: { } tier } vm)
         {
-            PushRequested?.Invoke(this, tier);
+            PushRequested?.Invoke(this, new PushRequest(
+                tier, vm.Editor?.Working, "the document as edited on the Tier editor tab"));
         }
     }
 
@@ -92,17 +94,25 @@ public partial class JsonEditorView : UserControl
             return;
         }
 
-        if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control)
-        {
-            OpenFind();
-            e.Handled = true;
-            return;
-        }
+        var shift = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
+        var control = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
 
-        if (e.Key == Key.F3)
+        switch (JsonEditorVm.PaneKey(e.Key.ToString(), shift, control))
         {
-            Find(forward: Keyboard.Modifiers != ModifierKeys.Shift);
-            e.Handled = true;
+            case JsonEditorVm.FindKey.Open:
+                OpenFind();
+                e.Handled = true;
+                break;
+
+            case JsonEditorVm.FindKey.Next:
+                Find(forward: true);
+                e.Handled = true;
+                break;
+
+            case JsonEditorVm.FindKey.Previous:
+                Find(forward: false);
+                e.Handled = true;
+                break;
         }
     }
 
@@ -132,14 +142,21 @@ public partial class JsonEditorView : UserControl
 
     private void OnFindBoxKeyDown(object sender, KeyEventArgs e)
     {
-        switch (e.Key)
+        var shift = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
+
+        switch (JsonEditorVm.FindBoxKey(e.Key.ToString(), shift))
         {
-            case Key.Enter:
-                Find(forward: Keyboard.Modifiers != ModifierKeys.Shift);
+            case JsonEditorVm.FindKey.Next:
+                Find(forward: true);
                 e.Handled = true;
                 break;
 
-            case Key.Escape:
+            case JsonEditorVm.FindKey.Previous:
+                Find(forward: false);
+                e.Handled = true;
+                break;
+
+            case JsonEditorVm.FindKey.Close:
                 Vm?.CloseFindCommand.Execute(null);
                 Editor.Focus();
                 e.Handled = true;
@@ -211,39 +228,25 @@ public partial class JsonEditorView : UserControl
         Reveal(hit, vm.FindText.Length);
     }
 
+    /// <summary>
+    /// Replaces the current match. Which match, and what becomes current afterwards, is
+    /// <see cref="JsonEditorVm.ReplaceCurrent"/> — shared with the Blazor pane, and written through the
+    /// view model rather than into the text box because the box's binding is delayed (see below).
+    /// </summary>
     private void OnReplace(object sender, RoutedEventArgs e)
     {
-        if (Vm is not { } vm || Editor.IsReadOnly)
+        if (Vm is not { } vm)
         {
             return;
         }
 
-        // Whichever match is current, or the first one when nothing has been stepped to yet — so
-        // pressing Replace without having pressed Next first still replaces something.
-        var at = vm.MatchAt >= 0 ? vm.MatchAt : vm.StepMatch(forward: true);
-        if (at < 0)
+        var caret = vm.ReplaceCurrent();
+        if (caret < 0)
         {
             return;
         }
 
-        var index = vm.MatchIndex;
-
-        Editor.Select(at, vm.FindText.Length);
-        Editor.SelectedText = vm.ReplaceText;
-        Editor.Select(at + vm.ReplaceText.Length, 0);
-
-        // The list was re-found against the changed text, so the entry that was current has gone and
-        // the one that took its place is the next match. Landing there is what makes pressing Replace
-        // repeatedly walk the document.
-        vm.SyncMatchToCaret(at + vm.ReplaceText.Length);
-
-        // Replacing the last match leaves the caret past everything left, so there is no match at or
-        // before it to be current. Wrapping to the first one keeps Replace walking rather than
-        // stopping dead on the final press.
-        if (vm.HasMatches && vm.MatchIndex < 0 && index >= 0)
-        {
-            vm.StepMatch(forward: true);
-        }
+        Editor.Select(Math.Min(caret, Editor.Text.Length), 0);
 
         if (vm.MatchAt >= 0)
         {
@@ -264,25 +267,16 @@ public partial class JsonEditorView : UserControl
     /// </summary>
     private void OnReplaceAll(object sender, RoutedEventArgs e)
     {
-        if (Vm is not { CanReplace: true } vm)
+        if (Vm is not { } vm)
         {
-            return;
-        }
-
-        var (replaced, count) = TextFinder.ReplaceAll(vm.EditorText, vm.FindText, vm.ReplaceText, vm.MatchCase);
-
-        if (count == 0)
-        {
-            vm.FindStatus = "not found";
             return;
         }
 
         var caret = Editor.SelectionStart;
 
-        vm.EditorText = replaced;
-        Editor.Select(Math.Min(caret, replaced.Length), 0);
+        vm.ReplaceAllInPane();
 
-        vm.FindStatus = $"{count} replaced";
+        Editor.Select(Math.Min(caret, Editor.Text.Length), 0);
     }
 
     /// <summary>
@@ -321,3 +315,14 @@ public partial class JsonEditorView : UserControl
         }
     }
 }
+
+/// <summary>
+/// What this tab asks the window to push.
+/// </summary>
+/// <param name="Updated">
+/// The document as edited in the pane, which is the whole point of pushing from this tab. Without it
+/// the dialog falls back to the tier plus whatever edits are queued against it — and since the pane
+/// edits a <c>SortedClone</c> that never touches <c>Tier.Root</c>, that fallback diffs the unedited
+/// document and reports that the source already holds exactly this.
+/// </param>
+public sealed record PushRequest(Model.TierDocument Tier, JsonNode? Updated, string What);

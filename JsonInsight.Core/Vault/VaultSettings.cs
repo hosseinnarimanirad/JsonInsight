@@ -2,6 +2,7 @@ using System.IO;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using JsonInsight.Promote;
 using JsonInsight.Sources;
 
 namespace JsonInsight.Vault;
@@ -101,10 +102,6 @@ public sealed class VaultConnection
     [JsonIgnore]
     public string RestartToken { get; set; } = string.Empty;
 
-    /// <summary>True when this source has somewhere to send a restart.</summary>
-    [JsonIgnore]
-    public bool HasRestart => !string.IsNullOrWhiteSpace(RestartUrl);
-
     /// <summary>
     /// This connection, or - when it has no token of its own - a copy carrying the ambient one.
     /// Returns <c>this</c> unchanged when there is nothing to add, so the common path allocates
@@ -184,16 +181,11 @@ public sealed class VaultWorkspace
 
     public List<string>? ActiveSources { get; set; }
 
-    public List<string>? Documents { get; set; }
-
     public string? BrowseFrom { get; set; }
 
     public string? Address { get; set; }
 
     public string? Namespace { get; set; }
-
-    [JsonIgnore]
-    public string? Token { get; set; }
 
     /// <summary>
     /// Brings an older file up to the current shape, in two steps that can each happen alone.
@@ -266,14 +258,14 @@ public sealed class VaultWorkspace
         Connections = null;
         Document = null;
         ActiveSources = null;
-        Documents = null;
         BrowseFrom = null;
         Address = null;
         Namespace = null;
 
-        // Token is deliberately left alone. It comes from user secrets, which are read after this
-        // runs, so there is nothing here to push down yet — VaultSettingsStore.MergeSecrets does that
-        // half once it has the value. Nulling it here would drop it before it ever arrived.
+        // The pre-projects shared token has nothing to null here. It lives in user secrets, which are
+        // read after this runs, and VaultSettingsStore.MergeSecrets pushes it down onto the rows that
+        // had none of their own once it has the value. This method only ever sees the half of the old
+        // shape that appsettings.json held.
         return hadLegacyShape || hadSharedCredentials;
     }
 
@@ -437,9 +429,8 @@ public sealed class VaultSettings
 ///
 /// <para>
 /// A token must never reach appsettings.json. That is enforced structurally rather than by care:
-/// <see cref="VaultConnection.Token"/> and <see cref="VaultSettings.Token"/> are
-/// <see cref="JsonIgnoreAttribute"/>, so the serializer that produces appsettings.json cannot emit
-/// them even if this class is changed later.
+/// <see cref="VaultConnection.Token"/> is <see cref="JsonIgnoreAttribute"/>, so the serializer that
+/// produces appsettings.json cannot emit it even if this class is changed later.
 /// </para>
 /// </summary>
 public static class VaultSettingsStore
@@ -559,21 +550,44 @@ public static class VaultSettingsStore
     /// <summary>The pre-projects key for the same thing, read once so an upgrade does not lose a token.</summary>
     private static string LegacyConnectionTokenKey(string tierId) => $"Vault:Connections:{tierId}:Token";
 
+    /// <summary>The suffix every token key ends in, whichever shape the rest of it takes.</summary>
+    private const string TokenKeySuffix = ":Token";
+
+    /// <summary>
+    /// What lies between <paramref name="prefix"/> and <c>:Token</c>, or null when the key is not
+    /// that shape at all.
+    ///
+    /// <para>
+    /// The shared half of the three parsers below — one project-scoped, one pre-projects, one that
+    /// works out <em>which</em> project a key belongs to. All three answer "is this a connection
+    /// token key" the same way and only disagree about what the middle of it means, which is exactly
+    /// the split this makes: recognise the shape here, interpret the body there.
+    /// </para>
+    ///
+    /// <para>
+    /// Case-insensitive on both ends, because these keys are compared against a dictionary that is
+    /// itself <see cref="StringComparer.OrdinalIgnoreCase"/> — a hand-edited secrets.json writes
+    /// <c>vault:projects:…</c> as readily as <c>Vault:Projects:…</c> and the configuration binder
+    /// treats them as one key.
+    /// </para>
+    /// </summary>
+    private static string? TokenKeyBody(string key, string prefix) =>
+        key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) &&
+        key.EndsWith(TokenKeySuffix, StringComparison.OrdinalIgnoreCase)
+            ? key[prefix.Length..^TokenKeySuffix.Length]
+            : null;
+
+    /// <summary>
+    /// A body that is exactly one source id: non-empty, and holding no further separator. A body with
+    /// a colon in it is some deeper key that merely ends in <c>:Token</c> and is none of this app's
+    /// business.
+    /// </summary>
+    private static string? AsTierId(string? body) =>
+        body is { Length: > 0 } && !body.Contains(':') ? body : null;
+
     /// <summary>The source id in a pre-projects connection token key, or null if it is not one.</summary>
-    private static string? LegacyTierIdFromTokenKey(string key)
-    {
-        const string prefix = "Vault:Connections:";
-        const string suffix = ":Token";
-
-        if (!key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ||
-            !key.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        var tierId = key[prefix.Length..^suffix.Length];
-        return tierId.Length == 0 || tierId.Contains(':') ? null : tierId;
-    }
+    private static string? LegacyTierIdFromTokenKey(string key) =>
+        AsTierId(TokenKeyBody(key, "Vault:Connections:"));
 
     /// <summary>
     /// The whole workspace: every project, and the credentials they share. A missing or malformed file
@@ -611,10 +625,7 @@ public static class VaultSettingsStore
 
         try
         {
-            var root = JsonNode.Parse(
-                File.ReadAllText(path),
-                nodeOptions: null,
-                new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true });
+            var root = JsonNode.Parse(File.ReadAllText(path), nodeOptions: null, OrdinalJsonWriter.DocumentOptions);
 
             if (root?[SectionName] is not JsonNode section)
             {
@@ -708,36 +719,27 @@ public static class VaultSettingsStore
         }
     }
 
-    /// <summary>The source id in a token key belonging to <paramref name="projectName"/>, or null if it is not one.</summary>
-    private static string? TierIdFromTokenKey(string key, string projectName)
-    {
-        var prefix = $"Vault:Projects:{projectName}:Connections:";
-        const string suffix = ":Token";
-
-        if (!key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ||
-            !key.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        var tierId = key[prefix.Length..^suffix.Length];
-        return tierId.Length == 0 || tierId.Contains(':') ? null : tierId;
-    }
+    /// <summary>
+    /// The source id in a token key belonging to <paramref name="projectName"/>, or null if it is not
+    /// one. Asks with the project's name already built into the prefix rather than going through
+    /// <see cref="ParseTokenKey"/> and comparing: a project name is whatever was typed on the projects
+    /// screen, so it is the caller — who has the name — that can say where it ends, not a parser
+    /// hunting for the next <c>:Connections:</c>.
+    /// </summary>
+    private static string? TierIdFromTokenKey(string key, string projectName) =>
+        AsTierId(TokenKeyBody(key, $"Vault:Projects:{projectName}:Connections:"));
 
     /// <summary>Whether <paramref name="key"/> is any project's connection token, and which project's.</summary>
     private static (string Project, string Tier)? ParseTokenKey(string key)
     {
-        const string prefix = "Vault:Projects:";
         const string middle = ":Connections:";
-        const string suffix = ":Token";
 
-        if (!key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ||
-            !key.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+        var body = TokenKeyBody(key, "Vault:Projects:");
+        if (body is null)
         {
             return null;
         }
 
-        var body = key[prefix.Length..^suffix.Length];
         var split = body.IndexOf(middle, StringComparison.OrdinalIgnoreCase);
         if (split <= 0)
         {
@@ -745,11 +747,14 @@ public static class VaultSettingsStore
         }
 
         var project = body[..split];
-        var tier = body[(split + middle.Length)..];
+        var tier = AsTierId(body[(split + middle.Length)..]);
 
-        return project.Contains(':') || tier.Length == 0 || tier.Contains(':')
-            ? null
-            : (project, tier);
+        if (tier is null || project.Contains(':'))
+        {
+            return null;
+        }
+
+        return (project, tier);
     }
 
     /// <summary>
@@ -774,10 +779,7 @@ public static class VaultSettingsStore
                 return result;
             }
 
-            var root = JsonNode.Parse(
-                text,
-                nodeOptions: null,
-                new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true });
+            var root = JsonNode.Parse(text, nodeOptions: null, OrdinalJsonWriter.DocumentOptions);
 
             if (root is JsonObject o)
             {
@@ -840,10 +842,7 @@ public static class VaultSettingsStore
         JsonObject root;
         if (File.Exists(path))
         {
-            root = JsonNode.Parse(
-                       File.ReadAllText(path),
-                       nodeOptions: null,
-                       new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true })
+            root = JsonNode.Parse(File.ReadAllText(path), nodeOptions: null, OrdinalJsonWriter.DocumentOptions)
                    as JsonObject ?? [];
         }
         else

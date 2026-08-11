@@ -2,8 +2,6 @@ using System.Collections.ObjectModel;
 using System.Text.Json.Nodes;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using DiffPlex.DiffBuilder;
-using DiffPlex.DiffBuilder.Model;
 using JsonInsight.Editing;
 using JsonInsight.Model;
 using JsonInsight.Promote;
@@ -42,11 +40,28 @@ public sealed partial class PushVm : ObservableObject
     private PushPlan? _plan;
 
     /// <summary>
+    /// The resolved <see cref="Provider"/>, or null when it has not been asked for since the tier last
+    /// changed. Only <see cref="OnTierChanged"/> may clear it.
+    /// </summary>
+    private ISourceProvider? _provider;
+
+    /// <summary>
     /// Whichever provider serves the selected tier's kind. Resolved per tier rather than held for the
     /// dialog's lifetime because the tier picker can move between a Vault secret and a local file, and
     /// the write those two need is not the same write.
+    ///
+    /// <para>
+    /// Cached until the tier changes rather than re-resolved on every read: <see cref="SourceProviders.For"/>
+    /// builds the whole registry — both providers and a dictionary — on every call, and this was an
+    /// expression-bodied property read on the check and the push. The tier is the only input that can
+    /// change the answer while this dialog is up: a <c>TierDefinition</c> is immutable, so
+    /// nothing can move a tier between kinds without going through the picker, and the other input —
+    /// <see cref="MainVm.Flattener"/> — is only rebuilt when the app re-reads its config folder, which
+    /// tears down the tabs this dialog was opened over. The dialog is modal on both hosts, so it
+    /// cannot be open across that.
+    /// </para>
     /// </summary>
-    private ISourceProvider Provider => SourceProviders.For(Tier, _main.Flattener);
+    private ISourceProvider Provider => _provider ??= SourceProviders.For(Tier, _main.Flattener);
 
     [ObservableProperty]
     private TierDocument? _tier;
@@ -83,8 +98,6 @@ public sealed partial class PushVm : ObservableObject
     public ObservableCollection<TierDocument> Tiers { get; } = [];
 
     public ObservableCollection<DiffLineVm> Lines { get; } = [];
-
-    public ObservableCollection<string> Warnings { get; } = [];
 
     public ObservableCollection<string> Notes { get; } = [];
 
@@ -203,17 +216,21 @@ public sealed partial class PushVm : ObservableObject
 
     partial void OnTierChanged(TierDocument? value)
     {
+        // First, and before anything below reads Provider: this is the one thing that can change which
+        // provider serves this dialog, so it is the one place the cache may be dropped. The refusal
+        // probe just below then refills it, which is also what stops that probe being a second
+        // registry build of its own.
+        _provider = null;
+
         _plan = null;
         HasChecked = false;
         Completed = false;
         ConfirmText = string.Empty;
         Lines.Clear();
-        Warnings.Clear();
         Notes.Clear();
         Message = string.Empty;
 
-        Problem = SourceProviders.For(value, _main.Flattener)
-            .Blocked(value, VaultSettingsStore.Load().Settings) ?? string.Empty;
+        Problem = Provider.Blocked(value, VaultSettingsStore.Load().Settings) ?? string.Empty;
 
         NotifyState();
     }
@@ -263,7 +280,10 @@ public sealed partial class PushVm : ObservableObject
     [RelayCommand]
     public async Task CheckVaultAsync()
     {
-        if (Busy || Tier is null)
+        // The tier is bound out here rather than read again inside the work below: the picker beside
+        // this button can move while a check is in flight, and the read has to be preflighted against
+        // the tier it was started for or the diff would belong to one tier and the plan to another.
+        if (Busy || Tier is not { } tier)
         {
             return;
         }
@@ -274,50 +294,49 @@ public sealed partial class PushVm : ObservableObject
             return;
         }
 
-        Busy = true;
-        HasChecked = false;
-        _plan = null;
-        Lines.Clear();
-        Warnings.Clear();
-        Message = $"Reading {TierPath} …";
-        NotifyState();
-
-        try
-        {
-            var preflight = await Provider
-                .PreflightSaveAsync(Tier, updated, What, VaultSettingsStore.Load().Settings)
-                .ConfigureAwait(true);
-
-            if (!preflight.Ok)
+        // NotifyState travels with the flag rather than after the await, because most of what it
+        // announces — CanPush above all — is false for as long as Busy is true, and the failure path
+        // has to put the button back exactly as the happy one does.
+        await BusyGuard.RunAsync(
+            busy =>
             {
-                Problem = preflight.Problem!;
-                Message = string.Empty;
-                return;
-            }
-
-            _plan = preflight.Plan;
-            HasChecked = true;
-
-            // A source that moved is reported where a refusal belongs rather than among the warnings:
-            // it is not something to read on the way past, it is the reason the button below is off.
-            Problem = _plan!.Stale ?? string.Empty;
-
-            foreach (var warning in _plan.Warnings)
+                Busy = busy;
+                NotifyState();
+            },
+            async () =>
             {
-                Warnings.Add(warning);
-            }
+                HasChecked = false;
+                _plan = null;
+                Lines.Clear();
+                Message = $"Reading {TierPath} …";
 
-            BuildDiff();
-        }
-        catch (Exception ex)
-        {
-            Problem = $"Check failed: {ex.Message}";
-        }
-        finally
-        {
-            Busy = false;
-            NotifyState();
-        }
+                // Not a repeat of the one the flag just raised: that one went out while _plan and
+                // HasChecked still described the previous check, and Stale/IsStale/CanPush are all
+                // read off them. Both happen before the first await, so the screen only ever sees the
+                // second.
+                NotifyState();
+
+                var preflight = await Provider
+                    .PreflightSaveAsync(tier, updated, What, VaultSettingsStore.Load().Settings)
+                    .ConfigureAwait(true);
+
+                if (!preflight.Ok)
+                {
+                    Problem = preflight.Problem!;
+                    Message = string.Empty;
+                    return;
+                }
+
+                _plan = preflight.Plan;
+                HasChecked = true;
+
+                // A source that moved is reported where a refusal belongs rather than as a notice to read
+                // on the way past: it is the reason the button below is off.
+                Problem = _plan!.Stale ?? string.Empty;
+
+                BuildDiff();
+            },
+            ex => Problem = $"Check failed: {ex.Message}");
     }
 
     private void BuildDiff()
@@ -337,52 +356,14 @@ public sealed partial class PushVm : ObservableObject
             return;
         }
 
-        var model = SideBySideDiffBuilder.Instance.BuildDiffModel(
-            _plan.LiveText, _plan.PayloadText, ignoreWhitespace: false);
+        var diff = DiffLineVm.Build(_plan.LiveText, _plan.PayloadText, includeUnchanged: ShowUnchanged);
 
-        var added = 0;
-        var removed = 0;
-        var modified = 0;
-
-        for (var i = 0; i < Math.Max(model.OldText.Lines.Count, model.NewText.Lines.Count); i++)
+        foreach (var line in diff.Lines)
         {
-            var oldLine = i < model.OldText.Lines.Count ? model.OldText.Lines[i] : null;
-            var newLine = i < model.NewText.Lines.Count ? model.NewText.Lines[i] : null;
-
-            // The old side carries the answer for a deletion: DiffPlex pairs a real removed line
-            // with an Imaginary placeholder, so reading the new side first labels every deletion
-            // "imaginary" and renders it as an uncoloured blank row.
-            var right = newLine?.Type ?? ChangeType.Imaginary;
-            var left = oldLine?.Type ?? ChangeType.Imaginary;
-            var type = right is ChangeType.Imaginary or ChangeType.Unchanged ? left : right;
-
-            switch (type)
-            {
-                case ChangeType.Inserted:
-                    added++;
-                    break;
-                case ChangeType.Deleted:
-                    removed++;
-                    break;
-                case ChangeType.Modified:
-                    modified++;
-                    break;
-            }
-
-            if (!ShowUnchanged && type is ChangeType.Unchanged or ChangeType.Imaginary)
-            {
-                continue;
-            }
-
-            Lines.Add(new DiffLineVm(
-                oldLine?.Position?.ToString() ?? string.Empty,
-                oldLine?.Text ?? string.Empty,
-                newLine?.Position?.ToString() ?? string.Empty,
-                newLine?.Text ?? string.Empty,
-                type));
+            Lines.Add(line);
         }
 
-        var counts = $"{modified} changed, {added} added, {removed} removed.";
+        var counts = diff.Counts;
 
         // The diff still earns its place on a refused push — it is what says how much of somebody
         // else's work this would have taken out — but it must not go on promising the next version

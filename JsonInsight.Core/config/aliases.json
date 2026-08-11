@@ -1,5 +1,5 @@
 {
-  "// note": "'identity' rewrites a path prefix at load time and then diffs normally. 'shapeOnly' declares two subtrees equivalent in purpose but structurally incomparable: one ShapeDiffers row is emitted at the alias root and the noise beneath it is suppressed.",
+  "// note": "'shapeOnly' is the only comparison mode, and every alias declares it: it says two subtrees are equivalent in purpose but structurally incomparable, so one ShapeDiffers row is emitted at the alias root and the noise beneath it is suppressed.",
   "aliases": [
     {
       "id": "redis",

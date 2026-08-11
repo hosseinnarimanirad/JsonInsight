@@ -204,14 +204,6 @@ public sealed partial class MainVm : ObservableObject
     {
         _vaultAtStartup = vaultAtStartup;
 
-        // The count is rendered above the list, and a collection changing raises nothing for the
-        // properties derived from it.
-        Problems.CollectionChanged += (_, _) =>
-        {
-            OnPropertyChanged(nameof(HasProblems));
-            OnPropertyChanged(nameof(ProblemsHeading));
-        };
-
         var (workspace, _) = VaultSettingsStore.LoadWorkspace();
         Projects = new ProjectsVm(this);
 
@@ -320,15 +312,33 @@ public sealed partial class MainVm : ObservableObject
         Status = "Choose a project.";
     }
 
+    private string _comparing = string.Empty;
+
     /// <summary>
     /// What the open project compares, in as few words as it can be said — usually the file name every
     /// active source ends in. Derived from the sources rather than stored, because with each row
     /// naming its own whole path there is no single document to store.
+    ///
+    /// <para>
+    /// Nothing binds this: what the views show is <see cref="DocumentCaption"/>, which reads it. So it
+    /// is a plain property rather than an observable one, and the setter raises the caption's
+    /// notification itself — that is the notification that has to survive, not one for this.
+    /// </para>
     /// </summary>
-    [ObservableProperty]
-    private string _comparing = string.Empty;
+    public string Comparing
+    {
+        get => _comparing;
+        set
+        {
+            if (string.Equals(_comparing, value, StringComparison.Ordinal))
+            {
+                return;
+            }
 
-    partial void OnComparingChanged(string value) => OnPropertyChanged(nameof(DocumentCaption));
+            _comparing = value;
+            OnPropertyChanged(nameof(DocumentCaption));
+        }
+    }
 
     /// <summary>
     /// The open project's name, shown as a chip <em>beside</em> the app's name rather than in place of
@@ -797,29 +807,6 @@ public sealed partial class MainVm : ObservableObject
             Log.Warn(problem);
         }
     }
-
-    public bool HasProblems => Problems.Count > 0;
-
-    /// <summary>
-    /// How many problems there are, above the scrolling list of them. A capped list has to say how
-    /// much is below the fold, or three visible lines out of forty read as three problems.
-    /// </summary>
-    public string ProblemsHeading => Problems.Count == 1
-        ? "1 problem"
-        : $"{Problems.Count} problems";
-
-    /// <summary>
-    /// Clears the banner until something puts a problem in it again.
-    ///
-    /// <para>
-    /// Nothing is lost by pressing it: the list is derived from the load and the last Vault read, so
-    /// Reload or Pull produces it again. That is what makes dismissing safe to offer — a warning that
-    /// could be silenced permanently is one that stops being read, but one that comes back on the
-    /// next reload is merely out of the way of the screen you were trying to use.
-    /// </para>
-    /// </summary>
-    [RelayCommand]
-    private void DismissProblems() => Problems.Clear();
 
     /// <summary>
     /// Recolours the whole window in place. Nothing is reloaded, so a half-filled promote dialog or

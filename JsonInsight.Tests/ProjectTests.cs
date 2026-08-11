@@ -21,11 +21,9 @@ public sealed class ProjectTests
     {
         Address = "https://vault.example.com",
         Namespace = "team",
-        Token = "shared-token",
         Document = "resources/config/features.json",
         ActiveSources = ["stage", "beta"],
         BrowseFrom = "stage",
-        Documents = ["resources/config/features.json"],
         Connections = new Dictionary<string, VaultConnection>(StringComparer.OrdinalIgnoreCase)
         {
             ["stage"] = new() { SecretPath = "kv/app/stage", Token = "stage-token" },
@@ -71,8 +69,8 @@ public sealed class ProjectTests
     /// <para>
     /// The shared <em>token</em> is not handled here, deliberately: it lives in user secrets, which
     /// are read after this runs, so at this point there is nothing to push down.
-    /// <c>VaultSettingsStore.MergeSecrets</c> does that half once it has the value — and nulling
-    /// <see cref="VaultWorkspace.Token"/> here would drop it before it ever arrived.
+    /// <c>VaultSettingsStore.MergeSecrets</c> does that half once it has read the shared key out of
+    /// secrets.json.
     /// </para>
     /// </summary>
     [Fact]
@@ -88,15 +86,6 @@ public sealed class ProjectTests
 
         // A row's own token is untouched by migration.
         Assert.Equal("stage-token", connections["stage"].Token);
-    }
-
-    [Fact]
-    public void The_shared_token_survives_migration_for_the_secrets_merge_to_use()
-    {
-        var workspace = Legacy();
-        workspace.Migrate();
-
-        Assert.Equal("shared-token", workspace.Token);
     }
 
     [Fact]
@@ -126,7 +115,6 @@ public sealed class ProjectTests
         Assert.Null(workspace.Connections);
         Assert.Null(workspace.Document);
         Assert.Null(workspace.ActiveSources);
-        Assert.Null(workspace.Documents);
         Assert.Null(workspace.BrowseFrom);
         Assert.Null(workspace.Address);
         Assert.Null(workspace.Namespace);

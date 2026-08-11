@@ -26,7 +26,10 @@ html, body {
 
 #app, .app { height: 100%; }
 
-.boot {
+/* Two states that look the same on purpose: the loading line index.html shows before Blazor is up,
+   and every "there is nothing here yet" pane inside it. Centred and quiet, so neither reads as
+   content. */
+.boot, .empty {
     display: grid;
     place-items: center;
     height: 100%;
@@ -262,13 +265,6 @@ html, body {
 
 .tab-body { flex: 1; min-height: 0; overflow: auto; padding-top: 12px; }
 
-.empty {
-    display: grid;
-    place-items: center;
-    height: 100%;
-    color: var(--brush-text-tertiary);
-}
-
 /* ================================= Cards ================================= */
 
 .card {
@@ -430,7 +426,6 @@ select.field { cursor: pointer; }
 
 .field.dense { height: var(--size-control-dense); font-size: var(--font-size-small); }
 .field.mono { font-family: var(--font-mono); }
-.check.dense { font-size: var(--font-size-caption); }
 
 /*
  * One grid for the header strip and every row, so the columns line up without either knowing the
@@ -533,8 +528,10 @@ select.field { cursor: pointer; }
 /* The answer to "did the search find anything", on the control rather than only in the status line. */
 .pathpicker-count { font-size: var(--font-size-caption); font-variant-numeric: tabular-nums; }
 
-/* Covers the window so a click anywhere dismisses. Under the menu, over everything else. */
-.pathpicker-veil { position: fixed; inset: 0; z-index: 40; }
+/* Covers the window so a click anywhere dismisses. Under the menu, over everything else.
+   One rule for both popups on this tab - the path picker's dropdown and the row overflow menu -
+   because each needs the next click anywhere to close it without a document-level handler. */
+.pathpicker-veil, .rowmenu-scrim { position: fixed; inset: 0; z-index: 40; }
 
 .pathpicker-menu {
     position: absolute;
@@ -614,11 +611,13 @@ select.field { cursor: pointer; }
    Matches .btn-small.btn-icon below: 7px + a 14px glyph + 7px, plus its border. */
 .rowmenu-gap { width: 30px; flex: none; }
 
-.btn-icon { padding: 4px 7px; min-width: 0; line-height: 1; }
+/* Scoped to .btn-small deliberately. Written as a bare .btn-icon, this sat after the general rule
+   above and so re-padded every icon button in the app — harmless only because that rule's fixed
+   width hid it. The comment above has always said .btn-small.btn-icon; now the selector does too. */
+.btn-small.btn-icon { padding: 4px 7px; min-width: 0; line-height: 1; }
 .btn-icon.is-open { background: var(--brush-selected); }
 
-/* Sits under the popup and over everything else, so the next click anywhere dismisses the menu. */
-.rowmenu-scrim { position: fixed; inset: 0; z-index: 40; }
+/* The scrim that dismisses this menu is .rowmenu-scrim, declared with .pathpicker-veil above. */
 
 .rowmenu-pop {
     position: absolute;
@@ -654,7 +653,6 @@ select.field { cursor: pointer; }
 
 .rowmenu-item:hover:not(:disabled) { background: var(--brush-hover); }
 .rowmenu-item:disabled { opacity: .45; cursor: not-allowed; }
-.rowmenu-item input { accent-color: var(--brush-accent); cursor: pointer; margin: 0; }
 
 /* Coloured only once there is somewhere to send it: the colour should mean "this restarts
    something", not "this item exists". */
@@ -1220,8 +1218,6 @@ select.field { cursor: pointer; }
 .commit-hint.is-problem { color: var(--brush-missing); }
 .pane-actions { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
 
-.editor-pane .difflines { flex: 1; min-height: 0; }
-
 /* ================================= Dialogs =============================== */
 
 .modal-backdrop {
@@ -1303,7 +1299,6 @@ select.field { cursor: pointer; }
 }
 
 .push-diff { height: 340px; display: flex; flex-direction: column; }
-.push-diff .difflines { flex: 1; min-height: 0; }
 
 .push-confirm { display: flex; align-items: center; gap: 9px; }
 .push-confirm label { font-size: var(--font-size-small); white-space: nowrap; }
@@ -1313,7 +1308,6 @@ select.field { cursor: pointer; }
 
 .promote-body, .changes-body { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; height: 380px; }
 .promote-body .grid-card, .changes-body .grid-card { display: flex; flex-direction: column; min-height: 0; }
-.promote-body .difflines, .changes-body .difflines { flex: 1; min-height: 0; }
 
 .editrows .grid-card { max-height: 460px; display: flex; }
 

@@ -2,8 +2,6 @@ using System.Collections.ObjectModel;
 using System.Text.Json.Nodes;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using DiffPlex.DiffBuilder;
-using DiffPlex.DiffBuilder.Model;
 using JsonInsight.Classify;
 using JsonInsight.Sources;
 using JsonInsight.Diff;
@@ -322,6 +320,122 @@ public sealed partial class JsonEditorVm : ObservableObject
         NotifyMatches();
     }
 
+    /// <summary>
+    /// What a key press means to the find bar, given where it was pressed. Both hosts wrote these two
+    /// tables out separately, in their own key vocabularies, and the shapes had already diverged.
+    ///
+    /// <para>
+    /// Split in two because <em>where</em> matters: <see cref="FindBoxKey"/> answers Enter, because in
+    /// a one-line field Enter can only mean "go", while <see cref="PaneKey"/> deliberately does not —
+    /// in a JSON pane Enter types a newline, and a find bar that swallowed it would make the editor
+    /// unusable while the bar was open.
+    /// </para>
+    /// </summary>
+    public enum FindKey
+    {
+        None,
+        Next,
+        Previous,
+        Open,
+        Close,
+    }
+
+    /// <summary>The find field's own keys. Enter and F3 step, Shift reverses either, Escape closes.</summary>
+    public static FindKey FindBoxKey(string key, bool shift) =>
+        key switch
+        {
+            "Enter" or "F3" => shift ? FindKey.Previous : FindKey.Next,
+            "Escape" => FindKey.Close,
+            _ => FindKey.None,
+        };
+
+    /// <summary>
+    /// The keys the tab answers wherever the focus is. Ctrl+F opens the bar — it used to be a handler
+    /// on the pane alone, so it only worked once the caret was already in the JSON, which is precisely
+    /// where a shortcut to get there is not needed.
+    /// </summary>
+    public static FindKey PaneKey(string key, bool shift, bool control) =>
+        control && key.Equals("f", StringComparison.OrdinalIgnoreCase)
+            ? FindKey.Open
+            : key == "F3"
+                ? shift ? FindKey.Previous : FindKey.Next
+                : FindKey.None;
+
+    /// <summary>
+    /// Replaces the current match — or the first one, when nothing has been stepped to yet, so pressing
+    /// Replace without pressing Next first still replaces something — and lands on the match that takes
+    /// its place, which is what makes pressing Replace repeatedly walk the document.
+    ///
+    /// <para>
+    /// The text is written through <see cref="EditorText"/> rather than into the pane, and that is the
+    /// whole reason this lives here. WPF's copy assigned <c>TextBox.SelectedText</c>, whose binding is
+    /// delayed by 250&#160;ms, so the match list was still the pre-replace one when it was consulted a
+    /// line later: the wrap-around below could never fire, and the comment claiming the list had been
+    /// re-found was true only of the Blazor copy. Assigning here re-finds the matches synchronously, so
+    /// both hosts now behave the way both hosts' comments always said they did.
+    /// </para>
+    /// </summary>
+    /// <returns>Where the caret belongs afterwards, or -1 when nothing was replaced.</returns>
+    public int ReplaceCurrent()
+    {
+        if (!CanReplace)
+        {
+            return -1;
+        }
+
+        var at = MatchAt >= 0 ? MatchAt : StepMatch(forward: true);
+        if (at < 0)
+        {
+            return -1;
+        }
+
+        var stepped = MatchIndex;
+
+        EditorText = string.Concat(
+            EditorText.AsSpan(0, at),
+            ReplaceText,
+            EditorText.AsSpan(at + FindText.Length));
+
+        var caret = at + ReplaceText.Length;
+        SyncMatchToCaret(caret);
+
+        // Replacing the FIRST match leaves the caret before every match that is left, so there is none
+        // at or before it for SyncMatchToCaret to make current. Stepping forward puts us on the next
+        // one rather than stopping dead. (Both hosts used to explain this as the *last* match, which is
+        // backwards: replacing the last one leaves earlier matches behind the caret, and those are
+        // exactly the ones "at or before" finds.)
+        if (HasMatches && MatchIndex < 0 && stepped >= 0)
+        {
+            StepMatch(forward: true);
+        }
+
+        return caret;
+    }
+
+    /// <summary>
+    /// Every match in the pane at once. Still only in the pane — for a section, Update node has to
+    /// follow, which is what keeps a bulk replace reviewable before it lands.
+    ///
+    /// <para>
+    /// There is no "not found" answer here: <see cref="CanReplace"/> is false unless the match list is
+    /// non-empty, and the replacement runs over the same text the list was found in, so the count
+    /// cannot come back zero. Both hosts carried that unreachable branch.
+    /// </para>
+    /// </summary>
+    public void ReplaceAllInPane()
+    {
+        if (!CanReplace)
+        {
+            return;
+        }
+
+        var (replaced, count) = TextFinder.ReplaceAll(EditorText, FindText, ReplaceText, MatchCase);
+
+        // Assigned before the status, not after: this re-finds the matches, which rewrites FindStatus.
+        EditorText = replaced;
+        FindStatus = $"{count} replaced";
+    }
+
     private void NotifyMatches()
     {
         OnPropertyChanged(nameof(Matches));
@@ -346,8 +460,6 @@ public sealed partial class JsonEditorVm : ObservableObject
     public ObservableCollection<JsonNodeVm> Nodes { get; } = [];
 
     public ObservableCollection<DiffLineVm> ComparisonLines { get; } = [];
-
-    public ObservableCollection<string> History { get; } = [];
 
     public JsonEditorVm(MainVm main)
     {
@@ -613,7 +725,6 @@ public sealed partial class JsonEditorVm : ObservableObject
         OnPropertyChanged(nameof(CanRemoveNode));
         OnPropertyChanged(nameof(SelectedIsRemoved));
         OnPropertyChanged(nameof(SelectedIsScalar));
-        OnPropertyChanged(nameof(SelectedIsElement));
         OnPropertyChanged(nameof(CommitHint));
         OnPropertyChanged(nameof(RevertNodeLabel));
         OnPropertyChanged(nameof(IsEditorReadOnly));
@@ -1086,55 +1197,21 @@ public sealed partial class JsonEditorVm : ObservableObject
 
         var path = ComparisonPath;
 
-        var model = SideBySideDiffBuilder.Instance.BuildDiffModel(
-            editor.OriginalTextOrEmpty(path), editor.WorkingTextOrEmpty(path), ignoreWhitespace: false);
+        // Only the rows that differ: this pane answers "what did I just do to this node", and the
+        // unchanged lines around the answer are the part you can already read in the editor.
+        var diff = DiffLineVm.Build(
+            editor.OriginalTextOrEmpty(path), editor.WorkingTextOrEmpty(path), includeUnchanged: false);
 
-        for (var i = 0; i < Math.Max(model.OldText.Lines.Count, model.NewText.Lines.Count); i++)
+        foreach (var line in diff.Lines)
         {
-            var oldLine = i < model.OldText.Lines.Count ? model.OldText.Lines[i] : null;
-            var newLine = i < model.NewText.Lines.Count ? model.NewText.Lines[i] : null;
-
-            var type = RowType(oldLine?.Type, newLine?.Type);
-            if (type is ChangeType.Unchanged or ChangeType.Imaginary)
-            {
-                continue;
-            }
-
-            ComparisonLines.Add(new DiffLineVm(
-                oldLine?.Position?.ToString() ?? string.Empty,
-                oldLine?.Text ?? string.Empty,
-                newLine?.Position?.ToString() ?? string.Empty,
-                newLine?.Text ?? string.Empty,
-                type));
+            ComparisonLines.Add(line);
         }
-
-        var removed = ComparisonLines.Count(l => l.Type == ChangeType.Deleted);
-        var added = ComparisonLines.Count(l => l.Type == ChangeType.Inserted);
-        var modified = ComparisonLines.Count(l => l.Type == ChangeType.Modified);
 
         var where = path.Length == 0 ? "this document" : path;
 
         Message = ComparisonLines.Count == 0
             ? $"No differences — {where} matches the state it was opened in."
-            : $"{where}, against the state this tier was opened in: " +
-              $"{modified} changed, {added} added, {removed} removed.";
-    }
-
-    /// <summary>
-    /// The kind of change a row represents, given what each side says about its own line.
-    ///
-    /// <para>
-    /// A deleted line pairs a real old line with an <c>Imaginary</c> placeholder on the new side, so
-    /// reading the new side first — the obvious way round — labels every deletion "imaginary" and
-    /// renders it as an uncoloured blank row. The old side is what carries the answer there.
-    /// </para>
-    /// </summary>
-    private static ChangeType RowType(ChangeType? oldType, ChangeType? newType)
-    {
-        var right = newType ?? ChangeType.Imaginary;
-        var left = oldType ?? ChangeType.Imaginary;
-
-        return right is ChangeType.Imaginary or ChangeType.Unchanged ? left : right;
+            : $"{where}, against the state this tier was opened in: {diff.Counts}";
     }
 
     // ---------------------------------------------------------------- helpers
@@ -1161,13 +1238,6 @@ public sealed partial class JsonEditorVm : ObservableObject
 
     private void NotifyState()
     {
-        History.Clear();
-        foreach (var step in Editor?.History.AsEnumerable().Reverse() ?? [])
-        {
-            History.Add(step.Description);
-        }
-
-        OnPropertyChanged(nameof(Editor));
         OnPropertyChanged(nameof(CanEdit));
         OnPropertyChanged(nameof(ReadOnlyReason));
         OnPropertyChanged(nameof(IsModified));

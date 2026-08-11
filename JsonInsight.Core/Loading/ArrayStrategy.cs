@@ -2,6 +2,7 @@ using System.IO;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using JsonInsight.Diff;
+using JsonInsight.Promote;
 
 namespace JsonInsight.Loading;
 
@@ -46,7 +47,7 @@ public sealed class ArrayStrategies
     public static ArrayStrategies Load(string? file = null)
     {
         file ??= AppPaths.ConfigFile("arrays.json");
-        using var document = JsonDocument.Parse(File.ReadAllText(file), OrdinalJsonOptions);
+        using var document = JsonDocument.Parse(File.ReadAllText(file), OrdinalJsonWriter.DocumentOptions);
 
         var strategies = new List<ArrayStrategy>();
         if (document.RootElement.TryGetProperty("strategies", out var map))
@@ -73,8 +74,6 @@ public sealed class ArrayStrategies
         strategies.Sort((a, b) => PathGlob.Specificity(b.Pattern).CompareTo(PathGlob.Specificity(a.Pattern)));
         return new ArrayStrategies(strategies);
     }
-
-    public static ArrayStrategies Empty() => new([]);
 
     public ArrayStrategy? For(string path) =>
         _strategies.FirstOrDefault(s => PathGlob.IsMatch(path, s.Pattern));
@@ -108,26 +107,6 @@ public sealed class ArrayStrategies
     /// </summary>
     public bool IsSingleLeaf(string path, JsonArray array) =>
         For(path)?.Kind != ArrayKind.KeyedObjects && ScalarMembers(array) is not null;
-
-    /// <summary>The elements of <paramref name="array"/> as strings, or null if any element is not one.</summary>
-    public static List<string>? Members(JsonArray array)
-    {
-        var members = new List<string>(array.Count);
-
-        foreach (var element in array)
-        {
-            if (element is JsonValue value && value.TryGetValue<string>(out var text))
-            {
-                members.Add(text);
-            }
-            else
-            {
-                return null;
-            }
-        }
-
-        return members;
-    }
 
     /// <summary>
     /// The elements as comparable text, or null if any of them is an object or a nested array — which
@@ -163,10 +142,4 @@ public sealed class ArrayStrategies
 
         return members;
     }
-
-    private static readonly JsonDocumentOptions OrdinalJsonOptions = new()
-    {
-        CommentHandling = JsonCommentHandling.Skip,
-        AllowTrailingCommas = true,
-    };
 }

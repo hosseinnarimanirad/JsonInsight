@@ -78,7 +78,7 @@ public sealed record DiffEntry
                 Kind = DiffKind.TypeDiffers,
                 Left = left,
                 Right = right,
-                Detail = $"{Describe(left.Kind)} vs {Describe(right.Kind)}",
+                Detail = $"{JsonKinds.Describe(left.Kind)} vs {JsonKinds.Describe(right.Kind)}",
             };
         }
 
@@ -103,7 +103,8 @@ public sealed record DiffEntry
                 Kind = DiffKind.TypeDiffers,
                 Left = left,
                 Right = right,
-                Detail = $"{(left.IsSet ? "set" : Describe(left.Kind))} vs {(right.IsSet ? "set" : Describe(right.Kind))}",
+                Detail = $"{(left.IsSet ? "set" : JsonKinds.Describe(left.Kind))} vs " +
+                         $"{(right.IsSet ? "set" : JsonKinds.Describe(right.Kind))}",
             };
         }
 
@@ -148,15 +149,4 @@ public sealed record DiffEntry
 
     private static bool IsBoolean(JsonValueKind kind) =>
         kind is JsonValueKind.True or JsonValueKind.False;
-
-    private static string Describe(JsonValueKind kind) => kind switch
-    {
-        JsonValueKind.String => "string",
-        JsonValueKind.Number => "number",
-        JsonValueKind.True or JsonValueKind.False => "bool",
-        JsonValueKind.Null => "null",
-        JsonValueKind.Object => "object",
-        JsonValueKind.Array => "array",
-        _ => kind.ToString().ToLowerInvariant(),
-    };
 }

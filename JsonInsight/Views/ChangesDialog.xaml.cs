@@ -23,12 +23,12 @@ public partial class ChangesDialog : Window
     /// </summary>
     private void OnPushClick(object sender, RoutedEventArgs e)
     {
-        if (_vm.Tier is not { } tier || _vm.BuildUpdated() is not { } updated)
+        if (_vm.PendingPush() is not { } pending)
         {
             return;
         }
 
-        var push = new PushVm(_vm.Main, tier, updated, _vm.What);
+        var push = new PushVm(_vm.Main, pending.Tier, pending.Updated, pending.What);
         new PushDialog(push) { Owner = this }.ShowDialog();
 
         if (push.PushedTier is not null)

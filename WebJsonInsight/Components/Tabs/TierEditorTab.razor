@@ -15,7 +15,7 @@
         is why the caret survives a keystroke. The @key on each row is what keeps Blazor from throwing
         the <textarea> away and taking the caret with it.
 *@
-@inherits ObservingComponent
+@inherits ObservingComponent<JsonEditorVm>
 @inject IJSRuntime Js
 @inject DialogService Dialogs
 
@@ -215,22 +215,7 @@ else
                        changed one shows what it changed from. Its three colours are the tree's —
                        green added, red removed, amber edited — rather than the blue that elsewhere in
                        this app means "these two tiers differ". *@
-                    <div class="difflines">
-                        @foreach (var line in Vm.ComparisonLines)
-                        {
-                            <div class="dl-row @ComparisonClass(line)">
-                                <div class="dl-num">@line.LeftNumber</div>
-                                <div class="dl-text dl-left">@line.LeftText</div>
-                                <div class="dl-num">@line.RightNumber</div>
-                                <div class="dl-text dl-right">@line.RightText</div>
-                            </div>
-                        }
-
-                        @if (Vm.ComparisonLines.Count == 0)
-                        {
-                            <div class="grid-empty">No difference here.</div>
-                        }
-                    </div>
+                    <DiffLinesView Lines="Vm.ComparisonLines" EmptyMessage="No difference here." />
                 }
                 else
                 {
@@ -263,10 +248,10 @@ else
                                    @oninput="e => Vm.ReplaceText = e.Value?.ToString() ?? string.Empty"
                                    @onkeydown="OnFindKey" />
 
-                            <button class="btn btn-small" disabled="@(!Vm.HasMatches || Vm.IsEditorReadOnly)"
+                            <button class="btn btn-small" disabled="@(!Vm.CanReplace)"
                                     @onclick="ReplaceOne"
                                     title="Replace the current match and move to the next one.">Replace</button>
-                            <button class="btn btn-small" disabled="@(!Vm.HasMatches || Vm.IsEditorReadOnly)"
+                            <button class="btn btn-small" disabled="@(!Vm.CanReplace)"
                                     @onclick="ReplaceAll"
                                     title="Replace every match in this pane. Still only in the pane — a section needs Update node afterwards.">Replace all</button>
 
@@ -346,25 +331,15 @@ else
 }
 
 @code {
-    [Parameter] public JsonEditorVm? Vm { get; set; }
-
-    private JsonEditorVm? _observed;
     private ElementReference _findInput;
     private ElementReference _paneInput;
     private ElementReference _highlightLayer;
     private bool _findWasOpen;
     private bool _tracking;
 
-    protected override void OnParametersSet()
+    protected override void ObserveAlso(JsonEditorVm? vm)
     {
-        if (ReferenceEquals(_observed, Vm))
-        {
-            return;
-        }
-
-        StopObserving();
-        _observed = Vm;
-        Observe(Vm, Vm?.Nodes, Vm?.Tiers, Vm?.ComparisonLines);
+        Observe(vm?.Nodes, vm?.Tiers, vm?.ComparisonLines);
         ObserveNodes();
     }
 
@@ -437,15 +412,6 @@ else
         _ => string.Empty,
     };
 
-    private static string ComparisonClass(DiffLineVm line) => line.Type switch
-    {
-        DiffPlex.DiffBuilder.Model.ChangeType.Inserted => "dl-added",
-        DiffPlex.DiffBuilder.Model.ChangeType.Deleted => "dl-removed",
-        DiffPlex.DiffBuilder.Model.ChangeType.Modified => "dl-modified",
-        DiffPlex.DiffBuilder.Model.ChangeType.Imaginary => "dl-imaginary",
-        _ => string.Empty,
-    };
-
     // ------------------------------------------------------------------ find
 
     /// <summary>
@@ -454,25 +420,43 @@ else
     /// </summary>
     private async Task OnFindKey(KeyboardEventArgs e)
     {
-        switch (e.Key)
+        switch (JsonEditorVm.FindBoxKey(e.Key, e.ShiftKey))
         {
-            case "Enter":
-            case "F3":
-                await Step(forward: !e.ShiftKey);
+            case JsonEditorVm.FindKey.Next:
+                await Step(forward: true);
                 break;
 
-            case "Escape":
+            case JsonEditorVm.FindKey.Previous:
+                await Step(forward: false);
+                break;
+
+            case JsonEditorVm.FindKey.Close:
                 Vm?.CloseFindCommand.Execute(null);
                 break;
         }
     }
 
-    /// <summary>F3 works from inside the pane as well, which is where it is pressed from.</summary>
+    /// <summary>
+    /// F3 works from inside the pane as well, which is where it is pressed from. Ctrl+F is not handled
+    /// here even though the shared map knows it: on this host it arrives through the global shortcut
+    /// registered in interop.js, and answering it twice would toggle the bar back shut.
+    /// </summary>
     private async Task OnPaneKeyUp(KeyboardEventArgs e)
     {
-        if (Vm is { FindOpen: true } && e.Key == "F3")
+        if (Vm is not { FindOpen: true })
         {
-            await Step(forward: !e.ShiftKey);
+            return;
+        }
+
+        switch (JsonEditorVm.PaneKey(e.Key, e.ShiftKey, control: false))
+        {
+            case JsonEditorVm.FindKey.Next:
+                await Step(forward: true);
+                break;
+
+            case JsonEditorVm.FindKey.Previous:
+                await Step(forward: false);
+                break;
         }
     }
 
@@ -522,33 +506,9 @@ else
     /// </summary>
     private async Task ReplaceOne()
     {
-        if (Vm is null || Vm.IsEditorReadOnly)
+        if (Vm is null || Vm.ReplaceCurrent() < 0)
         {
             return;
-        }
-
-        // Whichever match is current, or the first one when nothing has been stepped to yet.
-        var hit = Vm.MatchAt >= 0 ? Vm.MatchAt : Vm.StepMatch(forward: true);
-        if (hit < 0)
-        {
-            return;
-        }
-
-        var index = Vm.MatchIndex;
-
-        Vm.EditorText = string.Concat(
-            Vm.EditorText.AsSpan(0, hit),
-            Vm.ReplaceText,
-            Vm.EditorText.AsSpan(hit + Vm.FindText.Length));
-
-        // The list was re-found against the shorter or longer text, so the entry that was current is
-        // gone and the one that took its place is the next match. Landing there is what makes
-        // pressing Replace repeatedly walk the document.
-        Vm.SyncMatchToCaret(hit + Vm.ReplaceText.Length);
-
-        if (Vm.HasMatches && Vm.MatchIndex < 0 && index >= 0)
-        {
-            Vm.StepMatch(forward: true);
         }
 
         if (Vm.MatchAt >= 0)
@@ -557,19 +517,7 @@ else
         }
     }
 
-    private void ReplaceAll()
-    {
-        if (Vm is null || Vm.IsEditorReadOnly || !Vm.HasMatches)
-        {
-            return;
-        }
-
-        var (text, count) = JsonInsight.Editing.TextFinder.ReplaceAll(
-            Vm.EditorText, Vm.FindText, Vm.ReplaceText, Vm.MatchCase);
-
-        Vm.EditorText = text;
-        Vm.FindStatus = count == 0 ? "not found" : $"{count} replaced";
-    }
+    private void ReplaceAll() => Vm?.ReplaceAllInPane();
 
     private async Task<int> CaretAsync() => await Js.InvokeAsync<int>("jsonInsight.caret", _paneInput);
 

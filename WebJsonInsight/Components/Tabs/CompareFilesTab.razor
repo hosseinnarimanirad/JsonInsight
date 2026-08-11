@@ -6,7 +6,7 @@
     strategies and secret classification as a source, so the comparison means the same thing, and are
     marked read-only on the way in.
 *@
-@inherits ObservingComponent
+@inherits ObservingComponent<JsonCompareVm>
 
 @if (Vm is null)
 {
@@ -114,21 +114,7 @@ else
 }
 
 @code {
-    [Parameter] public JsonCompareVm? Vm { get; set; }
-
-    private JsonCompareVm? _observed;
-
-    protected override void OnParametersSet()
-    {
-        if (ReferenceEquals(_observed, Vm))
-        {
-            return;
-        }
-
-        StopObserving();
-        _observed = Vm;
-        Observe(Vm, Vm?.Rows, Vm?.Warnings);
-    }
+    protected override void ObserveAlso(JsonCompareVm? vm) => Observe(vm?.Rows, vm?.Warnings);
 
     /// <summary>The findings colours, by the kind of difference — the same four the grid uses.</summary>
     private static string StatusClass(JsonCompareRowVm row) => row.Kind switch

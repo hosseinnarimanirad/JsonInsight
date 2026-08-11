@@ -207,7 +207,9 @@ Recent, and each was a deliberate reversal of something that looked reasonable:
   condition, so the app never quietly produces unasked the comparison it will not produce when asked.
 - **Find highlights every match**, current one stronger. Neither pane can colour its own content:
   Blazor draws a layer behind a transparent `<textarea>` at identical metrics (`.pane-highlights`,
-  scroll-synced in `interop.js`); WPF uses `FindHighlightAdorner` over the `TextBox`. Both read one
+  scroll-synced in `interop.js`); WPF does the same thing with `FindHighlightLayer`, an ordinary child
+  behind a transparent `TextBox` — it began as an adorner painted *over* the box and was reverted,
+  because an adorner cannot sit under the caret and the selection. Both read one
   `Matches`/`MatchIndex` list on `JsonEditorVm`, so stepping walks an **index**, never a fresh search
   from the caret (which used to re-find the same match), and revealing never steals focus (which used
   to turn the second Enter into a newline).

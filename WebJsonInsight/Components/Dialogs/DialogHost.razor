@@ -58,6 +58,6 @@ else if (Dialogs.Restart is { } restart)
     /// Promote and Pending changes do not write — they build a document and hand it to the one push
     /// screen, which is where the live re-read, the diff and the typed confirmation live.
     /// </summary>
-    private void HandOff((JsonInsight.Model.TierDocument Tier, System.Text.Json.Nodes.JsonNode Updated, string What) request) =>
-        Dialogs.OpenPush(request.Tier, request.Updated, request.What);
+    private void HandOff(PendingPush pending) =>
+        Dialogs.OpenPush(pending.Tier, pending.Updated, pending.What);
 }

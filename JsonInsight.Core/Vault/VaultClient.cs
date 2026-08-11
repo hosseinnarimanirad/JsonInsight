@@ -12,9 +12,6 @@ public sealed record VaultReadResult(
     string SecretPath,
     string Address);
 
-/// <summary>The outcome of a reachability check. Never carries a payload.</summary>
-public sealed record VaultProbeResult(bool Ok, int? Version, DateTimeOffset? CreatedTime, string Message);
-
 /// <summary>A successful write: the version Vault created, and where it created it.</summary>
 public sealed record VaultWriteResult(
     int Version,
@@ -65,7 +62,7 @@ public sealed class VaultClient : IDisposable
 
     public VaultClient(VaultConnection connection)
     {
-        _address = (connection.Address ?? string.Empty).Trim().TrimEnd('/');
+        _address = connection.Address.Trim().TrimEnd('/');
 
         if (string.IsNullOrWhiteSpace(_address))
         {
@@ -117,7 +114,7 @@ public sealed class VaultClient : IDisposable
     /// </summary>
     public static (string Mount, string SecretPath) ParseMountAndOptionalPath(string fullPath)
     {
-        var normalized = (fullPath ?? string.Empty).Trim().Trim('/');
+        var normalized = fullPath.Trim().Trim('/');
 
         if (normalized.Length == 0)
         {
@@ -425,37 +422,6 @@ public sealed class VaultClient : IDisposable
             .ToArray();
     }
 
-    /// <summary>
-    /// Checks reachability, authentication and the path in one request, and keeps nothing. Errors are
-    /// returned rather than thrown: a failed probe is an answer, not an exception.
-    /// </summary>
-    public async Task<VaultProbeResult> ProbeAsync(string secretPath, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            var result = await ReadAsync(secretPath, cancellationToken).ConfigureAwait(false);
-            var keys = CountRootKeys(result.Json);
-
-            return new VaultProbeResult(
-                true,
-                result.Version,
-                result.CreatedTime,
-                $"OK — version {result.Version}, {keys} root sections.");
-        }
-        catch (OperationCanceledException)
-        {
-            return new VaultProbeResult(false, null, null, $"Timed out after {Timeout.TotalSeconds:0} seconds.");
-        }
-        catch (HttpRequestException ex)
-        {
-            return new VaultProbeResult(false, null, null, $"Could not reach {_address}: {ex.Message}");
-        }
-        catch (Exception ex)
-        {
-            return new VaultProbeResult(false, null, null, ex.Message);
-        }
-    }
-
     /// <summary>Validates the KV v2 envelope and returns data.data plus its version and creation time.</summary>
     internal static (JsonElement Data, int Version, DateTimeOffset? Created) ParseEnvelope(
         JsonElement root,
@@ -490,14 +456,6 @@ public sealed class VaultClient : IDisposable
         }
 
         return (inner, version.GetInt32(), created);
-    }
-
-    private static int CountRootKeys(string json)
-    {
-        using var document = JsonDocument.Parse(json);
-        return document.RootElement.ValueKind == JsonValueKind.Object
-            ? document.RootElement.EnumerateObject().Count()
-            : 0;
     }
 
     /// <summary>

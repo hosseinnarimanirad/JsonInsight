@@ -6,7 +6,8 @@ namespace JsonInsight.Promote;
 
 /// <summary>
 /// Works out what promoting a subtree from one tier into another would do, and applies it to a
-/// node tree. It never touches disk - <see cref="SnapshotWriter"/> owns that.
+/// node tree. It never writes anything back - the write path (<c>VaultPusher</c> and
+/// <c>LocalFileSourceProvider</c>) owns that.
 /// </summary>
 public static class PromotionPlanner
 {

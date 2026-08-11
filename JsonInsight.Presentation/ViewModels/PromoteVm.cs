@@ -2,8 +2,6 @@ using System.Collections.ObjectModel;
 using System.Text.Json.Nodes;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using DiffPlex.DiffBuilder;
-using DiffPlex.DiffBuilder.Model;
 using JsonInsight.Loading;
 using JsonInsight.Model;
 using JsonInsight.Promote;
@@ -22,8 +20,6 @@ public sealed partial class PromoteLeafVm : ObservableObject
     public string Path => Leaf.Path;
 
     public string ClassName => Leaf.Class.ToString().ToLowerInvariant();
-
-    public string SourceDisplay => Leaf.SourceDisplay;
 
     public string Reason => Leaf.Reason;
 
@@ -54,9 +50,6 @@ public sealed partial class PromoteVm : ObservableObject
 
     [ObservableProperty]
     private string? _message;
-
-    [ObservableProperty]
-    private bool _previewReady;
 
     public ObservableCollection<PromoteLeafVm> Leaves { get; } = [];
 
@@ -98,7 +91,6 @@ public sealed partial class PromoteVm : ObservableObject
 
     partial void OnDestinationChanged(TierDocument? value)
     {
-        PreviewReady = false;
         PreviewLines.Clear();
         BuildPlan();
     }
@@ -140,7 +132,6 @@ public sealed partial class PromoteVm : ObservableObject
     private void Preview()
     {
         PreviewLines.Clear();
-        PreviewReady = false;
 
         if (Destination is null)
         {
@@ -159,27 +150,13 @@ public sealed partial class PromoteVm : ObservableObject
             return;
         }
 
-        var model = SideBySideDiffBuilder.Instance.BuildDiffModel(before, after, false);
-        for (var i = 0; i < Math.Max(model.OldText.Lines.Count, model.NewText.Lines.Count); i++)
+        // Only the rows that differ: what is being reviewed here is the subtree being copied in, and
+        // the destination's untouched keys are not it.
+        foreach (var line in DiffLineVm.Build(before, after, includeUnchanged: false).Lines)
         {
-            var oldLine = i < model.OldText.Lines.Count ? model.OldText.Lines[i] : null;
-            var newLine = i < model.NewText.Lines.Count ? model.NewText.Lines[i] : null;
-            var type = newLine?.Type ?? oldLine?.Type ?? ChangeType.Unchanged;
-
-            if (type == ChangeType.Unchanged)
-            {
-                continue;
-            }
-
-            PreviewLines.Add(new DiffLineVm(
-                oldLine?.Position?.ToString() ?? string.Empty,
-                oldLine?.Text ?? string.Empty,
-                newLine?.Position?.ToString() ?? string.Empty,
-                newLine?.Text ?? string.Empty,
-                type));
+            PreviewLines.Add(line);
         }
 
-        PreviewReady = true;
         Message = PreviewLines.Count == 0
             ? "The destination would not change."
             : $"{PreviewLines.Count} changed line(s), against {Destination.Id} as it was read. " +
@@ -207,15 +184,18 @@ public sealed partial class PromoteVm : ObservableObject
         }
     }
 
+    /// <summary>
+    /// The push this screen would hand on, or null when there is nothing to hand on. Asked instead of
+    /// spelling out "if there is a destination and the document builds" at each of the two hosts'
+    /// buttons.
+    /// </summary>
+    public PendingPush? PendingPush() =>
+        Destination is { } destination && BuildUpdated() is { } updated
+            ? new PendingPush(destination, updated, What)
+            : null;
+
     /// <summary>One phrase naming this promote, carried onto the push screen.</summary>
     public string What => $"{RootPath} promoted from {Source.Id} ({Leaves.Count} key(s))";
-
-    /// <summary>
-    /// The keys that would go in carrying a placeholder rather than a real value, listed after a
-    /// push because they are the ones that will fail loudly at startup until somebody sets them.
-    /// </summary>
-    public IReadOnlyList<string> Placeholders =>
-        Leaves.Where(l => l.Action == PromotionAction.CopyPlaceholder).Select(l => l.Path).ToArray();
 
     private PromotionPlan CurrentPlan()
     {

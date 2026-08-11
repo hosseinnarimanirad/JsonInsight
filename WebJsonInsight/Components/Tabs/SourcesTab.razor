@@ -6,7 +6,7 @@
     its own address, token and TLS setting — or a local file. Everything about a row is on that one
     line, which is the arrangement that replaced a shared-credentials card plus a rule about which won.
 *@
-@inherits ObservingComponent
+@inherits ObservingComponent<VaultVm>
 @inject DialogService Dialogs
 
 @if (Vm is null)
@@ -262,20 +262,9 @@ else
 }
 
 @code {
-    [Parameter] public VaultVm? Vm { get; set; }
-
-    private VaultVm? _observed;
-
-    protected override void OnParametersSet()
+    protected override void ObserveAlso(VaultVm? vm)
     {
-        if (ReferenceEquals(_observed, Vm))
-        {
-            return;
-        }
-
-        StopObserving();
-        _observed = Vm;
-        Observe(Vm, Vm?.Connections, Vm?.Problems);
+        Observe(vm?.Connections, vm?.Problems);
         ObserveRows();
     }
 
@@ -359,11 +348,6 @@ else
     /// The select hands back the enum's name; the row wants the enum. Parsed rather than bound
     /// directly because switching kind changes which half of the row is even shown.
     /// </summary>
-    private static void OnKindChanged(VaultConnectionVm row, ChangeEventArgs e)
-    {
-        if (Enum.TryParse<SourceKind>(e.Value?.ToString(), out var kind))
-        {
-            row.Kind = kind;
-        }
-    }
+    private static void OnKindChanged(VaultConnectionVm row, ChangeEventArgs e) =>
+        Choice.Set<SourceKind>(e, kind => row.Kind = kind);
 }

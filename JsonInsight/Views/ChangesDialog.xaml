@@ -174,25 +174,8 @@
                     </Border>
                     <ListBox Style="{StaticResource LineList}"
                              ItemsSource="{Binding PreviewLines}" Padding="4"
-                             ScrollViewer.HorizontalScrollBarVisibility="Auto">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <Border Style="{StaticResource Row.DiffLine}">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="44" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="{Binding RightNumber}"
-                                                   Style="{StaticResource Text.MonoCaption}"
-                                                   TextAlignment="Right" Margin="0,0,10,0" />
-                                        <TextBlock Grid.Column="1" Text="{Binding RightText}"
-                                                   Style="{StaticResource Text.Mono}" />
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
+                             ItemTemplate="{StaticResource DiffRow.Preview}"
+                             ScrollViewer.HorizontalScrollBarVisibility="Auto" />
                 </DockPanel>
             </Border>
         </Grid>

@@ -78,10 +78,6 @@ public sealed class EditSet
 
     public void Clear() => _edits.Clear();
 
-    /// <summary>Edits whose base no longer matches the document they would be written into.</summary>
-    public IReadOnlyList<PendingEdit> StaleIn(TierDocument document) =>
-        For(document.Id).Where(e => e.IsStaleAgainst(document.Flat)).ToArray();
-
     /// <summary>Re-reads every edit's base from the current document. Values set are left alone.</summary>
     public void RebaseOn(TierDocument document)
     {

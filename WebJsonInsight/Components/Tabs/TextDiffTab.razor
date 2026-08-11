@@ -7,7 +7,7 @@
     right-hand column off the screen with it, so a two-column diff read as a one-column one until you
     scrolled to find the other side.
 *@
-@inherits ObservingComponent
+@inherits ObservingComponent<RawDiffVm>
 
 @if (Vm is null)
 {
@@ -60,63 +60,27 @@ else
         </div>
 
         <div class="card card-flush difflines-card">
-            <div class="difflines-head">
-                <div class="dl-num"></div>
-                <div class="dl-text">AS @(Vm.Left?.Id.ToUpperInvariant() ?? "LEFT")</div>
-                <div class="dl-num"></div>
-                <div class="dl-text">AS @(Vm.Right?.Id.ToUpperInvariant() ?? "RIGHT")</div>
-            </div>
-
-            <div class="difflines">
-                @foreach (var line in Vm.Lines)
-                {
-                    <div class="dl-row @LineClass(line)">
-                        <div class="dl-num">@line.LeftNumber</div>
-                        <div class="dl-text dl-left">@line.LeftText</div>
-                        <div class="dl-num">@line.RightNumber</div>
-                        <div class="dl-text dl-right">@line.RightText</div>
-                    </div>
-                }
-
-                @if (Vm.Lines.Count == 0)
-                {
-                    <div class="grid-empty">
-                        @(Vm.Left is null || Vm.Right is null
-                            ? "Pick two sources."
-                            : "These two are identical, line for line.")
-                    </div>
-                }
-            </div>
+            <DiffLinesView Lines="Vm.Lines" LeftHeader="@LeftHeader" RightHeader="@RightHeader"
+                           EmptyMessage="@EmptyMessage" />
         </div>
     </div>
 }
 
 @code {
-    [Parameter] public RawDiffVm? Vm { get; set; }
-
-    private RawDiffVm? _observed;
-
-    protected override void OnParametersSet()
-    {
-        if (ReferenceEquals(_observed, Vm))
-        {
-            return;
-        }
-
-        StopObserving();
-        _observed = Vm;
-        Observe(Vm, Vm?.Lines);
-    }
+    protected override void ObserveAlso(RawDiffVm? vm) => Observe(vm?.Lines);
 
     private TierDocument? Find(string? id) =>
         Vm?.Documents.FirstOrDefault(d => d.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
 
-    private static string LineClass(DiffLineVm line) => line.Type switch
-    {
-        DiffPlex.DiffBuilder.Model.ChangeType.Inserted => "dl-added",
-        DiffPlex.DiffBuilder.Model.ChangeType.Deleted => "dl-removed",
-        DiffPlex.DiffBuilder.Model.ChangeType.Modified => "dl-modified",
-        DiffPlex.DiffBuilder.Model.ChangeType.Imaginary => "dl-imaginary",
-        _ => string.Empty,
-    };
+    // "AS DEV" / "AS STAGE" rather than the picker's label: the columns are wide and the heading is
+    // read at a glance, and the version suffix the picker carries would move under every reload.
+    private string LeftHeader => "AS " + (Vm?.Left?.Id.ToUpperInvariant() ?? "LEFT");
+
+    private string RightHeader => "AS " + (Vm?.Right?.Id.ToUpperInvariant() ?? "RIGHT");
+
+    // Two different findings, and they must not be confused: nothing was picked, or the two that
+    // were picked hold the same bytes.
+    private string EmptyMessage => Vm?.Left is null || Vm?.Right is null
+        ? "Pick two sources."
+        : "These two are identical, line for line.";
 }

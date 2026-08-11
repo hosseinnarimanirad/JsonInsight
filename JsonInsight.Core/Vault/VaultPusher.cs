@@ -23,8 +23,7 @@ public sealed record PushPlan(
     string LiveText,
     string PayloadText,
     int? BaseVersion,
-    string What,
-    IReadOnlyList<string> Warnings)
+    string What)
 {
     /// <summary>
     /// Which kind of source this plan targets. Defaults to <see cref="SourceKind.Vault"/> — every
@@ -249,11 +248,9 @@ public sealed class VaultPusher
                 $"Vault holds something at {secretPath} that will not parse as JSON: {ex.Message}");
         }
 
-        // A base behind the live version is not a warning any more — PushPlan.Stale refuses the push
-        // and says what to do instead, so repeating it here would be the same sentence twice, once
-        // as advice and once as a refusal.
-        var warnings = new List<string>();
-
+        // Nothing is said here about a base behind the live version: PushPlan.Stale refuses the push
+        // and says what to do instead, so repeating it as advice would be the same sentence twice,
+        // once on the way past and once as the refusal.
         return new PushPreflight(
             new PushPlan(
                 tier.Id,
@@ -264,8 +261,7 @@ public sealed class VaultPusher
                 liveText,
                 payload,
                 tier.VaultVersion,
-                what,
-                warnings),
+                what),
             null);
     }
 
