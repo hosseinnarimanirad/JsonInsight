@@ -184,6 +184,15 @@ else
                             {
                                 <span class="tree-preview @(node.ContainsSecret ? "is-secret" : "")">@node.Preview</span>
                             }
+
+                            @* Copies the row as it would sit inside its parent — "key": value — where
+                               the pane's Copy takes the value alone. On the row rather than the strip
+                               because it works on any row, selected or not. *@
+                            <button class="row-copy" title='Copy this node together with its key — "@node.Name": …'
+                                    @onclick:stopPropagation="true"
+                                    @onclick="() => Vm.CopyNodeWithKeyCommand.Execute(node)">
+                                <Icon Name="copy" Size="11" />
+                            </button>
                         </div>
                     }
 

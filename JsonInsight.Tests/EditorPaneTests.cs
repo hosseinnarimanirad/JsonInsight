@@ -662,4 +662,98 @@ public sealed class EditorPaneTests
         Assert.Equal(2, TextFinder.Ordinal(text, "A", 3, matchCase: true));
         Assert.Equal(0, TextFinder.Ordinal(text, "A", 2, matchCase: true));
     }
+
+    /// <summary>
+    /// The tree's own copy, as opposed to the pane's: the row together with its key, so what lands
+    /// on the clipboard pastes straight into another object as a member.
+    /// </summary>
+    [Fact]
+    public void Copying_a_row_with_its_key_yields_a_pasteable_member()
+    {
+        var clipboard = new CapturingClipboard();
+        JsonInsight.Platform.Platform.Clipboard = clipboard;
+
+        try
+        {
+            var vm = Open();
+            var row = vm.Nodes.First(n => n.Path == "Redis");
+
+            vm.CopyNodeWithKeyCommand.Execute(row);
+
+            Assert.Null(vm.Error);
+            Assert.StartsWith("\"Redis\": {", clipboard.Text, StringComparison.Ordinal);
+            Assert.Contains("Copied Redis with its key", vm.Message!, StringComparison.Ordinal);
+
+            // The whole point: wrapped in braces it is a valid object holding exactly this member.
+            var pasted = JsonNode.Parse("{" + clipboard.Text + "}");
+            Assert.NotNull(pasted!["Redis"]);
+        }
+        finally
+        {
+            JsonInsight.Platform.Platform.Reset();
+        }
+    }
+
+    /// <summary>
+    /// The row does not have to be selected — the context menu and the row button hand over whatever
+    /// row was clicked, and the value comes from the document rather than from a pane it is not in.
+    /// </summary>
+    [Fact]
+    public void Copying_an_unselected_row_reads_the_document_not_the_pane()
+    {
+        var clipboard = new CapturingClipboard();
+        JsonInsight.Platform.Platform.Clipboard = clipboard;
+
+        try
+        {
+            var vm = Open();
+            vm.SelectedNode = vm.Nodes.First(n => n.Path == "Redis");
+            vm.EditorText = """{ "typed": "not applied" }""";
+
+            var other = vm.Nodes.First(n => n.Path == "Redis:ConnectionString");
+            vm.CopyNodeValueCommand.Execute(other);
+
+            Assert.Null(vm.Error);
+            Assert.DoesNotContain("typed", clipboard.Text, StringComparison.Ordinal);
+            Assert.StartsWith("\"", clipboard.Text, StringComparison.Ordinal);
+        }
+        finally
+        {
+            JsonInsight.Platform.Platform.Reset();
+        }
+    }
+
+    /// <summary>
+    /// For the selected row the pane is what is on screen, so — like the pane's own Copy — its text,
+    /// edits included, is what gets copied, behind the key.
+    /// </summary>
+    [Fact]
+    public void Copying_the_selected_row_takes_the_pane_text_behind_the_key()
+    {
+        var clipboard = new CapturingClipboard();
+        JsonInsight.Platform.Platform.Clipboard = clipboard;
+
+        try
+        {
+            var vm = Open();
+            var row = vm.Nodes.First(n => n.Path == "Redis");
+            vm.SelectedNode = row;
+            vm.EditorText = """{ "typed": true }""";
+
+            vm.CopyNodeWithKeyCommand.Execute(row);
+
+            Assert.Equal("\"Redis\": " + vm.EditorText, clipboard.Text);
+        }
+        finally
+        {
+            JsonInsight.Platform.Platform.Reset();
+        }
+    }
+
+    private sealed class CapturingClipboard : JsonInsight.Platform.IClipboard
+    {
+        public string Text { get; private set; } = string.Empty;
+
+        public void SetText(string text) => Text = text;
+    }
 }

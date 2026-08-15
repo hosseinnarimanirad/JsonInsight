@@ -74,6 +74,25 @@ public partial class JsonEditorView : UserControl
         }
     }
 
+    private void OnCopyRowWithKey(object sender, RoutedEventArgs e) => CopyRow(sender, withKey: true);
+
+    private void OnCopyRowValue(object sender, RoutedEventArgs e) => CopyRow(sender, withKey: false);
+
+    /// <summary>
+    /// The row comes through the menu's placement target rather than the MenuItem's DataContext: a
+    /// ContextMenu lives in its own visual tree (the same gotcha VaultView's row menu documents), and
+    /// the placement target is the one reliable link back to the ListBoxItem that was right-clicked —
+    /// which need not be the selected row, so the command takes the node rather than assuming one.
+    /// </summary>
+    private void CopyRow(object sender, bool withKey)
+    {
+        if (sender is MenuItem { Parent: ContextMenu { PlacementTarget: FrameworkElement { DataContext: JsonNodeVm node } } }
+            && Vm is { } vm)
+        {
+            (withKey ? vm.CopyNodeWithKeyCommand : vm.CopyNodeValueCommand).Execute(node);
+        }
+    }
+
     /// <summary>
     /// Find and replace lives in the code-behind because it is entirely about the text box: where the
     /// caret is, what is selected, and what to scroll to. The matching itself is

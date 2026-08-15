@@ -1073,6 +1073,26 @@ select.field { cursor: pointer; }
 .tree-row.removed .tree-name,
 .tree-row.removed .tree-preview { text-decoration: line-through; opacity: .7; }
 
+/* Per-row copy, shown on hover so a dense tree does not carry a column of buttons. Kept visible on
+   the selected row's hover too — it is the one row where the button is most likely to be wanted. */
+.row-copy {
+    margin-left: auto;
+    display: grid;
+    place-items: center;
+    width: 20px; height: 20px;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--brush-text-tertiary);
+    cursor: pointer;
+    flex: none;
+    visibility: hidden;
+}
+
+.tree-row:hover .row-copy { visibility: visible; }
+.row-copy:hover { color: var(--brush-text); background: var(--brush-hover); }
+
 .tree-name { font-family: var(--font-mono); }
 
 .tree-summary, .tree-preview {

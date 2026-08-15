@@ -197,8 +197,26 @@
                              SelectedItem="{Binding SelectedNode, Mode=TwoWay}">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <StackPanel Orientation="Horizontal"
+                                <!-- The transparent background is load-bearing: EntryItem stretches
+                                     the content to the row's full width, but a panel with no brush
+                                     is invisible to hit-testing, so without it the menu would only
+                                     open over the text.
+
+                                     Inline in the template rather than in an ItemContainerStyle,
+                                     because a Click handler inside a Style setter's value breaks
+                                     the view's BAML connection order and the whole view fails to
+                                     load — template-deferred content (as in VaultView's row menu)
+                                     connects fine. -->
+                                <StackPanel Orientation="Horizontal" Background="Transparent"
                                             Margin="{Binding Indent, Converter={StaticResource Indent}}">
+                                    <StackPanel.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="Copy &quot;key&quot;: value" Click="OnCopyRowWithKey"
+                                                      ToolTip="Copy this node together with its key, ready to paste into another object." />
+                                            <MenuItem Header="Copy value" Click="OnCopyRowValue"
+                                                      ToolTip="Copy this node's value alone — what the pane's Copy copies for the selected node." />
+                                        </ContextMenu>
+                                    </StackPanel.ContextMenu>
                                     <TextBlock Text="{Binding Glyph}" Width="14"
                                                Foreground="{DynamicResource Brush.TextTertiary}"
                                                VerticalAlignment="Center" />

@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.Text.Encodings.Web;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -1129,6 +1131,75 @@ public sealed partial class JsonEditorVm : ObservableObject
     }
 
     /// <summary>
+    /// Copies one tree row as it would sit inside its parent object — the JSON-encoded key, a colon,
+    /// and the node's subtree (<c>"Name": { … }</c>) — so the result pastes straight into another
+    /// document. Takes the row rather than assuming the selection, because it is reachable from the
+    /// tree itself: the WPF context menu and the web row button both hand over the row that was
+    /// clicked, selected or not.
+    /// </summary>
+    [RelayCommand]
+    private void CopyNodeWithKey(JsonNodeVm? node) => CopySubtree(node, withKey: true);
+
+    /// <summary>The value alone, for any row rather than only the one loaded in the pane.</summary>
+    [RelayCommand]
+    private void CopyNodeValue(JsonNodeVm? node) => CopySubtree(node, withKey: false);
+
+    /// <summary>
+    /// The same encoder the document is written with, so the copied key is escaped exactly the way
+    /// it appears in the file rather than in the default encoder's <c>\uXXXX</c> form.
+    /// </summary>
+    private static readonly JsonSerializerOptions KeyOptions = new()
+    {
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
+
+    private void CopySubtree(JsonNodeVm? node, bool withKey)
+    {
+        node ??= SelectedNode;
+        if (node is null)
+        {
+            return;
+        }
+
+        string text;
+        try
+        {
+            // The selected row is the one the pane shows, so its pane text — edits included — is
+            // what gets copied, for the same reason CopyNode copies the pane: copying something
+            // subtly different from what is on screen would be the surprise. Any other row has no
+            // pane, so it reads from the document.
+            text = ReferenceEquals(node, SelectedNode) && EditorText.Length > 0
+                ? EditorText
+                : DocumentText(node);
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+            return;
+        }
+
+        // The root is the document, not a key inside one, so there is no key to prepend.
+        var payload = withKey && node.Path.Length > 0
+            ? $"{JsonSerializer.Serialize(node.Name, KeyOptions)}: {text}"
+            : text;
+
+        try
+        {
+            JsonInsight.Platform.Platform.Clipboard.SetText(payload);
+        }
+        catch (Exception ex)
+        {
+            Error = $"Could not copy: {ex.Message}";
+            return;
+        }
+
+        Error = null;
+        var where = node.Path.Length > 0 ? node.Path : "the whole document";
+        var how = withKey && node.Path.Length > 0 ? " with its key" : string.Empty;
+        Message = $"Copied {where}{how} — {payload.Length:N0} characters.";
+    }
+
+    /// <summary>
     /// Puts the node's current text back in the pane, discarding whatever was typed.
     ///
     /// <para>
@@ -1401,34 +1472,46 @@ public sealed partial class JsonEditorVm : ObservableObject
             return;
         }
 
-        var path = SelectedNode.Path;
-        var removed = SelectedNode.IsRemoved;
-
         try
         {
-            // Exactly the selected node's subtree, in the writer's canonical form - so pasting it
-            // straight back is a no-op rather than a reformat. A tombstone has nothing in the edited
-            // document, so it shows what it held when the tier was opened, read-only.
-            if (!(removed ? Editor.HoldsOriginal(path) : Editor.Holds(path)))
-            {
-                throw new InvalidOperationException($"'{path}' is not in this document.");
-            }
-
-            var node = removed ? Editor.FindOriginal(path) : Editor.Find(path);
-
-            // A key whose value is JSON null is present and holds null; the node for it is a null
-            // reference, so the literal has to be written rather than serialized.
-            EditorText = node is null
-                ? "null"
-                : CompactJson
-                    ? OrdinalJsonWriter.SerializeCompactToText(node)
-                    : OrdinalJsonWriter.SerializeToText(node);
+            EditorText = DocumentText(SelectedNode);
         }
         catch (Exception ex)
         {
             EditorText = string.Empty;
             Error = ex.Message;
         }
+    }
+
+    /// <summary>
+    /// Exactly one row's subtree, in the writer's canonical form — so pasting it straight back is a
+    /// no-op rather than a reformat. A tombstone has nothing in the edited document, so it shows what
+    /// it held when the tier was opened.
+    /// </summary>
+    private string DocumentText(JsonNodeVm target)
+    {
+        if (Editor is null)
+        {
+            throw new InvalidOperationException("No document is open.");
+        }
+
+        var path = target.Path;
+        var removed = target.IsRemoved;
+
+        if (!(removed ? Editor.HoldsOriginal(path) : Editor.Holds(path)))
+        {
+            throw new InvalidOperationException($"'{path}' is not in this document.");
+        }
+
+        var node = removed ? Editor.FindOriginal(path) : Editor.Find(path);
+
+        // A key whose value is JSON null is present and holds null; the node for it is a null
+        // reference, so the literal has to be written rather than serialized.
+        return node is null
+            ? "null"
+            : CompactJson
+                ? OrdinalJsonWriter.SerializeCompactToText(node)
+                : OrdinalJsonWriter.SerializeToText(node);
     }
 
     /// <summary>
