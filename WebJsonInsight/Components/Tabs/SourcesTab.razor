@@ -41,8 +41,11 @@ else
                             title="Throw away unsaved edits on this tab and read the settings files again.">
                         <Icon Name="refresh" /> <span>Revert</span>
                     </button>
-                    <button class="btn btn-primary" @onclick="() => Vm.SaveSettingsCommand.Execute(null)"
-                            title="Write the paths and addresses to appsettings.json and the tokens to user secrets. Nothing on screen moves until the app is restarted, or another project is opened and this one reopened.">
+                    <button class="btn btn-primary" disabled="@(!Vm.CanSaveSettings)"
+                            @onclick="() => Vm.SaveSettingsCommand.Execute(null)"
+                            title="@(Vm.CanSaveSettings
+                                       ? "Write the paths and addresses to appsettings.json and the tokens to user secrets. Nothing on screen moves until the app is restarted, or another project is opened and this one reopened."
+                                       : Vm.DuplicateError)">
                         <span>Save settings</span>
                     </button>
                 </div>
@@ -93,9 +96,13 @@ else
                     @if (row.IsVault)
                     {
                         <div class="src-c-addr">
+                            @* onfocus is a plain DOM attribute, not a Blazor handler: selecting all
+                               on focus needs no round trip, and the usual edit here is replacing
+                               one server with another rather than appending to it. *@
                             <input class="field dense" type="text" placeholder="https://vault.example.com:8200"
                                    title="This row's own Vault server. Rows do not share one — beta and prod are not on the same host as stage."
                                    value="@row.Address"
+                                   onfocus="this.select()"
                                    @oninput="e => row.Address = e.Value?.ToString() ?? string.Empty" />
 
                             @* On the row, not only in the menu. Certificate checking being off is a
@@ -239,13 +246,26 @@ else
                         }
                     </div>
 
+                    @* Red for a test or load that failed, neutral for everything else — only the
+                       colour says which kind of news it is. *@
                     @if (!string.IsNullOrEmpty(row.Status))
                     {
-                        <div class="src-row-status">@row.Status</div>
+                        <div class="src-row-status @(row.StatusIsError ? "is-error" : "")">@row.Status</div>
                     }
                 </div>
             }
         </section>
+
+        @* The duplicate-source complaint. Red, its own notice rather than a Status write: it is
+           what disables Save settings, and it stays for as long as the clash exists instead of
+           scrolling away under the next report. *@
+        @if (!string.IsNullOrEmpty(Vm.DuplicateError))
+        {
+            <div class="notice notice-danger">
+                <Icon Name="warn" />
+                <div>@Vm.DuplicateError</div>
+            </div>
+        }
 
         @if (!string.IsNullOrEmpty(Vm.Status))
         {

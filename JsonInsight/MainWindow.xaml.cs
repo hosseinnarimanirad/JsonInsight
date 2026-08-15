@@ -28,11 +28,22 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Where a source's restart endpoint is set. The dialog edits the row directly, so the Sources
-    /// tab's own Save settings persists it with everything else on that row.
+    /// Where a source's restart endpoint is set. The dialog edits the row directly, and closing it
+    /// over a change saves the settings then and there — an endpoint configured and then lost to a
+    /// forgotten Save settings press was the endpoint most likely to be needed in a hurry. Compared
+    /// rather than assumed: opening the dialog to read what is configured is not an edit.
     /// </summary>
-    private void OnRestartConfigRequested(object? sender, VaultConnectionVm row) =>
+    private void OnRestartConfigRequested(object? sender, VaultConnectionVm row)
+    {
+        var opened = (row.RestartUrl, row.RestartBody, row.RestartAllowInsecureTls);
+
         new RestartConfigDialog(row) { Owner = this }.ShowDialog();
+
+        if (opened != (row.RestartUrl, row.RestartBody, row.RestartAllowInsecureTls))
+        {
+            _vm.Vault?.SaveRestartConfig();
+        }
+    }
 
     /// <summary>Calling it. See <see cref="WriteFlows.Restart"/> for why it can be refused.</summary>
     private void OnRestartRequested(object? sender, VaultConnectionVm row) =>

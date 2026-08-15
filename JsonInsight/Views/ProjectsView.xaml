@@ -86,8 +86,14 @@
                     <ItemsControl ItemsSource="{Binding Items}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
+                                <!-- The transparent background is what makes the whole row double-
+                                     clickable: a Border with no brush is invisible to hit-testing,
+                                     so the shortcut would only work over the text. -->
                                 <Border BorderBrush="{DynamicResource Brush.BorderSubtle}"
-                                        BorderThickness="0,0,0,1" Padding="12,12">
+                                        BorderThickness="0,0,0,1" Padding="12,12"
+                                        Background="Transparent"
+                                        MouseLeftButtonDown="OnRowMouseDown"
+                                        ToolTip="Double-click to open this project.">
                                     <DockPanel>
 
                                         <!-- Row actions -->

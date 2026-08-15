@@ -413,4 +413,180 @@ public sealed class SourcesTabTests
         Assert.DoesNotContain(elsewhere.Tiers, t => t.Id == "dev");
         Assert.Contains(problems, p => p.Contains("local file", StringComparison.Ordinal));
     }
+
+    /// <summary>
+    /// Two rows reading the same Vault secret is one source counted twice — the columns would agree
+    /// with each other by construction and call it agreement between environments — so it is named
+    /// as a problem. Same address compared without case, same path with it, because Vault paths are
+    /// case-sensitive and addresses are hosts.
+    /// </summary>
+    [Fact]
+    public void Two_rows_reading_the_same_vault_secret_are_a_duplicate()
+    {
+        var tab = NewTab();
+
+        Row(tab, "stage").Address = "https://vault.example.com";
+        Row(tab, "stage").SecretPath = "kv/app/config.json";
+
+        Row(tab, "beta").Address = "HTTPS://VAULT.EXAMPLE.COM";
+        Row(tab, "beta").SecretPath = "kv/app/config.json";
+
+        var problem = tab.DuplicateSourceProblem();
+
+        Assert.NotNull(problem);
+        Assert.Contains("stage", problem!, StringComparison.Ordinal);
+        Assert.Contains("beta", problem, StringComparison.Ordinal);
+        Assert.Contains("kv/app/config.json", problem, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The usual shape — one server, a path per environment — is exactly not a duplicate, and nor is
+    /// the same path on two different servers. The place is the pair, not either half of it.
+    /// </summary>
+    [Fact]
+    public void Distinct_paths_or_distinct_servers_are_not_duplicates()
+    {
+        var tab = NewTab();
+
+        Row(tab, "stage").Address = "https://vault.example.com";
+        Row(tab, "stage").SecretPath = "kv/app/stage/config.json";
+
+        Row(tab, "beta").Address = "https://vault.example.com";
+        Row(tab, "beta").SecretPath = "kv/app/beta/config.json";
+
+        Assert.Null(tab.DuplicateSourceProblem());
+
+        Row(tab, "beta").SecretPath = "kv/app/stage/config.json";
+        Row(tab, "beta").Address = "https://other-vault.example.com";
+
+        Assert.Null(tab.DuplicateSourceProblem());
+    }
+
+    [Fact]
+    public void Two_rows_reading_the_same_file_are_a_duplicate_whatever_the_casing()
+    {
+        var tab = NewTab();
+
+        Row(tab, "dev").Kind = SourceKind.LocalFile;
+        Row(tab, "dev").LocalFilePath = @"C:\snapshots\dev.json";
+
+        Row(tab, "stage").Kind = SourceKind.LocalFile;
+        Row(tab, "stage").LocalFilePath = @"c:\Snapshots\DEV.JSON";
+
+        // The whole chain, not only the detector: the error is up, and the save the buttons bind to
+        // is off.
+        Assert.NotNull(tab.DuplicateSourceProblem());
+        Assert.NotEqual(string.Empty, tab.DuplicateError);
+        Assert.False(tab.SaveSettingsCommand.CanExecute(null));
+    }
+
+    /// <summary>A trailing slash is the most likely way of typing the same server twice.</summary>
+    [Fact]
+    public void A_trailing_slash_does_not_hide_a_duplicate_address()
+    {
+        var tab = NewTab();
+
+        Row(tab, "stage").Address = "https://vault.example.com:8200";
+        Row(tab, "stage").SecretPath = "kv/app/config.json";
+
+        Row(tab, "beta").Address = "https://vault.example.com:8200/";
+        Row(tab, "beta").SecretPath = "kv/app/config.json";
+
+        Assert.NotNull(tab.DuplicateSourceProblem());
+        Assert.False(tab.SaveSettingsCommand.CanExecute(null));
+    }
+
+    /// <summary>
+    /// A Vault row can be non-empty on a token or a restart endpoint alone. Without a path it reads
+    /// nowhere, and two nowheres are not the same place — this used to be the false positive.
+    /// </summary>
+    [Fact]
+    public void Rows_with_no_path_yet_are_not_duplicates_of_each_other()
+    {
+        var tab = NewTab();
+
+        Row(tab, "stage").Token = "hvs.example-1";
+        Row(tab, "beta").Token = "hvs.example-2";
+
+        Assert.Null(tab.DuplicateSourceProblem());
+    }
+
+    /// <summary>
+    /// The clash is reported the moment it is typed, disables Save for as long as it exists, and
+    /// clears itself the moment one row moves — a complaint that had to be dismissed by hand would
+    /// still be on screen after the problem was gone.
+    /// </summary>
+    [Fact]
+    public void A_duplicate_disables_save_until_it_is_resolved()
+    {
+        var tab = NewTab();
+
+        Row(tab, "stage").Address = "https://vault.example.com";
+        Row(tab, "stage").SecretPath = "kv/app/config.json";
+        Row(tab, "beta").Address = "https://vault.example.com";
+
+        Assert.True(tab.CanSaveSettings);
+
+        Row(tab, "beta").SecretPath = "kv/app/config.json";
+
+        Assert.Contains("the same Vault secret", tab.DuplicateError, StringComparison.Ordinal);
+        Assert.False(tab.CanSaveSettings);
+        Assert.False(tab.SaveSettingsCommand.CanExecute(null));
+
+        Row(tab, "beta").SecretPath = "kv/app/beta/config.json";
+
+        Assert.Equal(string.Empty, tab.DuplicateError);
+        Assert.True(tab.SaveSettingsCommand.CanExecute(null));
+    }
+
+    /// <summary>
+    /// The dropdown narrows to what the path box holds — except when it holds exactly a known path,
+    /// which is what the box looks like right after picking one, and a list of one entry at that
+    /// moment would make the picker look lost rather than filtered.
+    /// </summary>
+    [Fact]
+    public void Typing_in_the_path_box_filters_the_known_paths()
+    {
+        var row = new VaultConnectionVm("stage", new VaultConnection());
+        row.KnownPaths.Add("kv/app/stage/config.json");
+        row.KnownPaths.Add("kv/app/stage/features.json");
+        row.KnownPaths.Add("kv/other/thing.json");
+
+        row.SecretPath = "APP/STAGE";
+        Assert.Equal(2, row.FilteredPaths.Count());
+
+        row.SecretPath = "nothing-matches-this";
+        Assert.Empty(row.FilteredPaths);
+
+        // Empty and exactly-a-known-path both mean "show me everything".
+        row.SecretPath = string.Empty;
+        Assert.Equal(3, row.FilteredPaths.Count());
+
+        row.SecretPath = "kv/other/thing.json";
+        Assert.Equal(3, row.FilteredPaths.Count());
+    }
+
+    /// <summary>
+    /// A test that failed says so in red — <see cref="VaultConnectionVm.StatusIsError"/> — and the
+    /// flag falls with the next status write, so "Reading…" a moment later is not still red. Driven
+    /// through a missing file because that failure needs no network.
+    /// </summary>
+    [Fact]
+    public async Task A_failed_test_marks_its_status_as_an_error_until_the_next_status()
+    {
+        var tab = NewTab();
+        var row = Row(tab, "dev");
+
+        row.Kind = SourceKind.LocalFile;
+        row.LocalFilePath = @"C:\does\not\exist\anywhere.json";
+
+        await tab.TestCommand.ExecuteAsync(row);
+
+        Assert.False(row.TestPassed);
+        Assert.NotEqual(string.Empty, row.Status);
+        Assert.True(row.StatusIsError);
+
+        row.Status = "Reading…";
+        Assert.False(row.StatusIsError);
+    }
 }

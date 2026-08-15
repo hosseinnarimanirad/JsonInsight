@@ -41,6 +41,24 @@ public partial class VaultView : UserControl
     }
 
     /// <summary>
+    /// Focusing the address selects all of it — the usual edit is replacing one server with
+    /// another. The mouse half below is what makes this work by click as well as by Tab: without
+    /// it, the click that gives focus also places the caret, which collapses the selection this
+    /// just made before it is ever seen.
+    /// </summary>
+    private void OnAddressGotFocus(object sender, RoutedEventArgs e) =>
+        (sender as TextBox)?.SelectAll();
+
+    private void OnAddressMouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (sender is TextBox { IsKeyboardFocusWithin: false } box)
+        {
+            box.Focus();
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>
     /// Opens a row's overflow menu under its button.
     ///
     /// <para>

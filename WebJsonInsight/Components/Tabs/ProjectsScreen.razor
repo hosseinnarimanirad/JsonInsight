@@ -95,7 +95,12 @@ else
 
             @foreach (var row in Vm.Items)
             {
-                <div class="project-row" @key="row.Name">
+                @* Double-click opens, matching the WPF list. Not while renaming or confirming a
+                   delete: two quick clicks on those buttons land here too, and opening the project
+                   out from under a half-typed name would be the surprise. *@
+                <div class="project-row" @key="row.Name"
+                     title="Double-click to open this project."
+                     @ondblclick="() => OpenByDoubleClick(row)">
                     <div class="project-body">
                         @if (row.Renaming)
                         {
@@ -181,6 +186,15 @@ else
         foreach (var row in Vm.Items)
         {
             Observe(row);
+        }
+    }
+
+    /// <summary>See the note on the row: double-click opens, but never mid-rename or mid-delete.</summary>
+    private void OpenByDoubleClick(ProjectRowVm row)
+    {
+        if (row is { Renaming: false, ConfirmingDelete: false })
+        {
+            Vm?.OpenCommand.Execute(row);
         }
     }
 

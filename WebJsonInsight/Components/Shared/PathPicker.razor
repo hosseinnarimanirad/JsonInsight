@@ -29,16 +29,20 @@
     </button>
 
     <div class="pathpicker-field">
+        @* Disabled while Search walks the Vault — the list this box chooses from is being replaced
+           under it. Typing filters: each keystroke narrows the open list to paths containing what
+           is typed, and opens it if there is anything to narrow. *@
         <input class="field dense mono" type="text"
                placeholder="kv/app/stage/resources/config/ui.json"
-               title="The whole path to one secret — mount included. Not a root with a document appended."
+               title="The whole path to one secret — mount included. Type to filter what Search found, or type a path the token cannot list."
+               disabled="@Row.Searching"
                value="@Row.SecretPath"
-               @oninput="e => Row.SecretPath = e.Value?.ToString() ?? string.Empty" />
+               @oninput="e => OnTyped(e.Value?.ToString() ?? string.Empty)" />
 
         @* The count is on the button because it is the answer to "did the search find anything",
            which is otherwise only in the row's status line. *@
         <button class="pathpicker-toggle @(_open ? "open" : "")"
-                disabled="@(Row.KnownPaths.Count == 0)"
+                disabled="@(Row.KnownPaths.Count == 0 || Row.Searching)"
                 @onclick="Toggle"
                 title="@(Row.KnownPaths.Count == 0
                            ? "Press Search to list the secrets this row's Vault holds."
@@ -129,9 +133,28 @@
         }
     }
 
+    /// <summary>
+    /// The menu's own narrow box wins when it is used; otherwise what is typed in the path field
+    /// filters, which is what makes the field behave as a combobox rather than a blind input. The
+    /// row's FilteredPaths carries the field-typed rule (shared with the WPF ComboBox), including
+    /// its exception: a field holding exactly a known path shows the whole list, because that is
+    /// what the field looks like right after picking one.
+    /// </summary>
     private IEnumerable<string> Filtered => _filter.Length == 0
-        ? Row.KnownPaths
+        ? Row.FilteredPaths
         : Row.KnownPaths.Where(p => p.Contains(_filter, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Typing filters the list live, and opens it if there is anything to show.</summary>
+    private void OnTyped(string value)
+    {
+        Row.SecretPath = value;
+        _filter = string.Empty;
+
+        if (Row.KnownPaths.Count > 0)
+        {
+            _open = true;
+        }
+    }
 
     private void Toggle()
     {

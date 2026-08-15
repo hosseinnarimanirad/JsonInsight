@@ -43,7 +43,7 @@
 
                 <TextBlock Style="{StaticResource Text.Caption}" VerticalAlignment="Center"
                            TextWrapping="Wrap" MaxWidth="440"
-                           Text="Press Save settings on the Sources tab to persist this." />
+                           Text="Saved into the project when this dialog closes." />
             </DockPanel>
         </Border>
 

@@ -62,6 +62,18 @@ public sealed partial class VaultConnectionVm : ObservableObject
     [ObservableProperty]
     private string _status = string.Empty;
 
+    /// <summary>
+    /// True when <see cref="Status"/> reports a failure — a test or load that did not reach the
+    /// source — so both views can paint it red rather than the neutral grey of "Reading…" and
+    /// "Loaded". Reset by every status write and raised explicitly in the failure arms, which keeps
+    /// the two from drifting: a new status message is neutral unless the code that wrote it says
+    /// otherwise.
+    /// </summary>
+    [ObservableProperty]
+    private bool _statusIsError;
+
+    partial void OnStatusChanged(string value) => StatusIsError = false;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanTest), nameof(CanLoad))]
     private bool _busy;
@@ -187,6 +199,25 @@ public sealed partial class VaultConnectionVm : ObservableObject
     /// </summary>
     public ObservableCollection<string> KnownPaths { get; } = [];
 
+    /// <summary>
+    /// <see cref="KnownPaths"/> narrowed by what is typed in the path box, so the dropdown filters
+    /// as you type instead of asking you to scan hundreds of entries for the one that contains
+    /// "ui.json". The whole list comes back when the box is empty — and when it holds exactly a
+    /// known path, because that is what the box looks like right after picking one, and a dropdown
+    /// of one entry at that moment would make the list look lost rather than filtered.
+    /// </summary>
+    public IEnumerable<string> FilteredPaths
+    {
+        get
+        {
+            var typed = SecretPath.Trim();
+
+            return typed.Length == 0 || KnownPaths.Contains(typed, StringComparer.Ordinal)
+                ? KnownPaths
+                : KnownPaths.Where(p => p.Contains(typed, StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
     public bool HasToken => !string.IsNullOrWhiteSpace(Token);
 
     /// <summary>
@@ -251,6 +282,9 @@ public sealed partial class VaultConnectionVm : ObservableObject
         {
             KnownPaths.Add(_secretPath);
         }
+
+        // A search replaces the list wholesale, and the filtered view over it has to follow.
+        KnownPaths.CollectionChanged += (_, _) => OnPropertyChanged(nameof(FilteredPaths));
     }
 
     /// <summary>The settings for this row alone, which is all a probe or a search needs.</summary>
@@ -284,7 +318,11 @@ public sealed partial class VaultConnectionVm : ObservableObject
     // Every field below says where this source is or how it is reached, so editing any of them means
     // the row no longer describes whatever Test read. Status, Busy, the menu and the ON tick are
     // deliberately not among them: none of them changes what a read would return.
-    partial void OnSecretPathChanged(string value) => Retest();
+    partial void OnSecretPathChanged(string value)
+    {
+        OnPropertyChanged(nameof(FilteredPaths));
+        Retest();
+    }
 
     partial void OnAddressChanged(string value) => Retest();
 
@@ -429,6 +467,7 @@ public sealed partial class VaultVm : ObservableObject
 
             Status = "No project is open. Open one and its sources appear here.";
             OnPropertyChanged(nameof(ActiveSummary));
+            RefreshDuplicateError();
             return;
         }
 
@@ -467,6 +506,10 @@ public sealed partial class VaultVm : ObservableObject
         Status = $"{Connections.Count(c => !c.IsEmpty)} of {Connections.Count} environments have a source configured.";
 
         OnPropertyChanged(nameof(ActiveSummary));
+
+        // The rows are new objects, so whatever the previous set's clash was is either gone or
+        // about to be found again on this one.
+        RefreshDuplicateError();
     }
 
     private void AddRow(VaultConnectionVm row)
@@ -542,9 +585,38 @@ public sealed partial class VaultVm : ObservableObject
             case nameof(VaultConnectionVm.SecretPath):
             case nameof(VaultConnectionVm.LocalFilePath):
                 OnPropertyChanged(nameof(ActiveSummary));
+                RefreshDuplicateError();
+                break;
+
+            // These two do not change "configured", but they are half of a Vault source's identity —
+            // repointing an address can make two rows the same source as surely as retyping a path.
+            case nameof(VaultConnectionVm.Address):
+            case nameof(VaultConnectionVm.Namespace):
+                RefreshDuplicateError();
                 break;
         }
     }
+
+    /// <summary>
+    /// The duplicate-source complaint, live: set the moment two rows come to read the same place,
+    /// cleared the moment they stop. Its own property rather than a write into <see cref="Status"/>,
+    /// because it has two jobs the status line cannot do — it is what disables Save settings, and it
+    /// stays on screen in red for as long as the clash exists instead of scrolling away under the
+    /// next report.
+    /// </summary>
+    [ObservableProperty]
+    private string _duplicateError = string.Empty;
+
+    /// <summary>What gates Save settings: nothing else does, so the button reads as always-on until two rows clash.</summary>
+    public bool CanSaveSettings => DuplicateError.Length == 0;
+
+    partial void OnDuplicateErrorChanged(string value)
+    {
+        OnPropertyChanged(nameof(CanSaveSettings));
+        SaveSettingsCommand.NotifyCanExecuteChanged();
+    }
+
+    private void RefreshDuplicateError() => DuplicateError = DuplicateSourceProblem() ?? string.Empty;
 
     /// <summary>
     /// Enforces the cap where it is understood rather than where it is discovered: a fifth tick is
@@ -588,12 +660,20 @@ public sealed partial class VaultVm : ObservableObject
         _syncingActive = false;
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanSaveSettings))]
     private void SaveSettings()
     {
         if (!_main.HasProjectOpen)
         {
             Status = "No project is open, so there is nothing to save these into. Open one first.";
+            return;
+        }
+
+        // Refused rather than saved-and-warned: two rows reading the same place is one source
+        // counted twice on every tab that compares them, and a save is the moment it becomes real.
+        if (DuplicateSourceProblem() is { } duplicate)
+        {
+            Status = duplicate;
             return;
         }
 
@@ -778,6 +858,7 @@ public sealed partial class VaultVm : ObservableObject
         if (!SourceProviders.Default(_flattener).TryGetValue(definition.Kind, out var provider))
         {
             row.Status = $"No provider registered for {definition.Kind}.";
+            row.StatusIsError = true;
             return;
         }
 
@@ -792,6 +873,7 @@ public sealed partial class VaultVm : ObservableObject
                 if (result.Document is not { } document)
                 {
                     row.Status = result.Problem ?? "Could not be read.";
+                    row.StatusIsError = true;
                     _main.Log.Warn($"{row.Label} could not be loaded — {row.Status}");
                     return;
                 }
@@ -807,6 +889,7 @@ public sealed partial class VaultVm : ObservableObject
             ex =>
             {
                 row.Status = ex.Message;
+                row.StatusIsError = true;
                 _main.Log.Error($"{row.Label} could not be loaded — {ex.Message}");
             });
     }
@@ -876,6 +959,7 @@ public sealed partial class VaultVm : ObservableObject
             {
                 row.TestPassed = false;
                 row.Status = ex.Message;
+                row.StatusIsError = true;
             });
     }
 
@@ -917,6 +1001,7 @@ public sealed partial class VaultVm : ObservableObject
                 row.Status = result.Document is { } document
                     ? $"{document.FilePath} — {document.Flat.Count} keys, {result.Detail}. Load is on now."
                     : result.Problem ?? "Could not be read.";
+                row.StatusIsError = result.Document is null;
             },
             // Same failure arm as the Vault half, for the same reason: a file that could not be read is
             // not a source that was reached, whatever an earlier test decided.
@@ -924,8 +1009,84 @@ public sealed partial class VaultVm : ObservableObject
             {
                 row.TestPassed = false;
                 row.Status = ex.Message;
+                row.StatusIsError = true;
             });
     }
+
+    /// <summary>
+    /// The sentence that refuses a save when two rows read the same place, or null when every source
+    /// is its own. Two sources pointing at one secret or one file is one source counted twice — the
+    /// comparison columns would agree with each other by construction and call it agreement between
+    /// environments.
+    ///
+    /// <para>
+    /// Identity follows the kind: a local-file source is its file (case-insensitively — this is a
+    /// Windows path), a Vault source is its address, namespace and secret path together. The secret
+    /// path is compared case-sensitively, because Vault paths are. Rows without a path yet are not
+    /// duplicates of anything — a blank points nowhere, not at the same nowhere.
+    /// </para>
+    /// </summary>
+    public string? DuplicateSourceProblem()
+    {
+        var rows = Connections.Where(r => !r.IsEmpty).ToList();
+
+        for (var i = 0; i < rows.Count; i++)
+        {
+            for (var j = i + 1; j < rows.Count; j++)
+            {
+                if (!SameSource(rows[i], rows[j]))
+                {
+                    continue;
+                }
+
+                var what = rows[i].Kind == SourceKind.LocalFile
+                    ? $"the same file — {rows[i].LocalFilePath.Trim()}"
+                    : $"the same Vault secret — {rows[i].SecretPath.Trim()} at {rows[i].Address.Trim()}";
+
+                return $"'{rows[i].Label}' and '{rows[j].Label}' read {what}. Two sources reading " +
+                       "the same place is one source counted twice, so change one of them before saving.";
+            }
+        }
+
+        return null;
+    }
+
+    private static bool SameSource(VaultConnectionVm a, VaultConnectionVm b)
+    {
+        if (a.Kind != b.Kind)
+        {
+            return false;
+        }
+
+        if (a.Kind == SourceKind.LocalFile)
+        {
+            return !string.IsNullOrWhiteSpace(a.LocalFilePath) &&
+                   string.Equals(a.LocalFilePath.Trim(), b.LocalFilePath.Trim(),
+                       StringComparison.OrdinalIgnoreCase);
+        }
+
+        // A Vault row can be non-empty on a token or a restart endpoint alone; without a path it
+        // does not read anywhere, so it cannot read the same place as anything.
+        return !string.IsNullOrWhiteSpace(a.SecretPath) &&
+               string.Equals(a.SecretPath.Trim(), b.SecretPath.Trim(), StringComparison.Ordinal) &&
+               string.Equals(SameAddressForm(a.Address), SameAddressForm(b.Address), StringComparison.OrdinalIgnoreCase) &&
+               string.Equals(a.Namespace.Trim(), b.Namespace.Trim(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// <c>https://vault:8200</c> and <c>https://vault:8200/</c> are the same server, and a duplicate
+    /// check that let a trailing slash tell them apart would be one that misses the most likely way
+    /// of typing the same address twice.
+    /// </summary>
+    private static string SameAddressForm(string address) => address.Trim().TrimEnd('/');
+
+    /// <summary>
+    /// The save both hosts call when the restart-config dialog closes over a change, so the endpoint
+    /// lands in the project the moment it is set rather than waiting on a separate trip to Save
+    /// settings. It is the ordinary save — the endpoint is part of the row, and there is no narrower
+    /// write than the row's settings.
+    /// </summary>
+    public void SaveRestartConfig() => SaveSettings();
 
     /// <summary>The settings exactly as the tab currently shows them, ready to test with or save.</summary>
     public VaultSettings BuildSettings()

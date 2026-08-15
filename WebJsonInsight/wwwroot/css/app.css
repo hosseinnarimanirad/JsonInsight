@@ -474,15 +474,22 @@ select.field { cursor: pointer; }
 .src-c-path input { flex: 1; min-width: 0; }
 
 /* Browse, on a local-file row: it leads the cell the way Search leads a Vault one, and keeps its
-   width while the path beside it takes the rest. */
-.src-c-path > .btn { flex: none; }
+   width while the path beside it takes the rest. Both lead buttons are pinned to one width so the
+   field starts at the same place on every row — which is also what the header padding below aligns
+   the JSON PATH label to. */
+.src-c-path > .btn { flex: none; min-width: 96px; justify-content: center; }
+
+/* The label sits over the path field, not over the Search button that leads the same cell: the
+   header names the field, and the button already names itself. 96px pinned button + the 6px gap. */
+.src-head .src-c-path { padding-left: 102px; }
 
 /* ------------------------------- Path picker ------------------------------ */
 
 .pathpicker { position: relative; display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
 
-/* Search leads the cell; the field takes whatever is left rather than the button giving way first. */
-.pathpicker > .btn { flex: none; }
+/* Search leads the cell; the field takes whatever is left rather than the button giving way first.
+   Pinned to the same width as a Browse button so the field starts where the header label does. */
+.pathpicker > .btn { flex: none; min-width: 96px; justify-content: center; }
 
 .pathpicker-field {
     display: flex;
@@ -713,6 +720,9 @@ select.field { cursor: pointer; }
     line-height: 1.45;
     color: var(--brush-text-secondary);
 }
+
+/* A test or load that failed. Only the colour changes — the message is the same one line. */
+.src-row-status.is-error { color: var(--brush-danger); }
 
 .notice-info { background: var(--brush-accent-soft); color: var(--brush-accent); }
 

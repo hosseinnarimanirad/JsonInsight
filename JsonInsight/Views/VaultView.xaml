@@ -65,7 +65,11 @@
                         <TextBlock Grid.Column="2" Text="KIND" Style="{StaticResource Text.SectionLabel}" />
                         <TextBlock Grid.Column="3" Text="VAULT ADDRESS" Style="{StaticResource Text.SectionLabel}" />
                         <TextBlock Grid.Column="4" Text="TOKEN" Style="{StaticResource Text.SectionLabel}" />
-                        <TextBlock Grid.Column="5" Text="JSON PATH" Style="{StaticResource Text.SectionLabel}" />
+                        <!-- Over the path box, not the Search button that leads the same column:
+                             the header names the field, and the button already names itself. The
+                             margin is the button's pinned MinWidth plus its 8px gap. -->
+                        <TextBlock Grid.Column="5" Text="JSON PATH" Style="{StaticResource Text.SectionLabel}"
+                                   Margin="112,0,0,0" />
                     </Grid>
                 </Border>
 
@@ -86,6 +90,14 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+
+                        <!-- The duplicate-source complaint. Red, and its own line rather than a
+                             Status write: it is what disables Save settings, and it stays for as
+                             long as the clash exists instead of scrolling away under the next
+                             report. -->
+                        <TextBlock Text="{Binding DuplicateError}" Style="{StaticResource Text.Missing}"
+                                   FontSize="12" TextWrapping="Wrap" Margin="0,0,0,8"
+                                   Visibility="{Binding DuplicateError, Converter={StaticResource NotEmptyVis}}" />
 
                         <TextBlock Text="{Binding Status}" Style="{StaticResource Text.Secondary}"
                                    FontSize="12" TextWrapping="Wrap" Margin="0,0,0,8"
@@ -153,8 +165,13 @@
                                                                Foreground="{DynamicResource Brush.Shape}" />
                                                 </Border>
 
+                                                <!-- Focus selects the whole address: the usual edit
+                                                     is replacing one server with another, not
+                                                     appending to it. -->
                                                 <TextBox Style="{StaticResource TextBox.Inline}"
                                                          Text="{Binding Address, UpdateSourceTrigger=PropertyChanged}"
+                                                         GotKeyboardFocus="OnAddressGotFocus"
+                                                         PreviewMouseLeftButtonDown="OnAddressMouseDown"
                                                          ToolTip="This row's Vault, e.g. https://vault.example.com:8200. Each row carries its own, so two environments can live on different servers." />
                                             </DockPanel>
 
@@ -173,8 +190,13 @@
                                                  from. -->
                                             <DockPanel Grid.Column="5" Margin="0,0,8,0"
                                                        Visibility="{Binding IsVault, Converter={StaticResource BoolVis}}">
+                                                <!-- MinWidth pins where the path box starts, which is
+                                                     what lets the JSON PATH header sit over the box:
+                                                     a header aligned to a button whose width follows
+                                                     its text would drift. -->
                                                 <Button DockPanel.Dock="Left" Style="{StaticResource Button.Secondary}"
                                                         Margin="0,0,8,0" Height="{StaticResource Size.Control}"
+                                                        MinWidth="104"
                                                         Command="{Binding DataContext.SearchVaultCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                         CommandParameter="{Binding}"
                                                         IsEnabled="{Binding Searching, Converter={StaticResource NotBool}}"
@@ -205,11 +227,20 @@
 
                                                 <!-- Editable: the list is what Search found, and a
                                                      secret this token cannot list must still be
-                                                     reachable by typing its path. -->
+                                                     reachable by typing its path.
+
+                                                     FilteredPaths rather than KnownPaths, so typing
+                                                     narrows the open dropdown to matches. Text
+                                                     search off because it fights that: it would
+                                                     auto-complete to the first match and overwrite
+                                                     what is being typed. Off while Search walks the
+                                                     Vault — the list is being replaced under it. -->
                                                 <ComboBox Style="{StaticResource ComboBox.Path}"
-                                                          ItemsSource="{Binding KnownPaths}"
+                                                          ItemsSource="{Binding FilteredPaths}"
+                                                          IsTextSearchEnabled="False"
+                                                          IsEnabled="{Binding Searching, Converter={StaticResource NotBool}}"
                                                           Text="{Binding SecretPath, UpdateSourceTrigger=PropertyChanged}"
-                                                          ToolTip="The whole path to the JSON this row reads, e.g. kv/app/stage/resources/config/ui.json. Pick one Search found, or type it." />
+                                                          ToolTip="The whole path to the JSON this row reads, e.g. kv/app/stage/resources/config/ui.json. Pick one Search found, or type to filter the list." />
                                             </DockPanel>
 
                                             <!-- A file needs no address or token, so it takes their
@@ -220,7 +251,7 @@
                                                      column doing the same job. -->
                                                 <Button DockPanel.Dock="Left" Style="{StaticResource Button.Secondary}"
                                                         Content="Browse&#8230;" Margin="0,0,8,0"
-                                                        Height="{StaticResource Size.Control}"
+                                                        Height="{StaticResource Size.Control}" MinWidth="104"
                                                         Command="{Binding DataContext.BrowseLocalFileCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                         CommandParameter="{Binding}"
                                                         ToolTip="Pick the JSON file this environment reads and writes." />
@@ -337,9 +368,23 @@
                                             </Button>
                                         </Grid>
 
-                                        <TextBlock Text="{Binding Status}" Style="{StaticResource Text.Secondary}"
+                                        <!-- Red for a test or load that failed, the neutral grey for
+                                             everything else — "Reading…", "Loaded", the how-to
+                                             hints. One line either way; only the colour says which
+                                             kind of news it is. -->
+                                        <TextBlock Text="{Binding Status}"
                                                    FontSize="12" TextWrapping="Wrap" Margin="38,6,0,0"
-                                                   Visibility="{Binding Status, Converter={StaticResource NotEmptyVis}}" />
+                                                   Visibility="{Binding Status, Converter={StaticResource NotEmptyVis}}">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock" BasedOn="{StaticResource Text.Secondary}">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding StatusIsError}" Value="True">
+                                                            <Setter Property="Foreground" Value="{DynamicResource Brush.Danger}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
                                     </StackPanel>
                                 </Border>
                             </DataTemplate>

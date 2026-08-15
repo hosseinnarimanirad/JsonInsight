@@ -59,6 +59,36 @@ public sealed class SourcesRowTests : TestContext
         Assert.Contains("ON", page.Find(".rowmenu-toggle").TextContent, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// The whole duplicate chain through the real markup: two rows come to read the same secret,
+    /// the red notice appears, and the Save settings button the user would press is disabled — not
+    /// merely the command behind it. Undone, both go back.
+    /// </summary>
+    [Fact]
+    public void A_duplicate_source_disables_the_save_button_and_shows_the_error()
+    {
+        var main = Fixtures.NewMain();
+        var page = Render(main);
+        var vault = main.Vault!;
+
+        var rows = vault.Connections.Where(c => c.Kind == SourceKind.Vault).Take(2).ToArray();
+        rows[0].Address = "https://vault.example.com:8200";
+        rows[0].SecretPath = "kv/app/config.json";
+        rows[1].Address = "https://vault.example.com:8200/";
+        rows[1].SecretPath = "kv/app/config.json";
+        page.Render();
+
+        var save = page.FindAll(".card-head button").Single(b => b.TextContent.Contains("Save settings"));
+        Assert.True(save.HasAttribute("disabled"));
+        Assert.Contains(vault.DuplicateError, page.Find(".notice-danger").TextContent, StringComparison.Ordinal);
+
+        rows[1].SecretPath = "kv/app/other.json";
+        page.Render();
+
+        save = page.FindAll(".card-head button").Single(b => b.TextContent.Contains("Save settings"));
+        Assert.False(save.HasAttribute("disabled"));
+    }
+
     [Fact]
     public void Every_row_offers_load_as_its_own_button()
     {

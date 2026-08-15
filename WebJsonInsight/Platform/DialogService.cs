@@ -50,11 +50,18 @@ public sealed class DialogService
 
     // ---------------------------------------------------------------- restart
 
+    /// <summary>
+    /// What the restart config said when its dialog opened, so closing it can tell an edit from a
+    /// look. The token is not part of it — it is typed per call and never saved.
+    /// </summary>
+    private (string Url, string Body, bool InsecureTls) _restartConfigOpened;
+
     /// <summary>Where the endpoint is set. Saved with the row; the token is not part of it.</summary>
     public void OpenRestartConfig(VaultConnectionVm row)
     {
         Close();
         RestartConfig = row;
+        _restartConfigOpened = (row.RestartUrl, row.RestartBody, row.RestartAllowInsecureTls);
         Raise();
     }
 
@@ -121,6 +128,16 @@ public sealed class DialogService
 
     private void Close()
     {
+        // The restart-config dialog edits the row directly, so closing it — however it closes, the
+        // Done button or another dialog opening over it — is the moment an edit is real, and the
+        // settings save then and there rather than waiting on a Save settings press that was easy
+        // to forget. Mirrors the WPF window, which saves when its modal ShowDialog returns changed.
+        if (RestartConfig is { } edited &&
+            (edited.RestartUrl, edited.RestartBody, edited.RestartAllowInsecureTls) != _restartConfigOpened)
+        {
+            _main.Vault?.SaveRestartConfig();
+        }
+
         Push = null;
         Edit = null;
         Promote = null;
