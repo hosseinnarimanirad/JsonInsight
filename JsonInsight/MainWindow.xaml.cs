@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using System.Windows;
+using System.Windows.Controls;
 using JsonInsight.ViewModels;
 using JsonInsight.Views;
 
@@ -25,6 +26,24 @@ public partial class MainWindow : Window
 
         Sources.RestartConfigRequested += OnRestartConfigRequested;
         Sources.RestartRequested += OnRestartRequested;
+    }
+
+    /// <summary>
+    /// Publishes in-memory edits when the tab changes, so a value changed on the Tier editor is what
+    /// the All tiers grid and the Text diff show when you get there.
+    ///
+    /// <para>
+    /// Guarded on the sender because a TabControl's SelectionChanged also fires for selection changes
+    /// inside the tabs — a ComboBox on the Sources tab bubbles one up here — and republishing on
+    /// every one of those would undo the point of deferring the work.
+    /// </para>
+    /// </summary>
+    private void OnTabChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (ReferenceEquals(e.OriginalSource, sender))
+        {
+            _vm.PublishEdits();
+        }
     }
 
     /// <summary>
@@ -77,6 +96,13 @@ public partial class MainWindow : Window
             _vm.Tiers?.NotifyEditsChanged();
         }
     }
+
+    /// <summary>
+    /// The top bar's push button: the review of everything held in memory and not yet written, from
+    /// wherever it was edited. The same screen the All tiers tab opens — a push is per tier, and this
+    /// is where you pick which one goes first.
+    /// </summary>
+    private void OnPushAllClick(object sender, RoutedEventArgs e) => OnReviewChangesRequested(sender, e);
 
     private void OnReviewChangesRequested(object? sender, EventArgs e)
     {

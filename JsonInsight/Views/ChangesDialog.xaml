@@ -45,11 +45,10 @@
                            FontSize="12" TextWrapping="Wrap" Margin="0,10,0,0"
                            Visibility="{Binding Message, Converter={StaticResource NotEmptyVis}}" />
 
-                <Button Style="{StaticResource Button.Secondary}" Content="Re-base the stale changes"
-                        HorizontalAlignment="Left" Margin="0,10,0,0"
-                        Command="{Binding RebaseCommand}"
-                        Visibility="{Binding HasStale, Converter={StaticResource BoolVis}}"
-                        ToolTip="Re-reads each stale change's starting value from the tier as it stands now. The value you set is kept." />
+                <!-- Re-basing used to live here, for edits queued against a value the source had
+                     since moved away from. There is no queue to go stale now: a change lands in the
+                     tier's own document as it is made. Whether the *source* has moved since it was
+                     read is still asked, on the push screen, against the live secret or file. -->
             </StackPanel>
         </Border>
 
@@ -104,17 +103,6 @@
                     </Border>
 
                     <DataGrid ItemsSource="{Binding Changes}" RowHeight="30">
-                        <DataGrid.RowStyle>
-                            <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsStale}" Value="True">
-                                        <Setter Property="Background" Value="{DynamicResource Brush.MissingSoft}" />
-                                        <Setter Property="ToolTip" Value="{Binding StaleReason}" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </DataGrid.RowStyle>
-
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="KEY" Binding="{Binding Path}" Width="*">
                                 <DataGridTextColumn.ElementStyle>

@@ -74,32 +74,9 @@ public sealed record PendingEdit
         _ => BaseValue ?? string.Empty,
     };
 
-    /// <summary>
-    /// True when the document has moved underneath this edit — the key vanished, appeared, or now
-    /// holds a value other than the one the edit was authored against.
-    /// </summary>
-    public bool IsStaleAgainst(FlatConfig current)
-    {
-        var leaf = current.Find(Path);
-
-        return Kind switch
-        {
-            EditKind.Add => leaf is not null,
-            _ => leaf is null || !string.Equals(leaf.ComparableValue, BaseValue, StringComparison.Ordinal),
-        };
-    }
-
-    /// <summary>Re-reads the base from the current document, so a reviewed stale edit can proceed.</summary>
-    public PendingEdit RebasedOn(FlatConfig current)
-    {
-        var leaf = current.Find(Path);
-
-        return Kind switch
-        {
-            EditKind.Add when leaf is not null => this with { Kind = EditKind.Update, BaseValue = leaf.ComparableValue },
-            EditKind.Add => this,
-            _ when leaf is null => this with { Kind = EditKind.Add, BaseValue = null },
-            _ => this with { BaseValue = leaf.ComparableValue },
-        };
-    }
+    // IsStaleAgainst and RebasedOn lived here, for a change that sat in a queue long enough for the
+    // document underneath it to move. Nothing queues now — an edit is applied to the tier's own
+    // in-memory document as it is made, so there is no interval in which it can go stale. Whether
+    // the *source* moved since it was read is a different question, asked by the push preflight
+    // against the live secret or file.
 }

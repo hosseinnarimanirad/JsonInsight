@@ -35,8 +35,36 @@ public sealed class TierDocument
 {
     public required TierDefinition Definition { get; init; }
 
+    /// <summary>
+    /// The tree exactly as the source handed it over, and never anything else.
+    ///
+    /// <para>
+    /// This is a baseline, not the working copy: a local-file save compares it byte for byte against
+    /// what is on disk right now to decide whether the file moved underneath the app, and a Vault
+    /// push pairs it with <see cref="VaultVersion"/> for the same reason. Publishing an in-memory
+    /// edit into it would make every save report that the source had changed under it. What the app
+    /// is currently holding — edits included — is <see cref="Live"/>.
+    /// </para>
+    /// </summary>
     public required JsonNode Root { get; init; }
 
+    /// <summary>
+    /// The edited tree, when this tier has unsaved changes; null while it still says exactly what was
+    /// read. Read through <see cref="Live"/> rather than directly.
+    /// </summary>
+    public JsonNode? EditedRoot { get; init; }
+
+    /// <summary>
+    /// What this tier currently holds: the edits if there are any, otherwise what was read. This is
+    /// the tree to display, to compare and to push — <see cref="Root"/> is only the baseline a save
+    /// checks the source against.
+    /// </summary>
+    public JsonNode Live => EditedRoot ?? Root;
+
+    /// <summary>True when there are in-memory changes that no source has been told about yet.</summary>
+    public bool IsEdited => EditedRoot is not null;
+
+    /// <summary>Always a flatten of <see cref="Live"/>, so every value on screen is the edited one.</summary>
     public required FlatConfig Flat { get; init; }
 
     public TierOrigin Origin { get; init; } = TierOrigin.Vault;
@@ -61,6 +89,26 @@ public sealed class TierDocument
     /// app — the same role <see cref="VaultVersion"/> plays for a Vault tier's check-and-set.
     /// </summary>
     public DateTimeOffset? FileModifiedUtc { get; init; }
+
+    /// <summary>
+    /// The same tier holding an edited tree, with every source-side baseline carried across
+    /// untouched — the Vault version and the file mtime describe the read this document came from,
+    /// and an in-memory edit does not change what the source was holding when it was read.
+    /// </summary>
+    public TierDocument WithEdits(JsonNode edited, FlatConfig flat) => new()
+    {
+        Definition = Definition,
+        Root = Root,
+        EditedRoot = edited,
+        Flat = flat,
+        Origin = Origin,
+        VaultVersion = VaultVersion,
+        VaultCreatedTime = VaultCreatedTime,
+        VaultAddress = VaultAddress,
+        VaultSecretPath = VaultSecretPath,
+        FilePath = FilePath,
+        FileModifiedUtc = FileModifiedUtc,
+    };
 
     public string Id => Definition.Id;
 

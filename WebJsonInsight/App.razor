@@ -8,6 +8,7 @@
 *@
 @inherits ObservingComponent
 @inject MainVm Main
+@inject WebJsonInsight.Platform.DialogService Dialogs
 @inject IJSRuntime Js
 @implements IAsyncDisposable
 
@@ -72,6 +73,17 @@
                     <Icon Name="@(Main.VaultBusy ? "refresh" : "pull")" Class="@(Main.VaultBusy ? "spinning" : "")" />
                     <span>@(Main.VaultBusy ? "Pulling…" : "Pull from Vault or disk")</span>
                 </button>
+
+                @* The other direction, beside the button that reads: everything edited anywhere in
+                   the app is held in memory until this is pressed. It opens the review rather than
+                   writing, because a push is one source, one version and one typed confirmation —
+                   and it is off outright when there is nothing unsaved, so the top bar also answers
+                   "is there anything to write" without being pressed. *@
+                <button class="btn btn-danger" disabled="@(!Main.HasUnsavedChanges)"
+                        @onclick="PushAll" title="@Main.UnsavedSummary">
+                    <Icon Name="push" />
+                    <span>Push to Vault or disk</span>
+                </button>
             }
         </div>
     </header>
@@ -118,7 +130,7 @@
                         <button class="tab @(_active == tab.Key ? "active" : "")"
                                 role="tab" aria-selected="@(_active == tab.Key)"
                                 title="@tab.Hint"
-                                @onclick="() => _active = tab.Key">
+                                @onclick="() => SelectTab(tab.Key)">
                             @tab.Label
                             @* The findings no longer have a banner shouting them, so the tab has to
                                carry the count - otherwise a failed read is silent. *@
@@ -193,6 +205,17 @@
         ("logs", "Logs", "Everything the app has said — warnings, read failures and status, oldest at the bottom."),
     ];
 
+    /// <summary>
+    /// Switches tabs, publishing whatever the Tier editor has edited into the documents the other
+    /// tabs read — so a value changed there is what the All tiers grid and the Text diff show when
+    /// you arrive. Deferred to this point rather than done per keystroke; see MainVm.PublishEdits.
+    /// </summary>
+    private void SelectTab(string key)
+    {
+        Main.PublishEdits();
+        _active = key;
+    }
+
     protected override void OnInitialized()
     {
         // Everything the header and the shell read. The tab bodies observe their own view models, so
@@ -239,6 +262,13 @@
             await tiers.PullFromVaultCommand.ExecuteAsync(null);
         }
     }
+
+    /// <summary>
+    /// The top bar's push button: the review of everything held in memory and not yet written, from
+    /// wherever it was edited. The same screen the All tiers tab opens — a push is per tier, and this
+    /// is where you pick which one goes first.
+    /// </summary>
+    private void PushAll() => Dialogs.OpenChanges();
 
     [JSInvokable]
     public async Task OnToggleTheme() => await ToggleTheme();

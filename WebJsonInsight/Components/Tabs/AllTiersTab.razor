@@ -89,7 +89,7 @@ else
                        named — this tab is about all of them at once, so the dialog opens on its own
                        picker. *@
                     <button class="btn btn-small btn-danger" @onclick="() => Dialogs.OpenPush()"
-                            title="Upload a source with any changes queued against it applied, after reviewing it against what that source holds right now. This is the write half of Pull.">
+                            title="Upload a source exactly as the app is currently holding it, after reviewing it against what that source holds right now. This is the write half of Pull.">
                         <Icon Name="push" Size="13" /> <span>Push a tier…</span>
                     </button>
                 </div>
@@ -159,7 +159,7 @@ else
 
                                             @if (row.HasPendingEdit)
                                             {
-                                                <span class="pending-dot" title="This key has an uncommitted change queued against it">●</span>
+                                                <span class="pending-dot" title="This key has been changed in memory and not yet written to its source">●</span>
                                             }
                                         </div>
                                     </td>

@@ -32,11 +32,12 @@ public enum NodeChange
 /// Whole-subtree editing of one tier's document, held entirely in memory.
 ///
 /// <para>
-/// A different model from <see cref="EditSet"/> and deliberately so. The change set edits keys it
-/// can name, one value at a time, with a per-key base to detect drift; this replaces a node wholesale
-/// with text someone pasted, which can add, remove and retype dozens of keys in one action and has
-/// no per-key base to check. Trying to express one in terms of the other would weaken both, so they
-/// are separate and the editor tab says which tiers have queued key edits rather than merging them.
+/// One of these per loaded tier, owned by <see cref="DocumentStore"/>, is what the whole app now
+/// edits: <see cref="Working"/> is what every tab displays and what a push sends. There used to be a
+/// second model beside it — a queue of per-key changes with a per-key base to detect drift — and the
+/// two could hold different answers for the same key, with whichever was pushed first silently
+/// winning. Key edits are applied into this tree now (see <c>DocumentStore.Apply</c>), so there is
+/// one answer to what a tier says.
 /// </para>
 ///
 /// <para>

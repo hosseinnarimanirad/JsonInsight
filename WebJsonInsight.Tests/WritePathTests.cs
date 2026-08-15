@@ -182,7 +182,7 @@ public sealed class WritePathTests : TestContext
         Assert.Contains("(absent)", page.Markup, StringComparison.Ordinal);
     }
 
-    /// <summary>An edit that matches the existing value is dropped rather than queued.</summary>
+    /// <summary>An edit that matches the existing value is dropped rather than applied.</summary>
     [Fact]
     public void Queueing_a_value_that_already_matches_adds_nothing()
     {
@@ -198,10 +198,10 @@ public sealed class WritePathTests : TestContext
 
         edit.QueueCommand.Execute(null);
 
-        Assert.True(main.Edits.IsEmpty);
+        Assert.Empty(main.Store.ModifiedTiers);
     }
 
-    /// <summary>A real change does queue, and the grid says how many are waiting.</summary>
+    /// <summary>A real change lands in memory, on that tier and no other.</summary>
     [Fact]
     public void A_real_change_queues_and_is_counted()
     {
@@ -215,8 +215,10 @@ public sealed class WritePathTests : TestContext
 
         edit.QueueCommand.Execute(null);
 
-        Assert.False(main.Edits.IsEmpty);
-        Assert.Single(main.Edits.For("dev"));
+        Assert.Equal(["dev"], main.Store.ModifiedTiers);
+
+        // Applied, not queued: the tier itself now says it, which is what every tab reads.
+        Assert.Equal("999", main.Documents.First(d => d.Id == "dev").Flat.Find("PaymentSettings:Hub:Timeout")!.Value);
     }
 
     // ----------------------------------------------------------- the promote

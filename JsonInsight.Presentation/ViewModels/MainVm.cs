@@ -185,12 +185,49 @@ public sealed partial class MainVm : ObservableObject
     /// </summary>
     public ObservableCollection<TierUnavailable> Unavailable { get; } = [];
 
+    // The batched change set used to live here: a queue of key edits that existed nowhere else until
+    // they were pushed, so the grid went on showing the old values and the Tier editor never saw them
+    // at all. Edits land in the tier's own in-memory document now — see Store.
+
     /// <summary>
-    /// The batched change set, held here rather than on the All tiers tab so it survives a Vault refresh
-    /// and a tab switch. Edits queued against a document that then moves are re-checked at commit
-    /// time rather than discarded — see <see cref="PendingEdit.IsStaleAgainst"/>.
+    /// The app's in-memory documents — one editor per tier, shared by every tab.
+    ///
+    /// <para>
+    /// Held here rather than on the Tier editor because it is not that tab's private state: an edit
+    /// made there is what the All tiers grid, the Text diff and a push all read afterwards. It also
+    /// has to outlive <see cref="BuildTabs"/>, which replaces the Tier editor view model on every
+    /// pull and every per-source load — that used to take the only copy of an in-progress edit with
+    /// it, without saying so.
+    /// </para>
     /// </summary>
-    public EditSet Edits { get; } = new();
+    public DocumentStore Store { get; private set; } = null!;
+
+    /// <summary>Whether anything is held in memory that no source has been told about yet.</summary>
+    public bool HasUnsavedChanges => Store.ModifiedTiers.Count > 0;
+
+    /// <summary>What the top bar's push button says it would write, or why it is off.</summary>
+    public string UnsavedSummary
+    {
+        get
+        {
+            var tiers = Store.ModifiedTiers;
+
+            return tiers.Count == 0
+                ? "Nothing has been changed yet. Edits made here are held in memory until you push them."
+                : $"Review and write the unsaved changes on {string.Join(", ", tiers)}. " +
+                  "Each tier is confirmed against what its source holds at that moment.";
+        }
+    }
+
+    /// <summary>
+    /// Re-asks whether anything is unsaved. Called by whatever touches the store, so the top bar's
+    /// push button lights up as an edit is made rather than at the next tab switch.
+    /// </summary>
+    public void NoteUnsavedChanged()
+    {
+        OnPropertyChanged(nameof(HasUnsavedChanges));
+        OnPropertyChanged(nameof(UnsavedSummary));
+    }
 
     public string ContentRoot { get; private set; } = string.Empty;
 
@@ -250,8 +287,8 @@ public sealed partial class MainVm : ObservableObject
         }
 
         // A different project is a different set of secrets, so nothing that belongs to this one may
-        // survive the move — least of all edits queued against tiers that are about to be replaced.
-        Edits.Clear();
+        // survive the move — least of all edits made against tiers that are about to be replaced.
+        Store.Clear();
 
         workspace.ActiveProject = name;
         project.LastOpenedUtc = DateTimeOffset.UtcNow;
@@ -296,7 +333,7 @@ public sealed partial class MainVm : ObservableObject
     {
         ActiveProject = string.Empty;
         ShowingProjects = false;
-        Edits.Clear();
+        Store.Clear();
         Compared = [];
         PullBlocked = null;
 
@@ -500,6 +537,10 @@ public sealed partial class MainVm : ObservableObject
         _aliases = AliasSet.Load();
         _loader = new TierLoader(arrays, _classifier);
         _flattener = new Flattener(arrays, _classifier);
+
+        // A reload is "start again", so any editor still holding an edit against the documents being
+        // replaced goes with them.
+        Store = new DocumentStore(_flattener);
     }
 
     /// <summary>
@@ -591,6 +632,14 @@ public sealed partial class MainVm : ObservableObject
         finally
         {
             VaultBusy = false;
+        }
+
+        // A tier that has just been read again is a tier whose in-memory edits were made against a
+        // document that no longer exists. Keeping them would mean editing one tree while showing
+        // another — which is why the Pull button asks before it gets this far.
+        foreach (var document in report.Documents)
+        {
+            Store.Drop(document.Id);
         }
 
         BuildTabs(report.Documents, report.Unavailable);
@@ -686,6 +735,9 @@ public sealed partial class MainVm : ObservableObject
     /// </summary>
     public void AdoptDocument(TierDocument document)
     {
+        // Freshly read, so anything edited against the copy it replaces no longer describes it.
+        Store.Drop(document.Id);
+
         var merged = Documents.ToList();
         var at = merged.FindIndex(d => d.Id.Equals(document.Id, StringComparison.OrdinalIgnoreCase));
 
@@ -715,6 +767,51 @@ public sealed partial class MainVm : ObservableObject
             .ToList();
 
         BuildTabs(merged, unavailable);
+    }
+
+    /// <summary>
+    /// Publishes whatever has been edited in memory into the documents every other tab reads, and
+    /// rebuilds the comparison around them. Cheap and idempotent when nothing has moved.
+    ///
+    /// <para>
+    /// Called when the tab being looked at changes, which is what makes an edit on one tab visible on
+    /// the next. Deferred to that point rather than done per edit because the Tier editor commits a
+    /// scalar as it is typed, and re-flattening a document plus rebuilding a four-column comparison
+    /// on every keystroke is work for a tab that is not on screen.
+    /// </para>
+    ///
+    /// <para>
+    /// The Tier editor is deliberately <em>not</em> rebuilt here, unlike in <see cref="BuildTabs"/>:
+    /// this runs while its edit is in flight, and replacing it would throw away the tree state,
+    /// selection and undo history of the person who just made that edit.
+    /// </para>
+    /// </summary>
+    /// <returns>True when something was published, for a caller that wants to say so.</returns>
+    public bool PublishEdits()
+    {
+        if (Store.Materialize(Documents.ToList(), out var refreshed) is not { } updated)
+        {
+            return false;
+        }
+
+        Documents.Clear();
+        foreach (var document in updated)
+        {
+            Documents.Add(document);
+        }
+
+        Tiers?.Refresh(updated, Unavailable);
+        RawDiff = new RawDiffVm(updated);
+
+        // The Tier editor is kept rather than rebuilt, so it has to be told: a key changed on the All
+        // tiers tab lands in the same document it is showing, and without this it would go on
+        // displaying the tree it built before that happened.
+        JsonEditor?.AdoptRefreshedDocuments(updated, refreshed);
+
+        OnPropertyChanged(nameof(DocumentCaption));
+        NoteUnsavedChanged();
+        RepublishProblems();
+        return true;
     }
 
     private void BuildTabs(

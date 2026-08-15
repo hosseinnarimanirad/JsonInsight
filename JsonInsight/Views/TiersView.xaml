@@ -115,7 +115,7 @@
                              secret and one version, and the dialog is where the tier is chosen. -->
                         <Button Style="{StaticResource Button.Small}" Margin="10,0,0,0"
                                 Click="OnPushClick"
-                                ToolTip="Upload a tier to Vault, or write it back to its file, with any changes queued against it applied, after reviewing it against what that source holds right now. This is the write half of Pull from Vault or disk.">
+                                ToolTip="Upload a tier to Vault, or write it back to its file, exactly as the app is currently holding it, after reviewing it against what that source holds right now. This is the write half of Pull from Vault or disk.">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#xE898;" FontFamily="{StaticResource Font.Icons}"
                                            FontSize="12" VerticalAlignment="Center" Margin="0,0,7,0" />
@@ -203,7 +203,7 @@
                                         <TextBlock Text="&#xE70F;" FontFamily="{StaticResource Font.Icons}"
                                                    FontSize="11" Margin="8,0,0,0" VerticalAlignment="Center"
                                                    Foreground="{DynamicResource Brush.Differs}"
-                                                   ToolTip="This key has an uncommitted change queued against it"
+                                                   ToolTip="This key has been changed in memory and not yet written to its source"
                                                    Visibility="{Binding HasPendingEdit, Converter={StaticResource BoolVis}}" />
                                     </StackPanel>
                                 </DataTemplate>

@@ -240,25 +240,16 @@ public sealed partial class PushVm : ObservableObject
     partial void OnShowUnchangedChanged(bool value) => BuildDiff();
 
     /// <summary>
-    /// The tree this would send: the one handed in, or the selected tier with its queued key changes
-    /// applied. A tier with nothing queued produces itself, which the preflight then reports as
-    /// nothing to push rather than pretending there is.
+    /// The tree this would send: the one handed in, or whatever the selected tier currently says.
+    ///
+    /// <para>
+    /// <see cref="TierDocument.Live"/> is the edits included — there is one in-memory document per
+    /// tier now, and it is what every tab has been showing. A tier with nothing edited produces what
+    /// it was read as, which the preflight then reports as nothing to push rather than pretending
+    /// there is something.
+    /// </para>
     /// </summary>
-    private JsonNode? Updated()
-    {
-        if (_supplied is not null)
-        {
-            return _supplied;
-        }
-
-        if (Tier is null)
-        {
-            return null;
-        }
-
-        var edits = _main.Edits.For(Tier.Id);
-        return edits.Count == 0 ? Tier.Root : EditApplier.Apply(Tier, edits);
-    }
+    private JsonNode? Updated() => _supplied ?? Tier?.Live;
 
     private string DescribeQueuedEdits()
     {
@@ -267,10 +258,10 @@ public sealed partial class PushVm : ObservableObject
             return string.Empty;
         }
 
-        var edits = _main.Edits.For(Tier.Id);
-        return edits.Count == 0
+        var changes = _main.Store.ChangedPaths(Tier.Id).Count(p => p.Length > 0);
+        return changes == 0
             ? $"{Tier.Id} as it stands"
-            : $"{edits.Count} queued key change(s)";
+            : $"{changes} in-memory change(s)";
     }
 
     /// <summary>
@@ -450,12 +441,11 @@ public sealed partial class PushVm : ObservableObject
             _main.Status = $"Wrote {Tier.Id} to disk.";
         }
 
-        // The changes are at their source now, so they are no longer pending anywhere.
-        if (_supplied is null)
-        {
-            _main.Edits.RemoveTier(Tier.Id);
-            _main.Tiers?.NotifyEditsChanged();
-        }
+        // The changes are at their source now, so this tier has nothing unsaved left. Dropped whoever
+        // supplied the document: the Tier editor's copy is exactly what was just written, and leaving
+        // it holding an "edit" against the state it was read in would keep claiming otherwise.
+        _main.Store.Drop(Tier.Id);
+        _main.Tiers?.NotifyEditsChanged();
 
         PushedTier = Tier.Id;
         NotifyState();

@@ -49,14 +49,14 @@
              secret: this screen is where the plan is decided, not where it is committed. -->
         <Border DockPanel.Dock="Bottom" Style="{StaticResource Card}" Margin="0,10,0,0">
             <DockPanel>
-                <Button DockPanel.Dock="Right" Style="{StaticResource Button.Danger}"
+                <Button DockPanel.Dock="Right" Style="{StaticResource Button.Primary}"
                         MinWidth="170" Click="OnPushClick"
                         IsEnabled="{Binding CanPush}" Margin="8,0,0,0"
-                        ToolTip="Opens the push screen: the destination with this subtree added, diffed against what that source holds now.">
+                        ToolTip="Adds this subtree to the destination in memory. Nothing is written — push it from the top bar or the Tier editor when you are ready.">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="&#xE898;" FontFamily="{StaticResource Font.Icons}" FontSize="13"
+                        <TextBlock Text="&#xE73E;" FontFamily="{StaticResource Font.Icons}" FontSize="13"
                                    VerticalAlignment="Center" Margin="0,0,8,0" />
-                        <TextBlock Text="Push to Vault or disk…" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding ApplyLabel}" VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>
                 <Button DockPanel.Dock="Right" Style="{StaticResource Button.Primary}" Content="Preview"

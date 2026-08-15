@@ -5,7 +5,8 @@
     tier is the drift this tool exists to find, so the shape of the screen makes "set it everywhere"
     the easy action and "set it in one place" the one you have to choose.
 
-    Nothing here writes. Queue adds to the pending set; the push screen is what sends it.
+    Nothing here writes to a source. Apply changes what the app is holding — which is what every tab
+    then shows — and the push screen is what sends it.
 *@
 @inherits ObservingComponent
 
@@ -116,13 +117,13 @@
 
     <Footer>
         <span class="caption inline">
-            Nothing here writes. Queue adds to the pending set; Review and write on the All tiers tab
-            is what sends it, one tier at a time.
+            Nothing here writes to a source. Apply changes what the app is holding, which is what every
+            tab then shows; Push to Vault or disk is what sends it, one tier at a time.
         </span>
         <span class="spacer"></span>
         <button class="btn" @onclick="OnClose">Close</button>
         <button class="btn btn-primary" disabled="@(!Vm.CanQueue)"
-                @onclick="Queue">Queue @(Vm.Queued ? "again" : "these changes")</button>
+                @onclick="Queue">Apply @(Vm.Queued ? "again" : "these changes")</button>
     </Footer>
 </Modal>
 

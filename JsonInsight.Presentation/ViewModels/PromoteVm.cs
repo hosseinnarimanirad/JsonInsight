@@ -92,6 +92,7 @@ public sealed partial class PromoteVm : ObservableObject
     partial void OnDestinationChanged(TierDocument? value)
     {
         PreviewLines.Clear();
+        OnPropertyChanged(nameof(ApplyLabel));
         BuildPlan();
     }
 
@@ -141,7 +142,7 @@ public sealed partial class PromoteVm : ObservableObject
         string before, after;
         try
         {
-            before = OrdinalJsonWriter.SerializeToText(Destination.Root);
+            before = OrdinalJsonWriter.SerializeToText(Destination.Live);
             after = OrdinalJsonWriter.SerializeToText(BuildUpdated()!);
         }
         catch (Exception ex)
@@ -185,14 +186,42 @@ public sealed partial class PromoteVm : ObservableObject
     }
 
     /// <summary>
-    /// The push this screen would hand on, or null when there is nothing to hand on. Asked instead of
-    /// spelling out "if there is a destination and the document builds" at each of the two hosts'
-    /// buttons.
+    /// Lands the promotion in memory, on the destination tier, as one undo step. Writes nothing:
+    /// pushing is a separate press, from the top bar or from the Tier editor.
+    ///
+    /// <para>
+    /// This used to hand the promoted document straight to the push screen, which meant a promote
+    /// either went all the way to a source or nowhere at all — there was no way to promote a subtree,
+    /// look at it beside everything else, and then decide. Now it lands where every other edit lands.
+    /// </para>
     /// </summary>
-    public PendingPush? PendingPush() =>
-        Destination is { } destination && BuildUpdated() is { } updated
-            ? new PendingPush(destination, updated, What)
-            : null;
+    /// <returns>True when it was applied, so the host can close the dialog.</returns>
+    public bool Apply()
+    {
+        if (Destination is not { } destination || BuildUpdated() is not { } updated)
+        {
+            return false;
+        }
+
+        try
+        {
+            _main.Store.ApplyTree(destination, updated);
+        }
+        catch (Exception ex)
+        {
+            Message = $"Could not apply the promotion: {ex.Message}";
+            return false;
+        }
+
+        _main.PublishEdits();
+        _main.Tiers?.NotifyEditsChanged();
+        return true;
+    }
+
+    /// <summary>What the button says, naming where this is going.</summary>
+    public string ApplyLabel => Destination is { } destination
+        ? $"Apply to {destination.Id}"
+        : "Apply";
 
     /// <summary>One phrase naming this promote, carried onto the push screen.</summary>
     public string What => $"{RootPath} promoted from {Source.Id} ({Leaves.Count} key(s))";

@@ -80,9 +80,10 @@ else
                 @* The only way an edit leaves this window. There is no Save, because there is nowhere
                    to save to. This tab is looking at exactly one tier, so it passes that one rather
                    than letting the push screen offer a picker. *@
-                <button class="btn btn-small btn-danger" disabled="@(!Vm.CanEdit)"
-                        @onclick="OpenPush"
-                        title="Upload this document, after reviewing it against what that source holds right now.">
+                @* CanPush, not CanEdit: a writable tier with nothing changed has nothing to push, and
+                   the WPF button has always been greyed out for it. *@
+                <button class="btn btn-small btn-danger" disabled="@(!Vm.CanPush)"
+                        @onclick="OpenPush" title="@Vm.PushHint">
                     <Icon Name="push" Size="13" /> <span>Push to Vault or disk…</span>
                 </button>
             </div>

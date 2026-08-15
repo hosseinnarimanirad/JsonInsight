@@ -90,9 +90,9 @@
         </span>
         <span class="spacer"></span>
         <button class="btn" @onclick="OnClose">Cancel</button>
-        <button class="btn btn-danger" disabled="@(!Vm.CanPush)" @onclick="Push"
-                title="Opens the push screen: the destination with this subtree added, diffed against what that source holds now.">
-            <Icon Name="push" Size="13" /> <span>Push to Vault or disk…</span>
+        <button class="btn btn-primary" disabled="@(!Vm.CanPush)" @onclick="Apply"
+                title="Adds this subtree to the destination in memory. Nothing is written — push it from the top bar or the Tier editor when you are ready.">
+            <Icon Name="ok" Size="13" /> <span>@Vm.ApplyLabel</span>
         </button>
     </Footer>
 </Modal>
@@ -128,11 +128,15 @@
         _ => action.ToString(),
     };
 
-    private async Task Push()
+    /// <summary>
+    /// Lands the promotion on the destination in memory and closes. Nothing is written here — the
+    /// promoted keys join whatever else is unsaved, to be pushed when you are ready.
+    /// </summary>
+    private async Task Apply()
     {
-        if (Vm.PendingPush() is { } pending)
+        if (Vm.Apply())
         {
-            await OnPush.InvokeAsync(pending);
+            await OnClose.InvokeAsync();
         }
     }
 }

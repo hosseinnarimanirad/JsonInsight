@@ -197,6 +197,24 @@
                             </TextBlock>
                         </StackPanel>
                     </Button>
+
+                    <!-- The other direction, beside the button that reads: everything edited anywhere
+                         in the app is held in memory until this is pressed. It opens the review
+                         rather than writing, because a push is one source, one version and one typed
+                         confirmation — and it is off outright when there is nothing unsaved, so the
+                         top bar also answers "is there anything to write" without being pressed. -->
+                    <Button Style="{StaticResource Button.Danger}" Margin="8,0,0,0"
+                            Click="OnPushAllClick"
+                            IsEnabled="{Binding HasUnsavedChanges}"
+                            ToolTipService.ShowOnDisabled="True"
+                            ToolTip="{Binding UnsavedSummary}"
+                            Visibility="{Binding ShowingProjectList, Converter={StaticResource BoolVis}, ConverterParameter=invert}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE898;" FontFamily="{StaticResource Font.Icons}" FontSize="13"
+                                       VerticalAlignment="Center" Margin="0,0,8,0" />
+                            <TextBlock Text="Push to Vault or disk" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
             </Grid>
         </Border>
@@ -289,7 +307,11 @@
             <views:ProjectsView DataContext="{Binding Projects}"
                                 Visibility="{Binding DataContext.ShowingProjectList, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolVis}}" />
 
-            <TabControl Visibility="{Binding ShowingProjectList, Converter={StaticResource BoolVis}, ConverterParameter=invert}">
+            <!-- SelectionChanged publishes whatever the Tier editor has edited into the documents the
+                 other tabs read. Done on the way out of a tab rather than per keystroke: see
+                 MainVm.PublishEdits. -->
+            <TabControl SelectionChanged="OnTabChanged"
+                        Visibility="{Binding ShowingProjectList, Converter={StaticResource BoolVis}, ConverterParameter=invert}">
                 <TabItem Header="Tier editor" ToolTip="Edit one tier's document as JSON, a node at a time.">
                     <views:JsonEditorView x:Name="Editor" DataContext="{Binding JsonEditor}" />
                 </TabItem>

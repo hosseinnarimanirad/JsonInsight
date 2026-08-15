@@ -122,7 +122,9 @@ public sealed partial class JsonNodeVm : ObservableObject
 public sealed partial class JsonEditorVm : ObservableObject
 {
     private readonly MainVm _main;
-    private readonly Dictionary<string, DocumentEditor> _editors = new(StringComparer.OrdinalIgnoreCase);
+    // The editors themselves live on MainVm.Store: an edit made here is what every other tab reads
+    // afterwards, and this view model is rebuilt on every pull and every per-source load — which used
+    // to take the only copy of an in-progress edit with it.
     private readonly HashSet<string> _collapsed = new(StringComparer.Ordinal);
 
     /// <summary>Names array elements the way the flattener does, so a tree path and a grid path agree.</summary>
@@ -477,8 +479,7 @@ public sealed partial class JsonEditorVm : ObservableObject
         Tier = Tiers.FirstOrDefault(d => d.Writable) ?? Tiers.FirstOrDefault();
     }
 
-    public DocumentEditor? Editor =>
-        Tier is null ? null : _editors.TryGetValue(Tier.Id, out var editor) ? editor : null;
+    public DocumentEditor? Editor => Tier is null ? null : _main.Store.Find(Tier.Id);
 
     // ------------------------------------------------------------------ state
 
@@ -676,14 +677,63 @@ public sealed partial class JsonEditorVm : ObservableObject
             // a record, how old it is is the thing you actually react to.
             var age = Tier.SourceAge;
             var head = $"{Tier.Id}: {Tier.SourceLine}" + (age.Length == 0 ? string.Empty : $"  ({age})");
-            var edits = _main.Edits.For(Tier.Id).Count;
 
-            // The two editing models are separate on purpose, so a tier with queued key edits and an
-            // open document edit is a state worth naming rather than silently merging.
-            return edits == 0
-                ? head
-                : head + $"  ·  {edits} key change(s) also queued on the All tiers tab — those are separate from this.";
+            // This used to warn that the All tiers tab held key changes of its own, kept separately
+            // and silently overriding each other at push time. There is one document per tier now, so
+            // a change made there is already in the tree below — there is no second set to name.
+            return head;
         }
+    }
+
+    /// <summary>
+    /// Takes the refreshed documents after edits were published, and rebuilds around them when the
+    /// tier being looked at is one of them — a key changed on the All tiers tab lands in the same
+    /// document this tab is showing.
+    ///
+    /// <para>
+    /// The tier is re-pointed by assigning the backing field rather than the property, so
+    /// <see cref="OnTierChanged"/> does not run: that clears the collapsed set, drops the selection
+    /// and resets the pane, which is the wrong thing to do to someone who has not changed tier. The
+    /// selected path is re-found afterwards instead, the way an edit made here re-finds it.
+    /// </para>
+    /// </summary>
+    internal void AdoptRefreshedDocuments(IReadOnlyList<TierDocument> documents, IReadOnlyList<string> refreshed)
+    {
+        for (var i = 0; i < Tiers.Count; i++)
+        {
+            if (documents.FirstOrDefault(d => d.Id.Equals(Tiers[i].Id, StringComparison.OrdinalIgnoreCase))
+                is { } replacement && !ReferenceEquals(replacement, Tiers[i]))
+            {
+                Tiers[i] = replacement;
+            }
+        }
+
+        if (Tier is not { } current)
+        {
+            return;
+        }
+
+        // The field on purpose, not the property: assigning the property runs OnTierChanged, and
+        // this is the same tier, re-pointed at its refreshed document. The notification is raised by
+        // hand so bindings still follow.
+#pragma warning disable MVVMTK0034
+        _tier = Tiers.FirstOrDefault(d => d.Id.Equals(current.Id, StringComparison.OrdinalIgnoreCase)) ?? current;
+#pragma warning restore MVVMTK0034
+        OnPropertyChanged(nameof(Tier));
+
+        if (!refreshed.Contains(current.Id, StringComparer.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var selected = SelectedNode?.Path;
+        RebuildTree();
+
+        SelectedNode = selected is null
+            ? null
+            : Nodes.FirstOrDefault(n => n.Path.Equals(selected, StringComparison.Ordinal));
+
+        NotifyState();
     }
 
     // ----------------------------------------------------------------- events
@@ -696,9 +746,11 @@ public sealed partial class JsonEditorVm : ObservableObject
         _collapsed.Clear();
         _collapsedWhileFiltering.Clear();
 
-        if (value is not null && !_editors.ContainsKey(value.Id))
+        // Opens the shared editor for this tier, or picks up the one already holding its edits — from
+        // an earlier visit to this tab, or from a change made on the All tiers tab.
+        if (value is not null)
         {
-            _editors[value.Id] = new DocumentEditor(value);
+            _main.Store.For(value);
         }
 
         _pushBlocked = SourceProviders.For(value, _main.Flattener)
@@ -956,6 +1008,8 @@ public sealed partial class JsonEditorVm : ObservableObject
         _instantPath = node.Path;
         Error = null;
         Message = $"{node.Path} updated. Nothing has been written yet.";
+
+        NoteEdited();
 
         // The marks are refreshed on the rows that already exist rather than by rebuilding the tree.
         // A rebuild replaces every row, which reselects, which reloads the pane — and throws the
@@ -1401,8 +1455,24 @@ public sealed partial class JsonEditorVm : ObservableObject
 
     // ---------------------------------------------------------------- helpers
 
+    /// <summary>
+    /// Tells the store this tier has moved, so the other tabs are re-flattened from it when they are
+    /// next shown. Recorded rather than published here: a scalar commits as it is typed, and
+    /// re-flattening the document and rebuilding the comparison on every keystroke would be work done
+    /// for a tab nobody is looking at.
+    /// </summary>
+    private void NoteEdited()
+    {
+        if (Tier is { } tier)
+        {
+            _main.Store.MarkEdited(tier.Id);
+            _main.NoteUnsavedChanged();
+        }
+    }
+
     private void AfterChange(string reselect)
     {
+        NoteEdited();
         RebuildTree();
 
         // Assigning the same-valued node does not raise a change notification, and the rebuilt

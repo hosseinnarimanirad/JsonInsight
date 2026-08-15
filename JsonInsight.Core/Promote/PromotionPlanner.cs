@@ -68,7 +68,9 @@ public static class PromotionPlanner
     /// </summary>
     public static JsonNode Apply(TierDocument destination, TierDocument source, PromotionPlan plan)
     {
-        var updated = destination.Root.DeepClone();
+        // Live, so a promote stacks onto whatever the destination has already been edited to rather
+        // than being computed against the state it was read in and reverting it.
+        var updated = destination.Live.DeepClone();
 
         foreach (var leaf in plan.Included)
         {
@@ -98,7 +100,9 @@ public static class PromotionPlanner
     /// </summary>
     private static JsonNode? CloneSourceValue(TierDocument source, PromotionLeaf leaf)
     {
-        var node = JsonNavigator.Find(source.Root, leaf.Path);
+        // Live for the same reason: what is being promoted is what the source says now, which is what
+        // the grid showed when the row was picked.
+        var node = JsonNavigator.Find(source.Live, leaf.Path);
         return node?.DeepClone();
     }
 }

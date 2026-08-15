@@ -17,9 +17,21 @@ public static class EditApplier
     /// and thrown away without consequence, and a failed apply cannot leave the loaded document
     /// half-edited.
     /// </summary>
-    public static JsonNode Apply(TierDocument destination, IReadOnlyList<PendingEdit> edits)
+    public static JsonNode Apply(TierDocument destination, IReadOnlyList<PendingEdit> edits) =>
+        Apply(destination.Live, edits);
+
+    /// <summary>
+    /// The same, applied onto whichever tree the caller is holding rather than onto a document's.
+    ///
+    /// <para>
+    /// This is what an edit made on the All tiers tab lands on: the tier's <em>working</em> tree, so a
+    /// change made there stacks onto whatever the Tier editor has already changed instead of being
+    /// computed against the state the tier was read in and quietly reverting it.
+    /// </para>
+    /// </summary>
+    public static JsonNode Apply(JsonNode baseTree, IReadOnlyList<PendingEdit> edits)
     {
-        var updated = destination.Root.DeepClone();
+        var updated = baseTree.DeepClone();
 
         // Deletes last. Applying them first could remove a parent that a sibling add still needs,
         // and the empty-parent pruning below has to see the tree in its final shape to decide

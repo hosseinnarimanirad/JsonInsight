@@ -56,10 +56,10 @@
         <Border DockPanel.Dock="Bottom" Style="{StaticResource Card}" Margin="0,10,0,0">
             <DockPanel>
                 <Button DockPanel.Dock="Right" Style="{StaticResource Button.Primary}"
-                        Content="Queue these changes" MinWidth="170"
+                        Content="Apply these changes" MinWidth="170"
                         Command="{Binding QueueCommand}" IsEnabled="{Binding CanQueue}"
                         Margin="8,0,0,0"
-                        ToolTip="Adds them to the pending set. Nothing is written until you review and commit." />
+                        ToolTip="Changes what the app is holding, which is what every tab then shows. Nothing is written to a source until you push." />
                 <Button DockPanel.Dock="Right" Style="{StaticResource Button.Secondary}" Content="Close"
                         MinWidth="100" Click="OnCloseClick" />
 

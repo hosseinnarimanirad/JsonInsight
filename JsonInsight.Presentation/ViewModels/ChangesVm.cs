@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Text.Json.Nodes;
+using JsonInsight.Classify;
 using JsonInsight.Editing;
 using JsonInsight.Model;
 using JsonInsight.Promote;
@@ -10,48 +11,64 @@ using ValueClass = JsonInsight.Model.ValueClass;
 
 namespace JsonInsight.ViewModels;
 
-/// <summary>One queued change, as shown in the review list.</summary>
-public sealed partial class ChangeRowVm : ObservableObject
+/// <summary>One path this tier has changed in memory, as shown in the review list.</summary>
+public sealed class ChangeRowVm
 {
-    public required PendingEdit Edit { get; init; }
+    public required string Path { get; init; }
 
-    /// <summary>True when the document moved after this edit was queued. Blocks the write until resolved.</summary>
-    [ObservableProperty]
-    private bool _isStale;
+    public required string TierId { get; init; }
 
-    public string Path => Edit.Path;
-
-    public string TierId => Edit.TierId;
-
-    public string KindName => Edit.Kind.ToString().ToLowerInvariant();
+    public required NodeChange Change { get; init; }
 
     /// <summary>Bound by the Text.ByClass style; the name is what the column shows.</summary>
-    public ValueClass Class => Edit.Class;
+    public required ValueClass Class { get; init; }
 
-    public string ClassName => Edit.Class.ToString().ToLowerInvariant();
+    public required string Before { get; init; }
 
-    public string BaseDisplay => Edit.BaseDisplay;
+    public required string After { get; init; }
 
-    public string NewDisplay => Edit.NewDisplay;
+    public string KindName => Change switch
+    {
+        NodeChange.Added => "add",
+        NodeChange.Removed => "delete",
+        _ => "update",
+    };
 
-    public string StaleReason => IsStale
-        ? "The tier changed after this edit was queued — its starting value is no longer what was seen."
-        : string.Empty;
+    public string ClassName => Class.ToString().ToLowerInvariant();
+
+    public string BaseDisplay => Change == NodeChange.Added ? "(absent)" : Describe(Before);
+
+    public string NewDisplay => Change == NodeChange.Removed ? "(removed)" : Describe(After);
+
+    /// <summary>Secrets are described, never shown — the same rule the batch editor follows.</summary>
+    private string Describe(string value) =>
+        Class == ValueClass.Secret ? SecretMasker.Describe(value) : value;
 }
 
 /// <summary>
-/// Reviews the pending change set, one tier at a time, and hands it to the push screen.
+/// Reviews what the app is holding but has not written, one tier at a time, and hands a tier to the
+/// push screen.
 ///
 /// <para>
 /// Per tier rather than all at once, because a push is one secret, one version and one typed
 /// confirmation, and a confirmation covering four environments would be worth less than the four it
-/// replaced. Within a tier the whole batch goes in one version, which is the part that matters: six
-/// sequential single-key versions would be six entries in a history that describe one change.
+/// replaced. Within a tier the whole document goes in one version, which is the part that matters:
+/// six sequential single-key versions would be six entries in a history describing one change.
 /// </para>
 ///
 /// <para>
-/// Nothing here writes. It builds the document the batch would produce and hands it over — the same
-/// hand-off Promote makes, into the same screen, with the same fences behind it.
+/// This used to review a queue of edits that existed nowhere else until they were pushed. There is no
+/// queue now — an edit lands in the tier's in-memory document the moment it is made, wherever it was
+/// made — so what this lists is the difference between what a tier says and what its source last
+/// handed over. That also retired the staleness machinery: an edit could go stale against a document
+/// that moved underneath it, but a document cannot go stale against itself. The question that
+/// genuinely remains — did the <em>source</em> move since it was read — was always the push screen's,
+/// and still is.
+/// </para>
+///
+/// <para>
+/// Nothing here writes. It hands a tier over — the same hand-off Promote used to make, into the same
+/// screen, with the same fences behind it.
 /// </para>
 /// </summary>
 public sealed partial class ChangesVm : ObservableObject
@@ -78,27 +95,27 @@ public sealed partial class ChangesVm : ObservableObject
 
     public ObservableCollection<TierDocument> Tiers { get; } = [];
 
-    public string Title => "Pending changes";
-
-    public bool HasStale => Changes.Any(c => c.IsStale);
+    public string Title => "Unsaved changes";
 
     /// <summary>
-    /// Whether this batch can go to the push screen, which is where it is confirmed and where the
-    /// tier's name is typed out. A stale edit blocks it here rather than there, because staleness is
-    /// about the values these changes were made against and this is the screen showing them.
+    /// Whether this tier can go to the push screen, which is where it is confirmed against what its
+    /// source holds at that moment and where the tier's name is typed out.
     /// </summary>
-    public bool CanPush => !HasStale && Changes.Count > 0 && Tier is { Writable: true };
+    public bool CanPush => Changes.Count > 0 && Tier is { Writable: true };
 
     public ChangesVm(MainVm main)
     {
         _main = main;
 
-        foreach (var tierId in main.Edits.TierIds)
-        {
-            var document = main.Documents.FirstOrDefault(d =>
-                d.Id.Equals(tierId, StringComparison.OrdinalIgnoreCase));
+        // Published first: an edit made a moment ago on another tab may not have been flattened into
+        // the documents yet, and a review screen that opened saying "nothing to write" would be
+        // wrong in the one situation it exists for.
+        main.PublishEdits();
 
-            if (document is not null)
+        foreach (var tierId in main.Store.ModifiedTiers)
+        {
+            if (main.Documents.FirstOrDefault(d =>
+                    d.Id.Equals(tierId, StringComparison.OrdinalIgnoreCase)) is { } document)
             {
                 Tiers.Add(document);
             }
@@ -118,20 +135,29 @@ public sealed partial class ChangesVm : ObservableObject
         Changes.Clear();
         Warnings.Clear();
 
-        if (Tier is null)
+        if (Tier is null || _main.Store.Find(Tier.Id) is not { } editor)
         {
-            Message = "No pending changes.";
+            Message = "Nothing has been changed.";
             TargetDescription = string.Empty;
+            OnPropertyChanged(nameof(CanPush));
             return;
         }
 
-        var edits = _main.Edits.For(Tier.Id);
-        foreach (var edit in edits)
+        // Only the paths that actually changed. ChangeKinds also marks every ancestor of a change as
+        // Mixed so a collapsed tree can be followed down to it; on a flat list those are not changes,
+        // they are the route to one.
+        foreach (var (path, change) in editor.ChangeKinds()
+                     .Where(pair => pair.Value is NodeChange.Added or NodeChange.Edited or NodeChange.Removed)
+                     .OrderBy(pair => pair.Key, StringComparer.Ordinal))
         {
             Changes.Add(new ChangeRowVm
             {
-                Edit = edit,
-                IsStale = edit.IsStaleAgainst(Tier.Flat),
+                Path = path,
+                TierId = Tier.Id,
+                Change = change,
+                Class = ClassOf(path),
+                Before = editor.OriginalTextOrEmpty(path),
+                After = editor.WorkingTextOrEmpty(path),
             });
         }
 
@@ -143,70 +169,102 @@ public sealed partial class ChangesVm : ObservableObject
                 ? $"{secret} — pushing creates a new version of that secret. Nothing is written locally."
                 : $"{Tier.Id} names neither a Vault secret nor a file, so there is nowhere to push it.";
 
-        var validator = new EditValidator(_main.Documents.ToArray(), _main.Classifier);
-        foreach (var warning in validator.Validate(edits))
-        {
-            Warnings.Add(warning.IsBlocking ? "BLOCKED: " + warning.Text : warning.Text);
-        }
+        Message = Changes.Count == 0
+            ? $"{Tier.Id} matches what its source last handed over."
+            : $"{Changes.Count} change(s) held in memory for {Tier.Id}, written to no source yet.";
 
-        Message = HasStale
-            ? $"{Changes.Count} change(s). {Changes.Count(c => c.IsStale)} are stale — the tier moved after they " +
-              "were queued. Re-base them against the current values or drop them before writing."
-            : $"{Changes.Count} change(s) queued for {Tier.Id}.";
-
-        OnPropertyChanged(nameof(HasStale));
         OnPropertyChanged(nameof(CanPush));
     }
 
-    /// <summary>Re-reads every stale edit's starting value from the current document, keeping the value set.</summary>
-    [RelayCommand]
-    private void Rebase()
-    {
-        if (Tier is null)
-        {
-            return;
-        }
+    /// <summary>
+    /// How the value at a path is classified, so a secret is described rather than printed. Read from
+    /// the live flatten, which is the one that knows about a key that only exists because it was just
+    /// added.
+    /// </summary>
+    private ValueClass ClassOf(string path) =>
+        Tier?.Flat.Find(path)?.Class
+        ?? _main.Classifier.Classify(path, string.Empty);
 
-        _main.Edits.RebaseOn(Tier);
-        PreviewLines.Clear();
-        BuildChangeList();
-        _main.Tiers?.NotifyEditsChanged();
-    }
-
+    /// <summary>Takes back one path, leaving every other change on this tier alone.</summary>
     [RelayCommand]
     private void Discard(ChangeRowVm? row)
     {
-        if (row is null)
+        if (row is null || Tier is null || _main.Store.Find(Tier.Id) is not { } editor)
         {
             return;
         }
 
-        _main.Edits.Remove(row.Edit);
-        PreviewLines.Clear();
-        BuildChangeList();
-        _main.Tiers?.NotifyEditsChanged();
-
-        if (Changes.Count == 0)
+        try
         {
-            Tiers.Remove(Tier!);
-            Tier = Tiers.FirstOrDefault();
+            editor.RevertNode(row.Path);
         }
+        catch (Exception ex)
+        {
+            Message = $"Could not take back {row.Path}: {ex.Message}";
+            return;
+        }
+
+        AfterDiscard();
     }
 
+    /// <summary>Takes this tier back to what its source last handed over.</summary>
     [RelayCommand]
     private void DiscardTier()
     {
-        if (Tier is null)
+        if (Tier is null || _main.Store.Find(Tier.Id) is not { } editor)
         {
             return;
         }
 
-        var removed = Tier;
-        _main.Edits.RemoveTier(removed.Id);
-        Tiers.Remove(removed);
+        editor.RevertAll();
+        AfterDiscard();
+    }
+
+    private void AfterDiscard()
+    {
+        if (Tier is { } tier)
+        {
+            _main.Store.MarkEdited(tier.Id);
+        }
+
+        _main.PublishEdits();
         _main.Tiers?.NotifyEditsChanged();
 
-        Tier = Tiers.FirstOrDefault();
+        PreviewLines.Clear();
+        Refresh();
+    }
+
+    /// <summary>
+    /// Rebuilds the tier list around what is still unsaved, keeping the tier being looked at if it
+    /// still has changes.
+    /// </summary>
+    private void Refresh()
+    {
+        var current = Tier?.Id;
+
+        var remaining = _main.Store.ModifiedTiers
+            .Select(id => _main.Documents.FirstOrDefault(d => d.Id.Equals(id, StringComparison.OrdinalIgnoreCase)))
+            .Where(d => d is not null)
+            .Select(d => d!)
+            .ToList();
+
+        Tiers.Clear();
+        foreach (var document in remaining)
+        {
+            Tiers.Add(document);
+        }
+
+        var next = Tiers.FirstOrDefault(d => d.Id.Equals(current, StringComparison.OrdinalIgnoreCase))
+                   ?? Tiers.FirstOrDefault();
+
+        if (ReferenceEquals(next, Tier))
+        {
+            // Same instance, so assigning raises nothing and the list has to be rebuilt by hand.
+            BuildChangeList();
+            return;
+        }
+
+        Tier = next;
         if (Tier is null)
         {
             BuildChangeList();
@@ -214,12 +272,12 @@ public sealed partial class ChangesVm : ObservableObject
     }
 
     /// <summary>
-    /// The change set as a document diff, against the tier as it was read from Vault.
+    /// What this tier has changed, as a document diff against the state it was read in.
     ///
     /// <para>
-    /// A local preview, and it says so: the authoritative comparison is the one the push screen
-    /// makes against the version Vault holds at the moment of pushing. This one answers the narrower
-    /// question you are on this screen to ask — did my six edits do what I meant them to.
+    /// A local preview, and it says so: the authoritative comparison is the one the push screen makes
+    /// against what the source holds at the moment of pushing. This one answers the narrower question
+    /// you are on this screen to ask — did my six edits do what I meant them to.
     /// </para>
     /// </summary>
     [RelayCommand]
@@ -227,7 +285,7 @@ public sealed partial class ChangesVm : ObservableObject
     {
         PreviewLines.Clear();
 
-        if (Tier is null)
+        if (Tier is null || _main.Store.Find(Tier.Id) is not { } editor)
         {
             return;
         }
@@ -235,12 +293,12 @@ public sealed partial class ChangesVm : ObservableObject
         string before, after;
         try
         {
-            before = OrdinalJsonWriter.SerializeToText(Tier.Root);
-            after = OrdinalJsonWriter.SerializeToText(EditApplier.Apply(Tier, _main.Edits.For(Tier.Id)));
+            before = editor.OriginalText;
+            after = editor.WorkingText;
         }
         catch (Exception ex)
         {
-            Message = $"Could not apply these changes: {ex.Message}";
+            Message = $"Could not build the comparison: {ex.Message}";
             return;
         }
 
@@ -252,7 +310,7 @@ public sealed partial class ChangesVm : ObservableObject
         }
 
         Message = PreviewLines.Count == 0
-            ? "These changes would not alter the document — every value is already what it is being set to."
+            ? "Nothing differs from the state this tier was read in."
             : $"{PreviewLines.Count} changed line(s), against {Tier.Id} as it was read. " +
               "Push compares against what that source holds at that moment.";
 
@@ -260,30 +318,14 @@ public sealed partial class ChangesVm : ObservableObject
     }
 
     /// <summary>
-    /// The document this batch would produce, for the push screen to send. Null when there is
-    /// nothing to send or the changes cannot be applied — the caller reports rather than pushes.
+    /// The document this tier would send. It is simply what the tier now says — there is nothing left
+    /// to apply, because the changes were applied when they were made.
     /// </summary>
-    public JsonNode? BuildUpdated()
-    {
-        if (!CanPush || Tier is null)
-        {
-            return null;
-        }
-
-        try
-        {
-            return EditApplier.Apply(Tier, _main.Edits.For(Tier.Id));
-        }
-        catch (Exception ex)
-        {
-            Message = $"Could not apply these changes: {ex.Message}";
-            return null;
-        }
-    }
+    public JsonNode? BuildUpdated() => CanPush ? Tier?.Live : null;
 
     /// <summary>
     /// The push this screen would hand on, or null when there is nothing to hand on. Asked instead of
-    /// spelling out "if there is a tier and the document builds" at each of the two hosts' buttons.
+    /// spelling out "if there is a tier and it has changes" at each of the two hosts' buttons.
     /// </summary>
     public PendingPush? PendingPush() =>
         Tier is { } tier && BuildUpdated() is { } updated
@@ -293,11 +335,11 @@ public sealed partial class ChangesVm : ObservableObject
     /// <summary>One phrase naming this batch, carried onto the push screen.</summary>
     public string What => Tier is null
         ? string.Empty
-        : $"{_main.Edits.For(Tier.Id).Count} queued key change(s) on {Tier.Id}";
+        : $"{Changes.Count} in-memory change(s) on {Tier.Id}";
 
     /// <summary>
-    /// Called by the dialog once a push has gone through: the changes are in Vault, so they are no
-    /// longer queued anywhere.
+    /// Called by the dialog once a push has gone through: that tier is now what its source holds, so
+    /// it has nothing unsaved left.
     /// </summary>
     public void Pushed()
     {
@@ -306,7 +348,7 @@ public sealed partial class ChangesVm : ObservableObject
             return;
         }
 
-        _main.Edits.RemoveTier(tier.Id);
+        _main.Store.Drop(tier.Id);
         _main.Tiers?.NotifyEditsChanged();
 
         Tiers.Remove(tier);
@@ -315,7 +357,7 @@ public sealed partial class ChangesVm : ObservableObject
         if (Tier is null)
         {
             Changes.Clear();
-            Message = "Pushed. Nothing is queued now.";
+            Message = "Pushed. Nothing is unsaved now.";
             OnPropertyChanged(nameof(CanPush));
         }
     }

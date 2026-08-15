@@ -1,13 +1,15 @@
 @*
-    Pending changes — the queued change set, reviewed one tier at a time before it becomes a version.
+    Unsaved changes — everything the app is holding that no source has been told about, reviewed one
+    tier at a time before it becomes a version.
 
     Batching is not a convenience: the change that prompted the feature was one shape applied to six
     sibling Couchbase URLs across two environments, and six sequential single-key pushes would be six
     versions of a secret describing one change.
 
-    A queued edit records the value it was made against. If a read moves the tier underneath it, the
-    edit is marked stale and the push is blocked until it is re-based or dropped — so a batch can
-    never silently overwrite something that changed while it sat there.
+    This used to review a queue that existed nowhere else until it was pushed, and each entry carried
+    the value it was made against so a read moving the tier underneath it could be caught. Edits land
+    in the tier's own in-memory document now, so there is no queue to go stale — whether the source
+    has moved since it was read is asked by the push screen, against the live secret or file.
 *@
 @inherits ObservingComponent
 
@@ -28,24 +30,9 @@
     
                 <button class="btn btn-primary" @onclick="() => Vm.PreviewCommand.Execute(null)">Preview</button>
                 <button class="btn btn-small" @onclick="() => Vm.DiscardTierCommand.Execute(null)"
-                        title="Drop every queued change for this tier.">Discard this tier's</button>
+                        title="Take this tier back to what its source last handed over.">Discard this tier's</button>
             </div>
-    
-            @if (Vm.HasStale)
-            {
-                <div class="notice notice-warn">
-                    <Icon Name="warn" />
-                    <div>
-                        <div>
-                            One or more of these was made against a value the source no longer holds —
-                            somebody changed it in between. The push is blocked until each is re-based onto
-                            what is there now, or dropped.
-                        </div>
-                        <button class="btn btn-small" @onclick="() => Vm.RebaseCommand.Execute(null)">Re-base onto what is there now</button>
-                    </div>
-                </div>
-            }
-    
+
             @foreach (var warning in Vm.Warnings)
             {
                 <div class="notice notice-warn"><Icon Name="warn" /> <span>@warning</span></div>
@@ -73,8 +60,7 @@
                             <tbody>
                                 @foreach (var change in Vm.Changes)
                                 {
-                                    <tr @key="@($"{change.TierId}|{change.Path}")" class="@(change.IsStale ? "row-stale" : "")"
-                                        title="@change.StaleReason">
+                                    <tr @key="@($"{change.TierId}|{change.Path}")">
                                         <td class="col-path"><span class="path-label">@change.Path</span></td>
                                         <td>@change.TierId</td>
                                         <td>@change.KindName</td>
@@ -82,7 +68,7 @@
                                         <td class="col-tier @SecretClass(change)">@change.NewDisplay</td>
                                         <td>
                                             <button class="btn btn-small" @onclick="() => Vm.DiscardCommand.Execute(change)"
-                                                    title="Drop this one change.">Discard</button>
+                                                    title="Take this one path back to what the source last handed over.">Discard</button>
                                         </td>
                                     </tr>
                                 }

@@ -166,15 +166,25 @@ public sealed partial class TiersVm : ObservableObject
 
     public MultiDiff Diff { get; private set; }
 
-    public EditSet Edits => _main.Edits;
-
     public string ShownLabel => $"{Rows.Count} rows shown";
 
-    public bool HasPendingEdits => !Edits.IsEmpty;
+    /// <summary>Whether anything is held in memory that no source has been told about yet.</summary>
+    public bool HasPendingEdits => _main.Store.ModifiedTiers.Count > 0;
 
-    public string PendingLabel => Edits.IsEmpty
-        ? "no pending changes"
-        : $"{Edits.Count} pending — {Edits.Summary()}";
+    public string PendingLabel
+    {
+        get
+        {
+            var tiers = _main.Store.ModifiedTiers;
+            if (tiers.Count == 0)
+            {
+                return "no unsaved changes";
+            }
+
+            var keys = _main.Store.ChangedPaths().Count(p => p.Length > 0);
+            return $"{keys} unsaved change(s) on {string.Join(", ", tiers)}";
+        }
+    }
 
     public string SourceLabel
     {
@@ -271,6 +281,12 @@ public sealed partial class TiersVm : ObservableObject
     /// Reads every tier again and rebuilds the grid. Nothing is written: a pull replaces what is in
     /// memory, and what is in memory is all there is.
     /// </summary>
+    /// <summary>
+    /// Whether the next Pull press is the one that goes ahead and discards. See
+    /// <see cref="PullFromVaultAsync"/>; reset by anything that resolves the question.
+    /// </summary>
+    private bool _confirmingDiscard;
+
     [RelayCommand]
     private async Task PullFromVaultAsync()
     {
@@ -278,6 +294,20 @@ public sealed partial class TiersVm : ObservableObject
         {
             return;
         }
+
+        // A pull re-reads every source and replaces what is in memory, so unsaved edits go with it.
+        // Asked rather than assumed, and asked the way the Delete button on the projects screen asks
+        // — a second press rather than a dialog, so the same code serves both front ends.
+        if (!_confirmingDiscard && _main.Store.ModifiedTiers is { Count: > 0 } modified)
+        {
+            _confirmingDiscard = true;
+            Report($"{string.Join(", ", modified)} " +
+                   $"{(modified.Count == 1 ? "has" : "have")} unsaved changes that a pull would discard. " +
+                   "Push first to keep them, or press Pull again to re-read and throw them away.");
+            return;
+        }
+
+        _confirmingDiscard = false;
 
         await BusyGuard.RunAsync(
             busy => Busy = busy,
@@ -349,7 +379,7 @@ public sealed partial class TiersVm : ObservableObject
     /// </summary>
     public event EventHandler? DocumentsChanged;
 
-    /// <summary>Call after the change set is touched, so the grid and the toolbar agree with it.</summary>
+    /// <summary>Call after anything is edited in memory, so the grid and the toolbar agree with it.</summary>
     public void NotifyEditsChanged()
     {
         MarkPendingRows();
@@ -357,9 +387,20 @@ public sealed partial class TiersVm : ObservableObject
         OnPropertyChanged(nameof(HasPendingEdits));
     }
 
+    /// <summary>
+    /// Marks the rows holding a value that has been changed in memory and not yet written.
+    ///
+    /// <para>
+    /// The tier is deliberately not part of the question. A row here is one path across every tier,
+    /// so "some tier has an unwritten change at this path" is exactly what the mark can honestly say
+    /// — which of them it is, is what opening the row shows.
+    /// </para>
+    /// </summary>
     private void MarkPendingRows()
     {
-        if (Edits.IsEmpty)
+        var touched = _main.Store.ChangedPaths();
+
+        if (touched.Count == 0)
         {
             foreach (var row in Rows)
             {
@@ -369,7 +410,6 @@ public sealed partial class TiersVm : ObservableObject
             return;
         }
 
-        var touched = Edits.All.Select(e => e.Path).ToHashSet(StringComparer.Ordinal);
         foreach (var row in Rows)
         {
             row.HasPendingEdit = row.LeafPaths.Any(touched.Contains);

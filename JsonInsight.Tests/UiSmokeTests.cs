@@ -408,7 +408,7 @@ public sealed class UiSmokeTests
                 edit.ApplyToAllCommand.Execute(null);
                 edit.QueueCommand.Execute(null);
 
-                Assert.False(main.Edits.IsEmpty);
+                Assert.NotEmpty(main.Store.ModifiedTiers);
 
                 var vm = new ChangesVm(main);
                 Assert.NotNull(vm.Tier);

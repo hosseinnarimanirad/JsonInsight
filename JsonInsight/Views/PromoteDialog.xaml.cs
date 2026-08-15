@@ -15,21 +15,14 @@ public partial class PromoteDialog : Window
     }
 
     /// <summary>
-    /// Hands the promoted document to the push screen. The dialog opens the window rather than the
-    /// view model, for the same reason every other one does: a view model that opens windows cannot
-    /// be constructed in a test, and these ones are.
+    /// Lands the promotion on the destination tier in memory and closes. Nothing is written here:
+    /// the promoted keys join whatever else is unsaved, to be reviewed and pushed from the top bar
+    /// or from the Tier editor — which is what makes it possible to promote a subtree, look at it
+    /// beside everything else, and only then decide.
     /// </summary>
     private void OnPushClick(object sender, RoutedEventArgs e)
     {
-        if (_vm.PendingPush() is not { } pending)
-        {
-            return;
-        }
-
-        var push = new PushVm(_vm.Main, pending.Tier, pending.Updated, pending.What);
-        new PushDialog(push) { Owner = this }.ShowDialog();
-
-        if (push.PushedTier is not null)
+        if (_vm.Apply())
         {
             Close();
         }

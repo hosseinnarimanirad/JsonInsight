@@ -135,10 +135,19 @@ public static class WriteFlows
         return Guarded<PromoteVm>.Allow(new PromoteVm(main, main.Flattener, source, row.Path, row.MissingFrom));
     }
 
-    public static Guarded<ChangesVm> Changes(MainVm main) =>
-        main.Edits.IsEmpty
+    /// <summary>
+    /// The review of everything held in memory and not yet written. Published first, so a change made
+    /// a moment ago on another tab counts — otherwise pressing this straight after an edit would
+    /// report nothing to review.
+    /// </summary>
+    public static Guarded<ChangesVm> Changes(MainVm main)
+    {
+        main.PublishEdits();
+
+        return main.Store.ModifiedTiers.Count == 0
             ? Guarded<ChangesVm>.Silently
             : Guarded<ChangesVm>.Allow(new ChangesVm(main));
+    }
 
     /// <summary>
     /// Refused before opening when there is nothing configured, so the button says what is missing

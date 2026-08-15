@@ -200,11 +200,8 @@ public sealed partial class EditVm : ObservableObject
     /// that case; otherwise reopening a key to reconsider it would be a dead end.
     /// </summary>
     public bool CanQueue =>
-        (Rows.Any(r => r.Action != RowAction.Keep && r.IsEditable) || HasSomethingToWithdraw) &&
+        Rows.Any(r => r.Action != RowAction.Keep && r.IsEditable) &&
         !Warnings.Any(w => w.StartsWith(BlockingPrefix, StringComparison.Ordinal));
-
-    private bool HasSomethingToWithdraw =>
-        Rows.Any(r => r.Action == RowAction.Keep && _main.Edits.Contains(r.TierId, r.Path));
 
     private const string BlockingPrefix = "BLOCKED: ";
 
@@ -234,8 +231,10 @@ public sealed partial class EditVm : ObservableObject
 
             foreach (var document in _main.Documents)
             {
+                // The current value is whatever the tier holds now, edits included — Flat is a flatten
+                // of the live tree — so reopening this dialog after a change shows what was applied
+                // rather than what the source last handed over.
                 var leaf = document.Flat.Find(path);
-                var existing = _main.Edits.Find(document.Id, path);
 
                 var row = new EditRowVm
                 {
@@ -244,16 +243,9 @@ public sealed partial class EditVm : ObservableObject
                     TierWritable = document.Writable,
                     Current = leaf,
                     Class = leaf?.Class ?? classification,
-                    NewValue = existing?.NewValue ?? (leaf is { IsSet: false } ? leaf.Value : string.Empty),
-                    Kind = NormalizeKind(existing?.NewKind ?? leaf?.Kind ?? InferKindFromOtherTiers(path)),
+                    NewValue = leaf is { IsSet: false } ? leaf.Value : string.Empty,
+                    Kind = NormalizeKind(leaf?.Kind ?? InferKindFromOtherTiers(path)),
                 };
-
-                // An edit already queued for this key reopens in the state it was left in, so
-                // revisiting a row to check it does not silently drop it from the change set.
-                if (existing is not null)
-                {
-                    row.Action = existing.Kind == EditKind.Delete ? RowAction.Delete : RowAction.Set;
-                }
 
                 row.PropertyChanged += (_, _) => Revalidate();
                 Rows.Add(row);
@@ -341,9 +333,7 @@ public sealed partial class EditVm : ObservableObject
         var edits = Rows.Select(r => r.ToEdit()).OfType<PendingEdit>().ToArray();
         if (edits.Length == 0)
         {
-            Message = HasSomethingToWithdraw
-                ? "Every row is set to Keep. Queueing now withdraws the change(s) already pending for these keys."
-                : "Nothing selected. Set an action on at least one row.";
+            Message = "Nothing selected. Set an action on at least one row.";
 
             OnPropertyChanged(nameof(CanQueue));
             return;
@@ -368,7 +358,18 @@ public sealed partial class EditVm : ObservableObject
         OnPropertyChanged(nameof(CanQueue));
     }
 
-    /// <summary>Queues every selected row into the app-wide change set. Still writes nothing.</summary>
+    /// <summary>
+    /// Lands every selected row in memory, tier by tier. Still writes nothing to any source — what
+    /// this changes is what the app is holding, which is what every tab then shows and what a push
+    /// would send.
+    ///
+    /// <para>
+    /// This used to queue the rows into an app-wide change set that only became real at push time, so
+    /// the grid behind this dialog went on showing the old values and the Tier editor never saw them
+    /// at all. Applying here means there is one answer to what a tier says, and Undo on the Tier
+    /// editor is what takes it back.
+    /// </para>
+    /// </summary>
     [RelayCommand]
     private void Queue()
     {
@@ -377,49 +378,67 @@ public sealed partial class EditVm : ObservableObject
             return;
         }
 
-        var queued = 0;
+        var applied = 0;
         var noOps = 0;
-        var withdrawn = 0;
 
-        foreach (var row in Rows)
+        // Grouped by tier because each one is a single edit against a single document: a six-row
+        // batch across one tier lands as one undo step rather than six.
+        foreach (var group in Rows.GroupBy(r => r.TierId, StringComparer.OrdinalIgnoreCase))
         {
-            if (row.ToEdit() is not { } edit)
+            if (_main.Documents.FirstOrDefault(d =>
+                    d.Id.Equals(group.Key, StringComparison.OrdinalIgnoreCase)) is not { } document)
             {
-                // A row set back to Keep withdraws an edit queued for it earlier.
-                if (row.Action == RowAction.Keep && _main.Edits.Remove(row.TierId, row.Path))
-                {
-                    withdrawn++;
-                }
-
                 continue;
             }
 
-            if (_main.Edits.AddUnlessNoOp(edit))
+            var edits = new List<PendingEdit>();
+            foreach (var row in group)
             {
-                queued++;
+                if (row.ToEdit() is not { } edit)
+                {
+                    continue;
+                }
+
+                // A value identical to the one already there is not a change, and applying it would
+                // put the tier in the modified state over nothing.
+                if (edit.Kind == EditKind.Update && edit.NewValue == edit.BaseValue)
+                {
+                    noOps++;
+                    continue;
+                }
+
+                edits.Add(edit);
             }
-            else
+
+            if (edits.Count == 0)
             {
-                noOps++;
+                continue;
+            }
+
+            try
+            {
+                _main.Store.Apply(document, edits);
+                applied += edits.Count;
+            }
+            catch (Exception ex)
+            {
+                Message = $"Could not apply to {group.Key}: {ex.Message}";
+                return;
             }
         }
 
         Queued = true;
 
-        var parts = new List<string> { $"{queued} change(s) queued" };
+        var parts = new List<string> { $"{applied} change(s) applied in memory" };
         if (noOps > 0)
         {
             parts.Add($"{noOps} matched the existing value and were dropped");
         }
 
-        if (withdrawn > 0)
-        {
-            parts.Add($"{withdrawn} withdrawn");
-        }
-
         Message = string.Join("; ", parts) +
-                  $". {_main.Edits.Count} pending in total — review and write them from the All tiers tab.";
+                  ". Nothing has been written yet — push to send them to their sources.";
 
+        _main.PublishEdits();
         _main.Tiers?.NotifyEditsChanged();
     }
 }

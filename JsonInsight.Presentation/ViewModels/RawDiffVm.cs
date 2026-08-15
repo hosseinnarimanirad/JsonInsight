@@ -183,8 +183,11 @@ public sealed partial class RawDiffVm : ObservableObject
         string leftText, rightText;
         try
         {
-            leftText = OrdinalJsonWriter.SerializeToText(Left.Root);
-            rightText = OrdinalJsonWriter.SerializeToText(Right.Root);
+            // Live rather than Root: this tab answers "what do these two say", and an edit made on
+            // the Tier editor is part of what they say. Root is only the baseline a push checks the
+            // source against.
+            leftText = OrdinalJsonWriter.SerializeToText(Left.Live);
+            rightText = OrdinalJsonWriter.SerializeToText(Right.Live);
         }
         catch (Exception ex)
         {

@@ -197,69 +197,11 @@ public sealed class EditTests(SampleFiles files)
         Assert.DoesNotContain("couchbase://10.0.0.99", SampleFiles.Canonical(files.Beta), StringComparison.Ordinal);
     }
 
-    // ------------------------------------------------------------- change set
-
-    [Fact]
-    public void An_edit_that_changes_nothing_is_dropped_rather_than_queued()
-    {
-        var set = new EditSet();
-        var current = files.Beta.Flat.Find(AuthUrl)!.ComparableValue;
-
-        Assert.False(set.AddUnlessNoOp(Update(files.Beta, AuthUrl, current)));
-        Assert.True(set.IsEmpty);
-
-        Assert.True(set.AddUnlessNoOp(Update(files.Beta, AuthUrl, current + ",10.0.0.35")));
-        Assert.Equal(1, set.Count);
-    }
-
-    [Fact]
-    public void Editing_the_same_key_twice_replaces_rather_than_stacks()
-    {
-        var set = new EditSet();
-        set.Add(Update(files.Beta, AuthUrl, "a"));
-        set.Add(Update(files.Beta, AuthUrl, "b"));
-
-        Assert.Equal(1, set.Count);
-        Assert.Equal("b", set.Find("beta", AuthUrl)!.NewValue);
-    }
-
-    /// <summary>
-    /// The reason an edit records the value it was made against. A Vault refresh between queuing and
-    /// committing must not let a change silently overwrite whatever moved underneath it.
-    /// </summary>
-    [Fact]
-    public void An_edit_goes_stale_when_the_tier_moves_underneath_it()
-    {
-        var edit = Update(files.Beta, AuthUrl, "couchbase://10.0.0.99");
-        Assert.False(edit.IsStaleAgainst(files.Beta.Flat));
-
-        // stage holds a different value at this path, standing in for beta having moved.
-        Assert.True(edit.IsStaleAgainst(files.Stage.Flat));
-
-        var rebased = edit.RebasedOn(files.Stage.Flat);
-        Assert.False(rebased.IsStaleAgainst(files.Stage.Flat));
-        Assert.Equal("couchbase://10.0.0.99", rebased.NewValue);
-    }
-
-    [Fact]
-    public void A_queued_add_goes_stale_if_the_key_turns_up()
-    {
-        var edit = new PendingEdit
-        {
-            TierId = "beta",
-            Path = "PaymentSettings:BillWalletLock:TtlSeconds",
-            Kind = EditKind.Add,
-            NewValue = "30",
-            NewKind = JsonValueKind.Number,
-        };
-
-        Assert.False(edit.IsStaleAgainst(files.Beta.Flat));
-        Assert.True(edit.IsStaleAgainst(files.Stage.Flat));
-
-        // Re-basing against a tier that now has it turns the add into an update rather than
-        // silently overwriting a key someone else added in the meantime.
-        Assert.Equal(EditKind.Update, edit.RebasedOn(files.Stage.Flat).Kind);
-    }
+    // The change-set tests lived here: a queue keyed by (tier, path), and the staleness and re-basing
+    // that kept it honest across a pull. Both are gone with the queue — an edit lands in the tier's
+    // own in-memory document as it is made, and a document cannot go stale against itself. The
+    // question that genuinely remains, whether the *source* moved since it was read, belongs to the
+    // push preflight and is tested in PushTests and LocalFileProviderTests.
 
     // -------------------------------------------------------------- validation
 
