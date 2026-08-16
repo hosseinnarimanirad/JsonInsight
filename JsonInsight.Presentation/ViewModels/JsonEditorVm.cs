@@ -109,6 +109,13 @@ public sealed partial class JsonNodeVm : ObservableObject
 }
 
 /// <summary>
+/// Where the Tier editor tab was: the tier being edited, and the node selected in it. Either may be
+/// null — nothing is open, or nothing is selected — and either may name something the documents
+/// being opened do not have, in which case the default is used instead.
+/// </summary>
+public sealed record EditorPlace(string? TierId, string? Path);
+
+/// <summary>
 /// The Tier editor tab: one tier's document, as a hierarchy on the left and replaceable text on the
 /// right.
 ///
@@ -465,7 +472,11 @@ public sealed partial class JsonEditorVm : ObservableObject
 
     public ObservableCollection<DiffLineVm> ComparisonLines { get; } = [];
 
-    public JsonEditorVm(MainVm main)
+    /// <param name="openOn">
+    /// Where the tab was before this view model replaced the previous one — see
+    /// <see cref="EditorPlace"/>. Null, or a place nothing answers to, opens on the default.
+    /// </param>
+    public JsonEditorVm(MainVm main, EditorPlace? openOn = null)
     {
         _main = main;
 
@@ -475,9 +486,37 @@ public sealed partial class JsonEditorVm : ObservableObject
         }
 
         // Opens on a writable tier: a tier marked read-only in tiers.json would present a screen
-        // whose main action is disabled for reasons not yet on show.
-        Tier = Tiers.FirstOrDefault(d => d.Writable) ?? Tiers.FirstOrDefault();
+        // whose main action is disabled for reasons not yet on show. Unless there is a tier to go
+        // back to, which is a pull re-reading the tier already being looked at.
+        Tier = TierNamed(openOn?.TierId)
+            ?? Tiers.FirstOrDefault(d => d.Writable)
+            ?? Tiers.FirstOrDefault();
+
+        // Assigning Tier built the tree, so the path can be looked for in it. A path the freshly
+        // read document no longer has simply does not come back — better than selecting its parent,
+        // which would silently point the pane at something else.
+        if (openOn?.Path is { Length: > 0 } path)
+        {
+            SelectedNode = Nodes.FirstOrDefault(n => n.Path.Equals(path, StringComparison.Ordinal));
+        }
     }
+
+    private TierDocument? TierNamed(string? tierId) => tierId is null
+        ? null
+        : Tiers.FirstOrDefault(d => d.Id.Equals(tierId, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// Which tier this tab is on and which node of it is selected — what a rebuild has to put back.
+    ///
+    /// <para>
+    /// Read before <see cref="MainVm"/> replaces this view model and handed to its successor. The
+    /// state itself cannot be carried across: it is an in-memory edit of a particular document, and
+    /// keeping it over a re-read would mean editing one tree while showing another. Where you were
+    /// is not that — a pull re-reads the same tiers, and dropping you at the top of a different one
+    /// afterwards is the pull button undoing your navigation.
+    /// </para>
+    /// </summary>
+    internal EditorPlace Place => new(Tier?.Id, SelectedNode?.Path);
 
     public DocumentEditor? Editor => Tier is null ? null : _main.Store.Find(Tier.Id);
 

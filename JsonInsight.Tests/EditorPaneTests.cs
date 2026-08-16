@@ -750,6 +750,39 @@ public sealed class EditorPaneTests
         }
     }
 
+    /// <summary>
+    /// A pull replaces every document and rebuilds this tab around them, which used to drop whoever
+    /// pressed it back on the first writable tier with nothing selected — the pull button undoing the
+    /// navigation that got you to the key you were about to change.
+    /// </summary>
+    [Fact]
+    public void A_re_read_leaves_the_tier_editor_on_the_tier_and_node_it_was_on()
+    {
+        var main = new MainVm(vaultAtStartup: false);
+        main.Seed(Fixtures.Documents);
+
+        var before = main.JsonEditor!;
+
+        // Not the tier it opens on, so landing back on it proves something rather than nothing.
+        before.Tier = before.Tiers.First(t => t.Id.Equals("beta", StringComparison.OrdinalIgnoreCase));
+        before.SelectedNode = before.Nodes.First(n => n is { IsContainer: false, Path.Length: > 0 });
+        var where = before.SelectedNode!.Path;
+
+        // What a pull does: the same tiers read again, at whatever version they are now on, and the
+        // tabs built around the new documents.
+        main.Seed(Fixtures.Documents
+            .Select(d => Fixtures.AsTier(d.Id, (d.VaultVersion ?? 0) + 1, d.Root.ToJsonString()))
+            .ToList());
+
+        var after = main.JsonEditor!;
+        Assert.NotSame(before, after);
+        Assert.Equal("beta", after.Tier!.Id);
+        Assert.Equal(where, after.SelectedNode?.Path);
+
+        // The freshly read document, not the one it was showing before.
+        Assert.NotSame(before.Tier, after.Tier);
+    }
+
     private sealed class CapturingClipboard : JsonInsight.Platform.IClipboard
     {
         public string Text { get; private set; } = string.Empty;

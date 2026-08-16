@@ -480,6 +480,15 @@ Pick a tier, search the hierarchy — a **Changed** switch in front of the box, 
 or a glob once it contains a `*` — and click any node. Its subtree appears as canonical JSON, exactly
 what the writer would emit for it, so pasting it straight back is a no-op rather than a reformat.
 
+**A pull leaves you where you were.** Every tab is rebuilt around the freshly read documents — this
+one has to be, since its whole state is an edit of a particular document and keeping it over a
+re-read would mean editing one tree while showing another. The *place* is not that state, so it is
+carried over: the same tier stays selected and the same node comes back, scrolled to. Pull used to
+drop you on the first writable tier with nothing open, which made the button that gets you current
+also the button that undid however far you had navigated. A tier or a path the new documents no
+longer have simply does not come back — the default is honest there, and selecting the parent
+instead would quietly point the pane at something else.
+
 ### The pane commits two different ways
 
 Which one you are in depends on what is selected, and the pane says so on its bottom strip rather

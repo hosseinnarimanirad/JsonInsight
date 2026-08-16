@@ -846,7 +846,13 @@ public sealed partial class MainVm : ObservableObject
 
         // Rebuilt rather than refreshed: its whole state is an in-memory edit of a specific document,
         // and carrying that across a reload would mean editing one tree while showing another.
-        JsonEditor = new JsonEditorVm(this);
+        //
+        // Where it was is carried over, though. A pull re-reads the same tiers, and putting someone
+        // back at the top of a different tier's tree afterwards is the pull button undoing their
+        // navigation — a section found six levels down is worth more than the read that replaced it.
+        // Nothing is carried when the previous editor had nowhere to be, which is what a reload and a
+        // project switch both arrange by building the tabs empty first.
+        JsonEditor = new JsonEditorVm(this, JsonEditor?.Place);
 
         if (Vault is null)
         {

@@ -27,6 +27,16 @@ public partial class JsonEditorView : UserControl
         // different object each time. Watched here rather than bound, because what the layer needs
         // is a call, not a value.
         DataContextChanged += OnViewModelReplaced;
+
+        // A pull that happened while another tab was up has a place to go back to but nothing to
+        // scroll yet. See ScrollTo.
+        Tree.IsVisibleChanged += (_, _) =>
+        {
+            if (Tree.IsVisible && _scrollWhenShown is { } pending)
+            {
+                ScrollTo(pending);
+            }
+        };
     }
 
     private JsonEditorVm? Vm => DataContext as JsonEditorVm;
@@ -47,8 +57,64 @@ public partial class JsonEditorView : UserControl
             _watched.PropertyChanged += OnViewModelChanged;
         }
 
+        // The new view model has already re-found the node the previous one was on, so anything
+        // selected here is a place being restored rather than a click.
+        if (_watched?.SelectedNode is { } restored)
+        {
+            ScrollTo(restored);
+        }
+
         RefreshHighlights();
     }
+
+    /// <summary>
+    /// Puts a restored selection back on screen — the view half of what <c>MainVm</c> does when it
+    /// rebuilds this tab around freshly read documents.
+    ///
+    /// <para>
+    /// Two things have to happen and neither is automatic. A ListBox scrolls to a selection the user
+    /// makes, not to one it is handed, so a rebuilt tree sits at the root with the right row selected
+    /// somewhere below the fold — which looks exactly like the lost place this exists to prevent. And
+    /// the selection is re-asserted, because replacing a Selector's items clears its selection and the
+    /// two-way binding writes that null straight back into the view model; whether it lands before or
+    /// after the binding picks up the restored node is a question about binding order, and this does
+    /// not need an answer to it. Re-assigning a node that is already selected does nothing.
+    /// </para>
+    ///
+    /// <para>
+    /// Held over when the tab is not the one on screen: an unrealised ListBox has no viewport to
+    /// scroll. One-shot, so coming back to the tab later never yanks the tree away from wherever it
+    /// has since been scrolled to.
+    /// </para>
+    /// </summary>
+    private void ScrollTo(JsonNodeVm node)
+    {
+        if (!Tree.IsVisible)
+        {
+            _scrollWhenShown = node;
+            return;
+        }
+
+        _scrollWhenShown = null;
+
+        // After layout, and above Input, so this settles before a click can be delivered against the
+        // tree it is still putting back: the containers for a tree rebuilt on this frame do not exist
+        // yet, and ScrollIntoView has nothing to scroll to until they do.
+        Dispatcher.BeginInvoke(
+            () =>
+            {
+                if (Vm is not { } vm || !vm.Nodes.Contains(node))
+                {
+                    return;
+                }
+
+                vm.SelectedNode = node;
+                Tree.ScrollIntoView(node);
+            },
+            System.Windows.Threading.DispatcherPriority.Loaded);
+    }
+
+    private JsonNodeVm? _scrollWhenShown;
 
     private void OnViewModelChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
