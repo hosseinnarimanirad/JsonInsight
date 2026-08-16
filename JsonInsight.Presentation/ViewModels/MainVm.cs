@@ -12,6 +12,17 @@ using JsonInsight.Vault;
 
 namespace JsonInsight.ViewModels;
 
+/// <summary>
+/// What <see cref="MainVm.AdoptSavedSourcesAsync"/> did, or why it stopped.
+/// </summary>
+/// <param name="Adopted">True when the tabs were rebuilt around the saved sources.</param>
+/// <param name="Message">One sentence for the Sources tab's status line. Empty when there is nothing to say.</param>
+/// <param name="AtRisk">
+/// The tiers holding unsaved changes that the rebuild would discard. Non-empty only when it stopped to
+/// ask — a second call with <c>discardEdits: true</c> goes ahead.
+/// </param>
+public sealed record SourcesAdopted(bool Adopted, string Message, IReadOnlyList<string> AtRisk);
+
 public sealed partial class MainVm : ObservableObject
 {
     /// <summary>
@@ -539,8 +550,10 @@ public sealed partial class MainVm : ObservableObject
         _flattener = new Flattener(arrays, _classifier);
 
         // A reload is "start again", so any editor still holding an edit against the documents being
-        // replaced goes with them.
+        // replaced goes with them — and nothing has been read yet, which is what a null _readWith
+        // means to the next save.
         Store = new DocumentStore(_flattener);
+        _readWith = null;
     }
 
     /// <summary>
@@ -642,6 +655,10 @@ public sealed partial class MainVm : ObservableObject
             Store.Drop(document.Id);
         }
 
+        // Everything on screen now describes these settings, which is what the next save compares
+        // against to work out which sources actually moved. See AdoptSavedSourcesAsync.
+        _readWith = settings;
+
         BuildTabs(report.Documents, report.Unavailable);
 
         foreach (var problem in settingsProblems)
@@ -668,6 +685,228 @@ public sealed partial class MainVm : ObservableObject
 
         return report;
     }
+
+    /// <summary>
+    /// The settings the documents on screen were read with, so the next save can tell which sources
+    /// actually moved. Null before anything has been read, which makes every configured source new.
+    /// </summary>
+    private VaultSettings? _readWith;
+
+    /// <summary>
+    /// Takes up the sources as they have just been saved: rebuilds what is read and what is compared,
+    /// reads whatever is new or has been repointed, and drops whatever is no longer configured.
+    ///
+    /// <para>
+    /// What the Sources tab's <b>Save settings</b> calls. Saving used to change the file and nothing
+    /// else — the tabs went on comparing the set they were built from, and the only ways to catch them
+    /// up were to restart the app or open another project and come back. Ticking a source is a
+    /// statement about what you want to see, and the screen that shows it has to follow.
+    /// </para>
+    ///
+    /// <para>
+    /// Deliberately not a re-read of everything. A source nobody touched keeps the document it already
+    /// had, unsaved edits included: unticking prod costs no request at all, and adding one local file
+    /// reads exactly that file. Only a source that is new to the catalog, or that now points somewhere
+    /// else, is read again — and it is those, plus any source that has left the catalog entirely,
+    /// whose in-memory edits cannot survive, which is what <paramref name="discardEdits"/> is about.
+    /// </para>
+    /// </summary>
+    /// <param name="discardEdits">
+    /// False asks first: when the change would throw away unsaved edits, nothing is adopted and the
+    /// tiers at risk come back in <see cref="SourcesAdopted.AtRisk"/>. True goes ahead — the second
+    /// press, the same way Pull and Delete ask.
+    /// </param>
+    public async Task<SourcesAdopted> AdoptSavedSourcesAsync(bool discardEdits = false)
+    {
+        if (_flattener is null || !HasProjectOpen)
+        {
+            return new SourcesAdopted(false, string.Empty, []);
+        }
+
+        // Anything edited on a tab and not yet published belongs in the documents that are about to be
+        // kept, or it would be re-flattened out of existence by the rebuild below.
+        PublishEdits();
+
+        var (settings, _) = VaultSettingsStore.Load();
+
+        // The same rule the startup read and the Pull button follow: a source ticked ON with nothing
+        // behind it would produce a comparison one column short of the one that was asked for, and
+        // that arrives looking exactly like a successful one. So nothing is rebuilt until it is fixed
+        // or unticked — but Pull goes off now, since this is the screen where it gets fixed.
+        PullBlocked = SourceCatalog.Incomplete(settings);
+        if (PullBlocked is { } blocked)
+        {
+            return new SourcesAdopted(false, $"{blocked} The other tabs are unchanged until that is settled.", []);
+        }
+
+        var (catalog, catalogProblems) = SourceCatalog.Build(settings, TiersConfig.Load());
+        var (tiers, documentProblems) = DocumentTiers.For(catalog, settings, Document);
+
+        var configured = tiers.Tiers.Select(t => t.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var known = Documents.Select(d => d.Id)
+            .Concat(Unavailable.Select(u => u.Id))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        // Read again only where a read would answer differently: a source the app has never read, or
+        // one whose connection has moved since it did.
+        var stale = tiers.Tiers
+            .Where(t => !known.Contains(t.Id) || !SameSource(_readWith?.Resolve(t.Id), settings.Resolve(t.Id)))
+            .ToList();
+
+        var dropped = Documents
+            .Select(d => d.Id)
+            .Concat(Unavailable.Select(u => u.Id))
+            .Where(id => !configured.Contains(id))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var compared = SourceCatalog.Compared(settings, tiers);
+
+        if (stale.Count == 0 && dropped.Count == 0 &&
+            compared.SequenceEqual(Compared, StringComparer.OrdinalIgnoreCase))
+        {
+            // Nothing that is read or compared has moved — a restart endpoint was set, or a save was
+            // pressed twice. Rebuilding the tabs anyway would cost the Tier editor its tree state and
+            // the grid its expand/collapse for no change at all.
+            _readWith = settings;
+            _tiersConfig = tiers;
+            return new SourcesAdopted(true, string.Empty, []);
+        }
+
+        var atRisk = dropped
+            .Concat(stale.Select(t => t.Id))
+            .Where(Store.IsModified)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (atRisk.Count > 0 && !discardEdits)
+        {
+            // Nothing has been changed yet — the catalog is still the one on screen — so this is a
+            // question rather than a half-applied save.
+            return new SourcesAdopted(
+                false,
+                $"Saved. {string.Join(", ", atRisk)} {(atRisk.Count == 1 ? "has" : "have")} unsaved changes " +
+                $"against a source that has just moved or gone, so the other tabs have not been rebuilt yet. " +
+                "Push those first to keep them, or press Save settings again to rebuild and throw them away.",
+                atRisk);
+        }
+
+        _readWith = settings;
+        _tiersConfig = tiers;
+        Compared = compared;
+
+        _loadProblems.Clear();
+        _loadProblems.AddRange(catalogProblems);
+        _loadProblems.AddRange(documentProblems);
+
+        foreach (var id in dropped.Concat(stale.Select(t => t.Id)).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            // An edit against a source this project no longer reads, or no longer reads from the same
+            // place, describes nothing that can be pushed. It goes with the document it was made on.
+            Store.Drop(id);
+        }
+
+        var kept = Documents
+            .Where(d => configured.Contains(d.Id) && stale.All(t => !t.Id.Equals(d.Id, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        var keptUnavailable = Unavailable
+            .Where(u => configured.Contains(u.Id) && stale.All(t => !t.Id.Equals(u.Id, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        var read = string.Empty;
+        if (stale.Count > 0)
+        {
+            VaultBusy = true;
+            try
+            {
+                var report = await new TierRefresher(_flattener)
+                    .RefreshAsync(new TiersConfig { Tiers = stale }, settings)
+                    .ConfigureAwait(true);
+
+                kept.AddRange(report.Documents);
+                keptUnavailable.AddRange(report.Unavailable);
+                read = report.Summary;
+
+                // Into the load problems rather than straight onto the banner: BuildTabs republishes
+                // that list from these, and anything added to it directly would be wiped a line later.
+                _loadProblems.AddRange(report.Failures.Select(f =>
+                    $"{f.TierId} could not be read, so it is not being compared — {f.Message}"));
+            }
+            catch (Exception ex)
+            {
+                _loadProblems.Add($"The changed sources could not be read: {ex.Message}");
+                read = $"could not be read — {ex.Message}";
+            }
+            finally
+            {
+                VaultBusy = false;
+            }
+        }
+
+        // Catalog order rather than "kept first, then read", so the columns stay dev, test/qa, stage,
+        // beta, prod however the set was arrived at.
+        var order = tiers.Tiers
+            .Select((tier, index) => (tier.Id, index))
+            .ToDictionary(pair => pair.Id, pair => pair.index, StringComparer.OrdinalIgnoreCase);
+
+        BuildTabs(
+            [.. kept.OrderBy(d => order.TryGetValue(d.Id, out var at) ? at : int.MaxValue)],
+            [.. keptUnavailable.OrderBy(u => order.TryGetValue(u.Id, out var at) ? at : int.MaxValue)]);
+
+        var message = Describe(stale, dropped, atRisk, read);
+        Log.Info(message);
+        return new SourcesAdopted(true, message, []);
+    }
+
+    /// <summary>What the rebuild did, for the Sources tab's status line.</summary>
+    private string Describe(
+        IReadOnlyList<TierDefinition> stale,
+        IReadOnlyList<string> dropped,
+        IReadOnlyList<string> discarded,
+        string read)
+    {
+        var parts = new List<string>();
+
+        if (stale.Count > 0)
+        {
+            parts.Add($"{string.Join(", ", stale.Select(t => t.Id))} read just now — {read}");
+        }
+
+        if (dropped.Count > 0)
+        {
+            parts.Add($"{string.Join(", ", dropped)} dropped — no source configured for " +
+                      $"{(dropped.Count == 1 ? "it" : "them")} any more");
+        }
+
+        if (discarded.Count > 0)
+        {
+            parts.Add($"unsaved changes on {string.Join(", ", discarded)} discarded with the source they were made against");
+        }
+
+        var comparing = Compared.Count == 0
+            ? "every configured source"
+            : string.Join(", ", Compared);
+
+        var head = $"The other tabs are comparing {comparing}.";
+        return parts.Count == 0 ? head : $"{head} {string.Join("; ", parts)}.";
+    }
+
+    /// <summary>
+    /// Whether two connections would read the same thing. Everything a read depends on is compared and
+    /// nothing else: the restart endpoint is not part of it, which is what keeps closing the restart
+    /// dialog from re-reading four secrets. A null left side is "never read", which makes it different
+    /// from anything.
+    /// </summary>
+    private static bool SameSource(VaultConnection? before, VaultConnection now) =>
+        before is not null &&
+        before.Kind == now.Kind &&
+        before.AllowInsecureTls == now.AllowInsecureTls &&
+        string.Equals(before.SecretPath, now.SecretPath, StringComparison.Ordinal) &&
+        string.Equals(before.LocalFilePath, now.LocalFilePath, StringComparison.Ordinal) &&
+        string.Equals(before.Address, now.Address, StringComparison.Ordinal) &&
+        string.Equals(before.Namespace, now.Namespace, StringComparison.Ordinal) &&
+        string.Equals(before.Token, now.Token, StringComparison.Ordinal);
 
     /// <summary>
     /// What a failure line opens with. At startup it has to answer the question nobody asked out

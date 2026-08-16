@@ -102,6 +102,13 @@ public sealed partial class ProjectsVm : ObservableObject
     /// every row now carries its own address and token, copying is the difference between editing
     /// four paths and filling in four rows from scratch.
     /// </para>
+    ///
+    /// <para>
+    /// A copy takes the whole of every source: its kind, its server, its namespace, its token, its
+    /// secret path or file, its TLS opt-ins and its restart endpoint. See
+    /// <see cref="SourceProject.Clone"/> — the copy is deep, so the two projects diverge from that
+    /// moment rather than sharing a connection object.
+    /// </para>
     /// </summary>
     [ObservableProperty]
     private string? _copySourcesFrom;
@@ -202,10 +209,21 @@ public sealed partial class ProjectsVm : ObservableObject
 
         // Copied rather than shared: two projects that start identical must be able to diverge, and a
         // shared connection object would mean editing stage in one of them edited it in both.
-        var seed = CopySourcesFrom is { } from && !from.Equals(StartEmpty, StringComparison.Ordinal) &&
-                   workspace.Projects.TryGetValue(from, out var source)
-            ? source.Clone()
-            : new SourceProject();
+        //
+        // The whole of each source comes across — its server, its token, its secret path and its
+        // restart endpoint — because a copy exists to save filling the rows in again, and a half-copy
+        // is worse than no copy: the missing half is the one nobody checks for.
+        SourceProject? copy = null;
+        string? copiedFrom = null;
+
+        if (CopySourcesFrom is { } from && !from.Equals(StartEmpty, StringComparison.Ordinal) &&
+            workspace.Projects.TryGetValue(from, out var source))
+        {
+            copy = source.Clone();
+            copiedFrom = from;
+        }
+
+        var seed = copy ?? new SourceProject();
 
         // Whatever it copied, it has not been opened and it is its own document from here on.
         seed.LastOpenedUtc = null;
@@ -225,7 +243,33 @@ public sealed partial class ProjectsVm : ObservableObject
         NewProjectName = string.Empty;
         Refresh();
 
-        Status = $"Created '{name}'. Open it, then set where its sources come from on the Sources tab.";
+        Status = copiedFrom is null
+            ? $"Created '{name}'. Open it, then set where its sources come from on the Sources tab."
+            : $"Created '{name}' from '{copiedFrom}' — {WhatCameAcross(seed)}. Open it and point its " +
+              "sources at the new document.";
+    }
+
+    /// <summary>
+    /// What a copy brought with it, in the terms worth checking before trusting it.
+    ///
+    /// <para>
+    /// The restart endpoints are counted out loud rather than left implied. Everything else a source
+    /// carries is visible on the Sources tab the moment the copy is opened; the restart endpoint is
+    /// configured behind a dialog and shows up nowhere until you go looking, so it is the one part of
+    /// a copy whose absence would be noticed late — after a push, by the thing that did not restart.
+    /// </para>
+    /// </summary>
+    private static string WhatCameAcross(SourceProject project)
+    {
+        var sources = project.Connections.Count == 1 ? "1 source" : $"{project.Connections.Count} sources";
+        var restarts = project.Connections.Values.Count(c => !string.IsNullOrWhiteSpace(c.RestartUrl));
+
+        return restarts switch
+        {
+            0 => $"{sources} copied, tokens included",
+            1 => $"{sources} copied, tokens and 1 restart endpoint included",
+            _ => $"{sources} copied, tokens and {restarts} restart endpoints included",
+        };
     }
 
     [RelayCommand]

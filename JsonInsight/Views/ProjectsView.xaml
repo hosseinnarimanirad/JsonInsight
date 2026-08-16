@@ -45,7 +45,7 @@
                                    VerticalAlignment="Center" Margin="16,0,9,0" />
                         <ComboBox Grid.Column="3" ItemsSource="{Binding CopyChoices}"
                                   SelectedItem="{Binding CopySourcesFrom, Mode=TwoWay}"
-                                  ToolTip="Start with another project's sources already filled in, then point the copy at a different document. The copy is its own from that moment: editing stage in one does not touch the other." />
+                                  ToolTip="Start with another project's sources already filled in &#8212; server, token, secret path, TLS setting and restart endpoint, for every environment it has. Then point the copy at a different document. The copy is its own from that moment: editing stage in one does not touch the other." />
 
                         <!-- Off until the box says something: CreateCommand refuses an empty name,
                              so the button is unpressable rather than pressed and answered afterwards

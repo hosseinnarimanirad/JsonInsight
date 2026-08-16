@@ -244,9 +244,10 @@ anything on Vault Enterprise, and it is empty on every row in these deployments 
 from the JSON path, which is the longest thing here and the one most worth reading in full.
 
 Tick **ON** to make a row one of the compared columns; four at a time, and a fifth is refused here
-with a reason rather than accepted and quietly dropped later. Until something is ticked and saved,
-`config/tiers.json` decides that instead and nothing on this tab changes what is on screen — so an
-existing install upgrades to this tab without moving.
+with a reason rather than accepted and quietly dropped later. A tick changes nothing until
+**Save settings** — the row says so as you tick it — and the save is what rebuilds the other tabs
+around the new set. Until something is ticked and saved, `config/tiers.json` decides that instead, so
+an existing install upgrades to this tab without moving.
 
 **ON decides what is compared, not what is read.** A pull reads *every* environment with a source
 configured, ticked or not, so a fifth one is available on the **Tier editor** and **Text diff**
@@ -300,6 +301,26 @@ Paths, addresses and the active set persist to `JsonInsight/appsettings.json` un
 tokens go only to .NET user secrets (`%APPDATA%\Microsoft\UserSecrets\jsoninsight-9f3c1d20\secrets.json`,
 the same file `dotnet user-secrets` edits), enforced structurally — the token properties are
 `[JsonIgnore]`, so the serializer that produces appsettings.json cannot emit them.
+
+**Save settings rebuilds the other tabs.** Ticking a source is a statement about what you want to
+see, so the screens that show it follow: after a save, the All tiers grid has the columns that are
+now ticked and the Tier editor's picker holds the sources that are now configured. This used to
+change a file and nothing else — the tabs went on comparing the set they were built from, and the
+only ways to catch them up were to restart the app or open another project and come back.
+
+**Only what actually moved is read again.** A source nobody touched keeps the document it already
+has, unsaved edits included. Unticking `prod` costs no request at all — it is still read, it just
+stops being one of the four columns — and adding one local file reads exactly that file. A source is
+re-read when it is new to the catalog or when its connection has moved: kind, address, namespace,
+token, secret path, file or TLS setting. The restart endpoint is deliberately not in that list, which
+is what keeps closing the **Restart config…** dialog from re-reading four secrets.
+
+**A change that would discard unsaved edits asks first.** A source that has been repointed, or that
+has left the catalog entirely, takes its in-memory edits with it — they were made against something
+this project no longer reads. So the save happens, the rebuild does not, and the status line names
+the tiers and offers the two ways out: push them first, or press **Save settings** again to rebuild
+and throw them away. The same second-press shape as **Pull** and as **Delete** on the projects
+screen.
 
 **Logs** — everything the app has said, newest first: every warning, every read failure and every
 status line, each with the time it happened. **Clear** empties it.

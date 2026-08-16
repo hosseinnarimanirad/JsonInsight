@@ -44,7 +44,7 @@ else
                     <button class="btn btn-primary" disabled="@(!Vm.CanSaveSettings)"
                             @onclick="() => Vm.SaveSettingsCommand.Execute(null)"
                             title="@(Vm.CanSaveSettings
-                                       ? "Write the paths and addresses to appsettings.json and the tokens to user secrets. Nothing on screen moves until the app is restarted, or another project is opened and this one reopened."
+                                       ? "Write the paths and addresses to appsettings.json and the tokens to user secrets, then rebuild the other tabs around what is now ticked. Only a source that is new or has been repointed is read again."
                                        : Vm.DuplicateError)">
                         <span>Save settings</span>
                     </button>

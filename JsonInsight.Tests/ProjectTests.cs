@@ -257,6 +257,46 @@ public sealed class ProjectTests
         Assert.Equal("kv/app/stage", original.Connections["stage"].SecretPath);
     }
 
+    /// <summary>
+    /// A copy takes the whole of every source, restart endpoint included. It is the one part of a
+    /// source that is configured behind a dialog and shows up nowhere on the Sources tab, so a copy
+    /// that quietly left it behind would be noticed late — after a push, by the thing that did not
+    /// restart.
+    /// </summary>
+    [Fact]
+    public void A_copied_project_brings_each_sources_restart_endpoint_with_it()
+    {
+        var original = new SourceProject
+        {
+            Connections =
+            {
+                ["beta"] = new VaultConnection
+                {
+                    SecretPath = "kv/app/beta",
+                    Token = "beta-token",
+                    RestartUrl = "https://api.example.com/api/v1/beta/admin/restart?drainSeconds=15",
+                    RestartBody = """{ "reason": "config" }""",
+                    RestartAllowInsecureTls = true,
+                },
+            },
+        };
+
+        var copy = original.Clone();
+        var beta = copy.Connections["beta"];
+
+        Assert.Equal("https://api.example.com/api/v1/beta/admin/restart?drainSeconds=15", beta.RestartUrl);
+        Assert.Equal("""{ "reason": "config" }""", beta.RestartBody);
+        Assert.True(beta.RestartAllowInsecureTls);
+        Assert.Equal("beta-token", beta.Token);
+
+        // And diverges from it: repointing the copy's restart must not repoint the original's.
+        beta.RestartUrl = "https://api.example.com/api/v1/qa/admin/restart";
+
+        Assert.Equal(
+            "https://api.example.com/api/v1/beta/admin/restart?drainSeconds=15",
+            original.Connections["beta"].RestartUrl);
+    }
+
     [Theory]
     [InlineData(0, "just now")]
     [InlineData(60 * 25, "25 minutes ago")]

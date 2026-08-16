@@ -660,8 +660,14 @@ public sealed partial class VaultVm : ObservableObject
         _syncingActive = false;
     }
 
+    /// <summary>
+    /// Whether the next Save press is the one that goes ahead and discards. See
+    /// <see cref="MainVm.AdoptSavedSourcesAsync"/>; cleared by anything that resolves the question.
+    /// </summary>
+    private bool _confirmingDiscard;
+
     [RelayCommand(CanExecute = nameof(CanSaveSettings))]
-    private void SaveSettings()
+    private async Task SaveSettingsAsync()
     {
         if (!_main.HasProjectOpen)
         {
@@ -677,6 +683,7 @@ public sealed partial class VaultVm : ObservableObject
             return;
         }
 
+        string saved;
         try
         {
             var settings = BuildSettings();
@@ -687,28 +694,29 @@ public sealed partial class VaultVm : ObservableObject
             // without waiting for a full reload.
             _main.RefreshPullState();
 
-            // Saving an active set is the moment tiers.json stops being what the app compares, and it
-            // is not a moment to leave anyone to infer. Nothing on screen has moved yet either — the
-            // tabs were built from the old set, and only a reload rebuilds them, which this button
-            // does not do. The routes named below are the ones that actually reach one: MainVm.Reload
-            // runs when OpenProject is given a project other than the active one, and OpenProject
-            // deliberately returns early when you leave the projects list for the project you were
-            // already in, so "go to the list and come back" is not one of them.
-            var handover = settings.ActiveSources.Count > 0
-                ? $" The {settings.ActiveSources.Count} ticked source(s) — {string.Join(", ", settings.ActiveSources)} — " +
-                  "are now what every tab compares, in place of config/tiers.json. Nothing on screen has moved yet: " +
-                  "restart the app, or open another project and come back — leaving the projects list for this same " +
-                  "project returns you to it without rebuilding anything."
-                : " No sources are ticked, so config/tiers.json still decides what every tab compares.";
-
-            Status = $"Saved into the '{_main.ActiveProject}' project — paths and addresses in " +
-                     $"{Path.GetFileName(appSettingsPath)}, tokens in user secrets ({secretsPath})." + handover;
+            saved = $"Saved into the '{_main.ActiveProject}' project — paths and addresses in " +
+                    $"{Path.GetFileName(appSettingsPath)}, tokens in user secrets ({secretsPath}).";
         }
         catch (Exception ex)
         {
             Status = $"Save failed: {ex.Message}";
+            return;
         }
+
+        // The tabs follow the save. They used to be left describing the set they were built from, so
+        // ticking a source changed a file and nothing else and the only ways to catch up were to
+        // restart the app or open another project and come back. Only what actually moved is read —
+        // see AdoptSavedSourcesAsync — so unticking a source costs no request at all.
+        Status = $"{saved} Rebuilding the other tabs…";
+
+        var adopted = await _main.AdoptSavedSourcesAsync(_confirmingDiscard).ConfigureAwait(true);
+        _confirmingDiscard = !adopted.Adopted && adopted.AtRisk.Count > 0;
+
+        Status = adopted.Message.Length == 0 ? saved : $"{saved} {adopted.Message}";
     }
+
+    /// <summary>Saving from anywhere else — the restart dialog — goes through the same command.</summary>
+    private void SaveSettings() => SaveSettingsCommand.Execute(null);
 
     /// <summary>
     /// Walks this row's Vault and fills its picker with every secret found there, so the JSON can be

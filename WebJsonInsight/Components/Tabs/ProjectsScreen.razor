@@ -43,7 +43,7 @@ else
                    so copying is the difference between typing one path and five. *@
                 <label for="copy-from">Copy sources from</label>
                 <select id="copy-from" class="field"
-                        title="Start with another project's sources already filled in, then point the copy at a different document. The copy is its own from that moment: editing stage in one does not touch the other."
+                        title="Start with another project's sources already filled in — server, token, secret path, TLS setting and restart endpoint, for every environment it has. Then point the copy at a different document. The copy is its own from that moment: editing stage in one does not touch the other."
                         value="@Vm.CopySourcesFrom"
                         @onchange="e => Vm.CopySourcesFrom = e.Value?.ToString()">
                     @foreach (var choice in Vm.CopyChoices)
