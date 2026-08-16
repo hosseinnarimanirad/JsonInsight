@@ -23,8 +23,32 @@ public enum CellState
     Unavailable,
 }
 
+/// <summary>
+/// How a present value relates to its siblings across the row. A state of its own rather than new
+/// <see cref="CellState"/> members, because it modifies Present rather than replacing it: a missing
+/// key is a different kind of statement from a value that is there and disagrees.
+/// </summary>
+public enum CellVariance
+{
+    None,
+
+    /// <summary>The tiers disagree, and the value is deployment-specific — expected to differ.</summary>
+    Expected,
+
+    /// <summary>The tiers disagree on a value that should be identical everywhere.</summary>
+    Drift,
+}
+
 public sealed record MultiCell(string TierId, CellState State, Leaf? Leaf, string? Detail = null)
 {
+    /// <summary>
+    /// Stamped by <see cref="MultiDiff.Build(IReadOnlyList{FlatConfig}, AliasSet)"/> on the present
+    /// cells of a row whose values disagree, so a cell can be coloured without its template having to
+    /// reach the row. Only value disagreement counts — a row with a missing tier keeps its red on the
+    /// gap and stays plain elsewhere, or every partial gap would paint the whole row.
+    /// </summary>
+    public CellVariance Variance { get; init; }
+
     /// <summary>
     /// Falls back to <see cref="Detail"/> when there is no leaf, which is how a rolled-up group row
     /// shows "11 keys" in the tiers that do have the subtree.
@@ -237,12 +261,27 @@ public sealed class MultiDiff
                 valueClass ??= leaf?.Class;
             }
 
-            rows.Add(new MultiRow
+            var row = new MultiRow
             {
                 Path = path,
                 Cells = cells,
                 Class = valueClass ?? ValueClass.Business,
-            });
+            };
+
+            // Every tier has it and they disagree: stamp the cells so both grids can colour them.
+            // Judged here, once, rather than by each host's cell template reaching for the row.
+            if (row is { AllPresent: true, Identical: false })
+            {
+                var variance = row.Class == ValueClass.Infra ? CellVariance.Expected : CellVariance.Drift;
+                row = new MultiRow
+                {
+                    Path = row.Path,
+                    Class = row.Class,
+                    Cells = cells.Select(c => c with { Variance = variance }).ToArray(),
+                };
+            }
+
+            rows.Add(row);
         }
 
         rows.Sort((a, b) => string.CompareOrdinal(a.Path, b.Path));

@@ -86,6 +86,12 @@ public sealed partial class EditRowVm : ObservableObject
               "or give it a strategy in arrays.json first."
             : string.Empty;
 
+    /// <summary>
+    /// Whether applying this row would change the key's JSON type, as well as or instead of its text.
+    /// <c>4242</c> and <c>"4242"</c> read the same in a grid cell and are not the same key.
+    /// </summary>
+    public bool ChangesKind => Current is not null && EditVm.NormalizeKind(Current.Kind) != Kind;
+
     /// <summary>What the row will read as once applied, so the grid shows the outcome rather than the input.</summary>
     public string ResultDisplay => Action switch
     {
@@ -252,7 +258,30 @@ public sealed partial class EditVm : ObservableObject
             }
         }
 
+        BulkKind = SharedKind();
         Revalidate();
+    }
+
+    /// <summary>
+    /// The type the bulk box starts on: the one these keys already are.
+    ///
+    /// <para>
+    /// It used to start on string whatever the keys were, so retyping a number through Apply to all
+    /// rewrote it as <c>"4242"</c> in every tier — a JSON type change nobody asked for, applied to
+    /// every tier at once, and invisible afterwards because a grid cell renders both the same way.
+    /// </para>
+    ///
+    /// <para>
+    /// String when the selection disagrees with itself, which only a multi-key edit across mixed
+    /// types can produce: there is no one type to start on, and string is the one that loses least.
+    /// </para>
+    /// </summary>
+    private JsonValueKind SharedKind()
+    {
+        // The rows' own kind rather than the leaves', because a row for a key this tier does not have
+        // has already inferred one from the tiers that do — see InferKindFromOtherTiers.
+        var kinds = Rows.Select(r => r.Kind).Distinct().Take(2).ToArray();
+        return kinds.Length == 1 ? kinds[0] : JsonValueKind.String;
     }
 
     /// <summary>Any tier's value for the path, used only to classify it before anything is typed.</summary>
@@ -400,8 +429,9 @@ public sealed partial class EditVm : ObservableObject
                 }
 
                 // A value identical to the one already there is not a change, and applying it would
-                // put the tier in the modified state over nothing.
-                if (edit.Kind == EditKind.Update && edit.NewValue == edit.BaseValue)
+                // put the tier in the modified state over nothing. The JSON type is part of
+                // "identical": retyping 4242 as a string leaves the text alone and is still an edit.
+                if (edit.Kind == EditKind.Update && edit.NewValue == edit.BaseValue && !row.ChangesKind)
                 {
                     noOps++;
                     continue;

@@ -55,6 +55,10 @@
     --brush-shape-soft: #FCF2DE;
     --brush-differs: #1F6FB2;
     --brush-differs-soft: #E6F1FA;
+    --brush-drift: #C05621;
+    --brush-drift-soft: #FBEBDD;
+    --brush-drift-expected: #97705B;
+    --brush-drift-expected-soft: #F5EDE7;
     --brush-ok: #2E7D46;
     --brush-ok-soft: #E7F4EB;
 
@@ -119,6 +123,10 @@
     --brush-shape-soft: #33291A;
     --brush-differs: #5BA5E8;
     --brush-differs-soft: #16293C;
+    --brush-drift: #EE8F52;
+    --brush-drift-soft: #35251A;
+    --brush-drift-expected: #C39A78;
+    --brush-drift-expected-soft: #282019;
     --brush-ok: #4FC189;
     --brush-ok-soft: #15301F;
 

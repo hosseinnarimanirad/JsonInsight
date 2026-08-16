@@ -58,22 +58,6 @@ public partial class JsonEditorView : UserControl
         }
     }
 
-    /// <summary>
-    /// Raised with everything the push screen needs to review this tab's work. The dialog is opened by
-    /// the window rather than from here, for the same reason the promote and edit dialogs are: a view
-    /// model that opens windows cannot be constructed in a test, and these ones are.
-    /// </summary>
-    public event EventHandler<PushRequest>? PushRequested;
-
-    private void OnPushClick(object sender, RoutedEventArgs e)
-    {
-        if (Vm is { Tier: { } tier } vm)
-        {
-            PushRequested?.Invoke(this, new PushRequest(
-                tier, vm.Editor?.Working, "the document as edited on the Tier editor tab"));
-        }
-    }
-
     private void OnCopyRowWithKey(object sender, RoutedEventArgs e) => CopyRow(sender, withKey: true);
 
     private void OnCopyRowValue(object sender, RoutedEventArgs e) => CopyRow(sender, withKey: false);
@@ -350,13 +334,3 @@ public partial class JsonEditorView : UserControl
     }
 }
 
-/// <summary>
-/// What this tab asks the window to push.
-/// </summary>
-/// <param name="Updated">
-/// The document as edited in the pane, which is the whole point of pushing from this tab. Without it
-/// the dialog falls back to the tier plus whatever edits are queued against it — and since the pane
-/// edits a <c>SortedClone</c> that never touches <c>Tier.Root</c>, that fallback diffs the unedited
-/// document and reports that the source already holds exactly this.
-/// </param>
-public sealed record PushRequest(Model.TierDocument Tier, JsonNode? Updated, string What);

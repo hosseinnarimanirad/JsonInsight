@@ -75,6 +75,24 @@ public sealed class DialogService
     public void OpenPush(TierDocument? tier = null, JsonNode? updated = null, string? what = null) =>
         Open(WriteFlows.Push(_main, tier, updated, what), vm => Push = vm);
 
+    /// <summary>
+    /// True while the open push was handed off from the review screen, so closing it can land back
+    /// there. Cleared by <see cref="Close"/>, which every other opening passes through.
+    /// </summary>
+    private bool _pushCameFromChanges;
+
+    /// <summary>
+    /// The review screen's hand-off. Separate from <see cref="OpenPush"/> because of what happens on
+    /// close: in WPF the push dialog is modal over the review, so finishing one tier lands you back
+    /// on the review advanced to the next tier still holding changes. Here there is no modal stack —
+    /// opening the push closed the review — so the way back has to be remembered.
+    /// </summary>
+    public void OpenPushFromChanges(PendingPush pending)
+    {
+        Open(WriteFlows.Push(_main, pending.Tier, pending.Updated, pending.What), vm => Push = vm);
+        _pushCameFromChanges = Push is not null;
+    }
+
     // ------------------------------------------------------------------- edit
 
     public void OpenEdit(IReadOnlyList<string> paths) =>
@@ -99,8 +117,20 @@ public sealed class DialogService
     /// </summary>
     public void CloseAndRefresh()
     {
+        var reopenChanges = _pushCameFromChanges && Push is not null;
+
         Close();
         _main.Tiers?.NotifyEditsChanged();
+
+        // Back to the review, advanced to the next tier still holding changes — the queue that lets
+        // a batch spanning four tiers be pushed in four presses without reopening anything. Whether
+        // the push went through or was backed out of, the review is where you were; when the last
+        // tier was just pushed, Changes has nothing to show and everything simply closes.
+        if (reopenChanges && WriteFlows.Changes(_main) is { Value: { } next })
+        {
+            Changes = next;
+        }
+
         Raise();
     }
 
@@ -145,6 +175,7 @@ public sealed class DialogService
         RestartConfig = null;
         Restart = null;
         Refusal = null;
+        _pushCameFromChanges = false;
     }
 
     private void Refuse(string why)

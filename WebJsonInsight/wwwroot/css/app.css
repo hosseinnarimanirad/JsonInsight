@@ -362,9 +362,16 @@ select.field { cursor: pointer; }
     gap: 16px;
     padding: 12px 14px;
     border-top: 1px solid var(--brush-border-subtle);
+    /* The row is the control — double-clicking it opens the project — so it has to look like one.
+     * Without the pointer the only pressable-looking thing was the Open button, and a shortcut
+     * nobody discovers is not a shortcut. Matches the WPF list's hand cursor and hover wash. */
+    cursor: pointer;
 }
 
 .project-row:hover { background: var(--brush-hover); }
+
+/* Typing a new name is not "open this project", so the field keeps a text caret. */
+.project-row .rename-field { cursor: text; }
 
 .project-body { min-width: 0; flex: 1; }
 
@@ -791,8 +798,11 @@ select.field { cursor: pointer; }
     text-overflow: ellipsis;
 }
 
-.rail-counts { margin-top: 1px; font-size: var(--font-size-caption); color: var(--brush-text-tertiary); }
-.rail-counts.has-findings { color: var(--brush-missing); font-weight: 600; }
+/* The key count stays neutral; the findings beside it take the grid's own colours, so the rail is
+ * scanned for a colour rather than read line by line. Same red and orange as the cells. */
+.rail-counts { margin-top: 1px; font-size: var(--font-size-caption); color: var(--brush-text-tertiary); display: flex; gap: 7px; }
+.rail-missing { color: var(--brush-missing); font-weight: 600; }
+.rail-differing { color: var(--brush-drift); font-weight: 600; }
 
 .pull-line {
     margin-top: 2px;
@@ -898,6 +908,11 @@ select.field { cursor: pointer; }
 .cell-missing { color: var(--brush-missing); background: var(--brush-missing-soft); text-align: center; }
 .cell-shape { color: var(--brush-shape); background: var(--brush-shape-soft); }
 .cell-unavailable { color: var(--brush-text-tertiary); background: var(--brush-track); text-align: center; }
+/* Present everywhere and not equal: strong orange when the value should match everywhere, muted
+ * when it is deployment-specific and differing is its expected state. Before .cell-secret, so a
+ * differing secret keeps the purple text over the drift wash. */
+.cell-drift { color: var(--brush-drift); background: var(--brush-drift-soft); }
+.cell-drift-expected { color: var(--brush-drift-expected); background: var(--brush-drift-expected-soft); }
 .cell-secret { color: var(--brush-secret); }
 
 .grid-empty { padding: 28px; text-align: center; color: var(--brush-text-tertiary); }

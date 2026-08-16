@@ -88,12 +88,30 @@
                             <DataTemplate>
                                 <!-- The transparent background is what makes the whole row double-
                                      clickable: a Border with no brush is invisible to hit-testing,
-                                     so the shortcut would only work over the text. -->
+                                     so the shortcut would only work over the text.
+
+                                     It is set through the style rather than as an attribute on the
+                                     Border, because a locally-set value outranks a style trigger in
+                                     WPF — leave it here and the hover setter below never applies.
+                                     The hover wash and the hand cursor exist to say the row is the
+                                     control: without them the only thing that looked pressable was
+                                     the Open button, and a double-click shortcut nobody discovers
+                                     is not a shortcut. -->
                                 <Border BorderBrush="{DynamicResource Brush.BorderSubtle}"
                                         BorderThickness="0,0,0,1" Padding="12,12"
-                                        Background="Transparent"
                                         MouseLeftButtonDown="OnRowMouseDown"
                                         ToolTip="Double-click to open this project.">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="Transparent" />
+                                            <Setter Property="Cursor" Value="Hand" />
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="{DynamicResource Brush.Hover}" />
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
                                     <DockPanel>
 
                                         <!-- Row actions -->

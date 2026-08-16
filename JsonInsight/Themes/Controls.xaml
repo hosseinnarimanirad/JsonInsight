@@ -1113,6 +1113,18 @@
             <DataTrigger Binding="{Binding State}" Value="Unavailable">
                 <Setter TargetName="Value" Property="Foreground" Value="{DynamicResource Brush.TextTertiary}" />
             </DataTrigger>
+            <!-- Present everywhere and not equal. Strong orange for a value that should match
+                 everywhere, the muted pair for a deployment-specific one — differing is its
+                 expected state, so it is legible without shouting. Before the Secret trigger,
+                 so a differing secret keeps the purple text over the drift wash. -->
+            <DataTrigger Binding="{Binding Variance}" Value="Drift">
+                <Setter TargetName="Wash" Property="Background" Value="{DynamicResource Brush.DriftSoft}" />
+                <Setter TargetName="Value" Property="Foreground" Value="{DynamicResource Brush.Drift}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Variance}" Value="Expected">
+                <Setter TargetName="Wash" Property="Background" Value="{DynamicResource Brush.DriftExpectedSoft}" />
+                <Setter TargetName="Value" Property="Foreground" Value="{DynamicResource Brush.DriftExpected}" />
+            </DataTrigger>
             <DataTrigger Binding="{Binding Leaf.Class}" Value="Secret">
                 <Setter TargetName="Value" Property="Foreground" Value="{DynamicResource Brush.Secret}" />
             </DataTrigger>

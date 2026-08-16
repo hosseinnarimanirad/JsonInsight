@@ -445,14 +445,52 @@ public sealed partial class PushVm : ObservableObject
         // supplied the document: the Tier editor's copy is exactly what was just written, and leaving
         // it holding an "edit" against the state it was read in would keep claiming otherwise.
         _main.Store.Drop(Tier.Id);
-        _main.Tiers?.NotifyEditsChanged();
 
         PushedTier = Tier.Id;
         NotifyState();
 
-        // Everything reloads onto what Vault now holds, because the tier's current state has changed
-        // and every tab showing the previous one is showing history.
-        _main.Reload();
+        await AdoptWhatWasWrittenAsync(Tier).ConfigureAwait(true);
+        _main.Tiers?.NotifyEditsChanged();
+    }
+
+    /// <summary>
+    /// Reads the tier that was just written back and puts it into the comparison — that one tier, and
+    /// nothing else.
+    ///
+    /// <para>
+    /// This used to be <see cref="MainVm.Reload"/>, which is "start the app again": every source read
+    /// afresh, every tab rebuilt, and a brand-new <see cref="DocumentStore"/>. A push is per tier, so
+    /// that quietly destroyed the in-memory edits waiting on all the <em>other</em> tiers — which is
+    /// most of the point of being able to queue a batch across them and send it one tier at a time.
+    /// </para>
+    ///
+    /// <para>
+    /// A read-back that fails is a note rather than a failure: the write succeeded, and the only cost
+    /// of not re-reading is a stale version number until the next pull.
+    /// </para>
+    /// </summary>
+    private async Task AdoptWhatWasWrittenAsync(TierDocument tier)
+    {
+        try
+        {
+            var reread = await Provider
+                .LoadAsync(tier.Definition, VaultSettingsStore.Load().Settings)
+                .ConfigureAwait(true);
+
+            if (reread.Document is { } written)
+            {
+                _main.AdoptDocument(written);
+                return;
+            }
+
+            Notes.Add($"Written, but {tier.Id} could not be read back — {reread.Problem} " +
+                      "Pull when you can; nothing was lost.");
+        }
+        catch (Exception ex)
+        {
+            Notes.Add($"Written, but {tier.Id} could not be read back — {ex.Message} " +
+                      "Pull when you can; nothing was lost.");
+        }
     }
 
     /// <summary>

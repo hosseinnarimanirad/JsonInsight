@@ -83,6 +83,12 @@ public static class WriteFlows
         JsonNode? updated = null,
         string? what = null)
     {
+        // Published first, same as Changes, and it has to be: with no push button on the Tier editor
+        // any more, a value typed there a moment ago reaches this dialog only through the documents —
+        // and those only carry an edit once it is published. Before the PushVm is built, because the
+        // dialog snapshots main.Documents as it opens.
+        main.PublishEdits();
+
         if (main.Documents.All(d => !d.Writable))
         {
             return Guarded<PushVm>.Refuse("No source is writable, so there is nothing this app may upload.");

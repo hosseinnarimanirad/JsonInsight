@@ -83,12 +83,30 @@ public sealed partial class TiersVm : ObservableObject
     private IReadOnlyList<TierUnavailable> _unavailable;
     private DiffNode _root;
 
+    /// <summary>
+    /// Every path changed in memory and not yet written, as of the last <see cref="Rebuild"/>. Both
+    /// the pending marks and <see cref="Include"/> read it, so the row that carries a mark and the row
+    /// that is on the grid because of one cannot end up being two different answers.
+    /// </summary>
+    private IReadOnlySet<string> _touched = new HashSet<string>(StringComparer.Ordinal);
+
+    /// <summary>
+    /// True while the section rail is being refilled. See <see cref="BuildSections"/>: the null a list
+    /// box writes back while its items are gone is not somebody clearing the filter.
+    /// </summary>
+    private bool _refillingSections;
+
     [ObservableProperty]
     private string _filter = string.Empty;
 
-    /// <summary>Off by default: the ~350 rows that agree everywhere are not what anyone opened this for.</summary>
+    /// <summary>
+    /// Narrows the grid to rows where the tiers disagree. Off by default — the grid opens showing
+    /// every key, with the disagreements carrying their own colour, and this is the switch for when
+    /// the differences are all you want on screen. A key holding an unwritten edit stays visible
+    /// whatever this says; see <see cref="Include"/>.
+    /// </summary>
     [ObservableProperty]
-    private bool _showIdentical;
+    private bool _onlyChanges;
 
     /// <summary>
     /// On by default, but counted separately. Hiding deployment-specific differences entirely would
@@ -234,11 +252,19 @@ public sealed partial class TiersVm : ObservableObject
 
     partial void OnFilterChanged(string value) => Rebuild();
 
-    partial void OnShowIdenticalChanged(bool value) => Rebuild();
+    partial void OnOnlyChangesChanged(bool value) => Rebuild();
 
     partial void OnShowExpectedChanged(bool value) => Rebuild();
 
-    partial void OnSectionFilterChanged(string? value) => Rebuild();
+    partial void OnSectionFilterChanged(string? value)
+    {
+        // Suppressed only while the rail is being refilled, where the value moves twice and both
+        // callers rebuild straight afterwards anyway.
+        if (!_refillingSections)
+        {
+            Rebuild();
+        }
+    }
 
     [RelayCommand]
     private void ToggleRow(TierRowVm? row)
@@ -347,6 +373,10 @@ public sealed partial class TiersVm : ObservableObject
 
     public void Rebuild()
     {
+        // Read once, before anything is emitted: Include consults it for every node, and re-asking the
+        // store per node would be the same answer computed a few hundred times.
+        _touched = _main.Store.ChangedPaths();
+
         Rows.Clear();
         Emit(_root, 0);
 
@@ -379,9 +409,24 @@ public sealed partial class TiersVm : ObservableObject
     /// </summary>
     public event EventHandler? DocumentsChanged;
 
-    /// <summary>Call after anything is edited in memory, so the grid and the toolbar agree with it.</summary>
+    /// <summary>
+    /// Call after anything is edited in memory, so the grid and the toolbar agree with it.
+    ///
+    /// <para>
+    /// What is pending decides which rows exist, not only which of them carry a mark — see
+    /// <see cref="Include"/> — so this is a rebuild rather than a re-mark. Skipped when the change set
+    /// is the one the last rebuild already saw, which is the ordinary case: applying an edit publishes
+    /// it first, and that rebuild has run by the time this is called.
+    /// </para>
+    /// </summary>
     public void NotifyEditsChanged()
     {
+        if (!_touched.SetEquals(_main.Store.ChangedPaths()))
+        {
+            Rebuild();
+            return;
+        }
+
         MarkPendingRows();
         OnPropertyChanged(nameof(PendingLabel));
         OnPropertyChanged(nameof(HasPendingEdits));
@@ -398,7 +443,7 @@ public sealed partial class TiersVm : ObservableObject
     /// </summary>
     private void MarkPendingRows()
     {
-        var touched = _main.Store.ChangedPaths();
+        var touched = _touched;
 
         if (touched.Count == 0)
         {
@@ -412,21 +457,96 @@ public sealed partial class TiersVm : ObservableObject
 
         foreach (var row in Rows)
         {
-            row.HasPendingEdit = row.LeafPaths.Any(touched.Contains);
+            row.HasPendingEdit = row.LeafPaths.Any(IsTouched);
         }
     }
 
+    /// <summary>
+    /// Whether this leaf holds an unwritten change.
+    ///
+    /// <para>
+    /// The exact match is the ordinary case — object paths, and array elements named by position,
+    /// are spelled identically by the grid and the change tracker. The fallback is for a leaf inside
+    /// a <em>keyed</em> array element: the grid names the element by identity
+    /// (<c>WriteTo[Name=Seq]</c>) while the tracker names it by position (<c>WriteTo[2]</c>), so the
+    /// finest path the two agree on is the array itself. Only segments carrying an identity take the
+    /// fallback — an object path never does, so a changed sibling cannot mark it.
+    /// </para>
+    /// </summary>
+    private bool IsTouched(string leafPath)
+    {
+        if (_touched.Contains(leafPath))
+        {
+            return true;
+        }
+
+        if (_touched.Count == 0 || !leafPath.Contains('=', StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var segments = ConfigPath.Split(leafPath);
+
+        for (var i = 0; i < segments.Length; i++)
+        {
+            var bracket = segments[i].IndexOf('[', StringComparison.Ordinal);
+            if (bracket <= 0 || !segments[i].Contains('=', StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            // The array's own path: the segments up to here, with this one's identity stripped.
+            var prefix = segments[..(i + 1)];
+            prefix[i] = segments[i][..bracket];
+
+            if (_touched.Contains(ConfigPath.Join(prefix)))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Refills the section rail from the current tree, keeping whichever section was being looked at.
+    ///
+    /// <para>
+    /// Keeping it is the whole of this method's difficulty. WPF binds the rail's selected value two
+    /// way, so emptying the collection makes the list box write a null selection back into
+    /// <see cref="SectionFilter"/> — and this runs on every publish, so applying an edit silently
+    /// dropped you back to every section at once, with the grid rebuilt around a filter nobody
+    /// cleared. The name is taken before the refill and put back after it, unless the section itself
+    /// has gone.
+    /// </para>
+    /// </summary>
     private void BuildSections()
     {
-        Sections.Clear();
-        foreach (var node in _root.Children.OrderBy(n => n.Segment, StringComparer.Ordinal))
+        var selected = SectionFilter;
+
+        _refillingSections = true;
+        try
         {
-            var rows = node.LeafRows.ToArray();
-            Sections.Add(new SectionVm(
-                node.Segment,
-                rows.Length,
-                rows.Count(r => r.AnyMissing),
-                rows.Count(r => r.IsMeaningful)));
+            Sections.Clear();
+            foreach (var node in _root.Children.OrderBy(n => n.Segment, StringComparer.Ordinal))
+            {
+                var rows = node.LeafRows.ToArray();
+                Sections.Add(new SectionVm(
+                    node.Segment,
+                    rows.Length,
+                    rows.Count(r => r.AnyMissing),
+                    rows.Count(r => r.IsMeaningful)));
+            }
+
+            // Set rather than restored-if-nulled: the property has to move for the list box to
+            // re-select the row, and it has genuinely moved by now if the write-back happened.
+            SectionFilter = Sections.Any(s => s.Name.Equals(selected, StringComparison.Ordinal))
+                ? selected
+                : null;
+        }
+        finally
+        {
+            _refillingSections = false;
         }
     }
 
@@ -547,14 +667,24 @@ public sealed partial class TiersVm : ObservableObject
             return false;
         }
 
-        if (!ShowIdentical && rows.All(r => !r.IsDifference))
+        // A key holding an unwritten change stays on the grid whatever the filters say. The ordinary
+        // way to edit one here is Apply to all, which gives every tier the same value — which is
+        // exactly what makes the row identical, and identical rows are what Only changed values
+        // hides. Without this the grid would answer a successful edit by removing the row that shows
+        // its result. It goes when the change is written, not before.
+        if (_touched.Count > 0 && rows.Any(r => IsTouched(r.Path)))
+        {
+            return true;
+        }
+
+        if (OnlyChanges && rows.All(r => !r.IsDifference))
         {
             return false;
         }
 
         if (!ShowExpected && rows.All(r => !r.IsDifference || r.IsExpected))
         {
-            return ShowIdentical && rows.All(r => !r.IsDifference);
+            return !OnlyChanges && rows.All(r => !r.IsDifference);
         }
 
         return true;
@@ -571,11 +701,35 @@ public sealed partial class TiersVm : ObservableObject
             : node.LeafRows.Any(r => r.Path.Contains(Filter, StringComparison.OrdinalIgnoreCase));
 }
 
+/// <summary>
+/// One section in the rail, with its findings broken out.
+///
+/// <para>
+/// Three parts rather than one sentence, because each is a different statement and each is coloured
+/// as such: the key count is neutral, missing keys are red — the same red the grid's missing cells
+/// use — and differing keys are the grid's orange. One string could only ever carry one of those
+/// colours, so scanning the rail meant reading every line instead of looking for a colour.
+/// </para>
+/// </summary>
 public sealed record SectionVm(string Name, int Keys, int Missing, int Meaningful)
 {
-    public string Counts => Missing > 0 || Meaningful > 0
-        ? $"{Keys}  ({Missing} missing, {Meaningful} differ)"
-        : $"{Keys}";
+    /// <summary>Every key under this section, whatever the grid's filters are showing.</summary>
+    public string KeysLabel => Keys.ToString();
 
-    public bool HasFindings => Missing > 0 || Meaningful > 0;
+    public bool HasMissing => Missing > 0;
+
+    /// <summary>Red, matching a missing cell: a tier does not have these keys at all.</summary>
+    public string MissingLabel => $"{Missing} missing";
+
+    public bool HasDiffering => Meaningful > 0;
+
+    /// <summary>Orange, matching a drifting cell: every tier has these and they disagree.</summary>
+    public string DifferingLabel => $"{Meaningful} differ";
+
+    public bool HasFindings => HasMissing || HasDiffering;
+
+    /// <summary>The three parts as one line, for a tooltip and for anything that wants a sentence.</summary>
+    public string Counts => HasFindings
+        ? $"{Keys}  ({Missing} missing, {Meaningful} differ)"
+        : KeysLabel;
 }

@@ -19,11 +19,9 @@ public partial class MainWindow : Window
         Tiers.EditRequested += OnEditRequested;
         Tiers.ReviewChangesRequested += OnReviewChangesRequested;
 
-        // Both push entry points open the same dialog. The All tiers tab names no tier and gets the
-        // dialog's own picker; the Tier editor is looking at exactly one and passes it.
-        Tiers.PushRequested += (_, _) => Push(null);
-        Editor.PushRequested += (_, request) => Push(request.Tier, request.Updated, request.What);
-
+        // Neither tab pushes on its own any more. The title bar's button is the single way in: it
+        // opens the review of everything unwritten, which is where the tier is chosen and where a
+        // batch spanning several tiers goes out one tier at a time.
         Sources.RestartConfigRequested += OnRestartConfigRequested;
         Sources.RestartRequested += OnRestartRequested;
     }
@@ -68,19 +66,6 @@ public partial class MainWindow : Window
     private void OnRestartRequested(object? sender, VaultConnectionVm row) =>
         Open(WriteFlows.Restart(row), "Restart", vm => new RestartCallDialog(vm));
 
-    /// <summary>
-    /// The one place a push starts. Everything it needs is already loaded - the tier, its Vault path
-    /// and the connection - so what the dialog adds is the review: the live read, the diff against
-    /// it, and the tier name typed out.
-    /// </summary>
-    /// <param name="updated">
-    /// The document to push, when the caller has one that is not simply the tier as it stands. The
-    /// Tier editor passes its edited pane; the All tiers tab passes nothing and means the tier plus
-    /// whatever change set is queued against it.
-    /// </param>
-    private void Push(Model.TierDocument? tier, JsonNode? updated = null, string? what = null) =>
-        Open(WriteFlows.Push(_vm, tier, updated, what), "Push to Vault", vm => new PushDialog(vm));
-
     private void OnPromoteRequested(object? sender, TierRowVm row) =>
         Open(WriteFlows.Promote(_vm, row), "Promote", vm => new PromoteDialog(vm));
 
@@ -98,9 +83,10 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// The top bar's push button: the review of everything held in memory and not yet written, from
-    /// wherever it was edited. The same screen the All tiers tab opens — a push is per tier, and this
-    /// is where you pick which one goes first.
+    /// The top bar's push button, and the only way one starts: the review of everything held in
+    /// memory and not yet written, from wherever it was edited. A push is per tier, and this is where
+    /// you pick which one goes first — the review stays open between them, so a batch across four
+    /// tiers is four presses rather than four trips back to a tab.
     /// </summary>
     private void OnPushAllClick(object sender, RoutedEventArgs e) => OnReviewChangesRequested(sender, e);
 

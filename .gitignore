@@ -51,3 +51,8 @@ WebJsonInsight/appsettings.json
 *~
 .DS_Store
 Thumbs.db
+
+# Local reference payloads copied from a real deployment (sample nodes, pasted
+# responses). Same reasoning as appsettings.json above: they name real hosts,
+# so they stay out of the repository — and out of the hygiene scan with it.
+docs/sample jsons/

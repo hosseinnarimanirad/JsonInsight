@@ -56,21 +56,25 @@
                              "PaymentSettings") and the counts are the reason to look at the rail
                              at all, so neither is allowed to squeeze the other into an ellipsis. -->
                         <DataTemplate>
-                            <StackPanel>
+                            <StackPanel ToolTip="{Binding Counts}">
                                 <TextBlock Text="{Binding Name}" Style="{StaticResource Text.Base}"
                                            TextTrimming="CharacterEllipsis" />
-                                <TextBlock Text="{Binding Counts}" Margin="0,1,0,0">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource Text.Caption}">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding HasFindings}" Value="True">
-                                                    <Setter Property="Foreground" Value="{DynamicResource Brush.Missing}" />
-                                                    <Setter Property="FontWeight" Value="SemiBold" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
+
+                                <!-- Three runs, three colours: the key count is neutral, missing
+                                     keys take the grid's red and differing ones its orange. One
+                                     string could only carry one colour, so the rail could only be
+                                     read line by line rather than scanned for one. -->
+                                <StackPanel Orientation="Horizontal" Margin="0,1,0,0">
+                                    <TextBlock Text="{Binding KeysLabel}" Style="{StaticResource Text.Caption}" />
+                                    <TextBlock Text="{Binding MissingLabel}" Style="{StaticResource Text.Caption}"
+                                               Foreground="{DynamicResource Brush.Missing}" FontWeight="SemiBold"
+                                               Margin="7,0,0,0"
+                                               Visibility="{Binding HasMissing, Converter={StaticResource BoolVis}}" />
+                                    <TextBlock Text="{Binding DifferingLabel}" Style="{StaticResource Text.Caption}"
+                                               Foreground="{DynamicResource Brush.Drift}" FontWeight="SemiBold"
+                                               Margin="7,0,0,0"
+                                               Visibility="{Binding HasDiffering, Converter={StaticResource BoolVis}}" />
+                                </StackPanel>
                             </StackPanel>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
@@ -88,7 +92,8 @@
                              MinWidth="300" MaxWidth="440" HorizontalAlignment="Left" />
 
                     <StackPanel Orientation="Horizontal" Margin="0,11,0,0">
-                        <CheckBox Content="Show identical" IsChecked="{Binding ShowIdentical}" Margin="0,0,18,0" />
+                        <CheckBox Content="Only changed values" IsChecked="{Binding OnlyChanges}" Margin="0,0,18,0"
+                                  ToolTip="Hide every row the sources agree on. Keys with unwritten edits stay visible either way." />
                         <CheckBox Content="Show expected (deployment-specific)"
                                   IsChecked="{Binding ShowExpected}" Margin="0,0,18,0" />
                         <Button Style="{StaticResource Button.Small}" Content="Expand all"
@@ -101,27 +106,18 @@
 
                     <!-- Where the values came from. Pull from Vault sits in the title bar; its
                          per-tier report is still the LAST PULL card on the rail, because that is
-                         where you are looking when you press it. -->
+                         where you are looking when you press it.
+
+                         Nothing pushes from here. The title bar's push button covers it: it opens
+                         the review of everything unwritten, which is where the tier is chosen and
+                         where a batch spanning several tiers is sent one tier at a time. A second
+                         way in is a second thing to keep in step with it. -->
                     <StackPanel Orientation="Horizontal" Margin="0,11,0,0">
                         <Border Style="{StaticResource Pill}"
                                 Background="{DynamicResource Brush.SurfaceAlt}">
                             <TextBlock Text="{Binding SourceLabel}" FontSize="12"
                                        Foreground="{DynamicResource Brush.TextSecondary}" />
                         </Border>
-
-                        <!-- The other direction. It sits beside the pill that says where these
-                             values came from, because that is the sentence it completes: read from
-                             Vault, changed here, written back. One tier at a time — a push is one
-                             secret and one version, and the dialog is where the tier is chosen. -->
-                        <Button Style="{StaticResource Button.Small}" Margin="10,0,0,0"
-                                Click="OnPushClick"
-                                ToolTip="Upload a tier to Vault, or write it back to its file, exactly as the app is currently holding it, after reviewing it against what that source holds right now. This is the write half of Pull from Vault or disk.">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE898;" FontFamily="{StaticResource Font.Icons}"
-                                           FontSize="12" VerticalAlignment="Center" Margin="0,0,7,0" />
-                                <TextBlock Text="Push a tier…" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Button>
                     </StackPanel>
 
                     <!-- Pending changes. Loud on purpose: an unwritten change set is easy to walk

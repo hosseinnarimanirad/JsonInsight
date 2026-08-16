@@ -34,7 +34,7 @@ else if (Dialogs.Promote is { } promote)
 }
 else if (Dialogs.Changes is { } changes)
 {
-    <ChangesDialog Vm="changes" OnClose="Close" OnPush="HandOff" />
+    <ChangesDialog Vm="changes" OnClose="Close" OnPush="HandOffFromChanges" />
 }
 else if (Dialogs.RestartConfig is { } configuring)
 {
@@ -60,4 +60,11 @@ else if (Dialogs.Restart is { } restart)
     /// </summary>
     private void HandOff(PendingPush pending) =>
         Dialogs.OpenPush(pending.Tier, pending.Updated, pending.What);
+
+    /// <summary>
+    /// The review's hand-off remembers where it came from, so closing the push lands back on the
+    /// review — advanced to the next tier with changes — instead of closing everything.
+    /// </summary>
+    private void HandOffFromChanges(PendingPush pending) =>
+        Dialogs.OpenPushFromChanges(pending);
 }

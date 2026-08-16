@@ -494,10 +494,49 @@ public sealed class DocumentEditor
         string path,
         Dictionary<string, NodeChange> kinds)
     {
+        // An array of structures is walked element by element, spelled by position — {path}[{i}] —
+        // which is exactly the flattener's fallback spelling, so a change inside services[8]:amount
+        // marks the same path the All tiers grid gives that row. This used to compare the whole
+        // array as one blob, so an edit inside an element marked only the array — and every per-path
+        // consumer (the grid's pending marks, the review screen) looked at the elements and saw
+        // nothing changed. Elements are only matched by position when the two sides still have the
+        // same count: after an insertion, position no longer identifies an element, and the whole
+        // array is the finest honest statement again.
+        if (original is JsonArray beforeArray && working is JsonArray afterArray &&
+            beforeArray.Count == afterArray.Count &&
+            !(AllScalars(beforeArray) && AllScalars(afterArray)))
+        {
+            var anyElement = false;
+
+            for (var i = 0; i < beforeArray.Count; i++)
+            {
+                var elementPath = $"{path}[{i}]";
+                var elementDiffers = Compare(beforeArray[i], afterArray[i], elementPath, kinds);
+
+                // An element that is an object on both sides has marked itself already; anything
+                // else — a scalar element, a retype, a nested array compared whole — has not.
+                if (elementDiffers && !kinds.ContainsKey(elementPath))
+                {
+                    kinds[elementPath] = NodeChange.Edited;
+                }
+
+                anyElement |= elementDiffers;
+            }
+
+            // The array holds the change rather than being it, same as an object parent. The root
+            // has no caller to mark it; ChangeKinds does that.
+            if (anyElement && path.Length > 0)
+            {
+                kinds[path] = NodeChange.Mixed;
+            }
+
+            return anyElement;
+        }
+
         if (original is not JsonObject before || working is not JsonObject after)
         {
-            // Arrays and scalars are compared whole. An array's elements are not separately
-            // addressable in this tree, so "the array changed" is the finest true statement.
+            // Scalars — and any array position could not identify into — are compared whole:
+            // "it changed" at this path is the finest true statement.
             return !Text(original).Equals(Text(working), StringComparison.Ordinal);
         }
 
@@ -524,7 +563,10 @@ public sealed class DocumentEditor
             {
                 differs = Compare(was, now, childPath, kinds);
 
-                if (differs)
+                // A child that marked itself — an object, or an array walked element by element —
+                // keeps its own mark; overwriting it here would turn the array's "holds a change"
+                // back into "was retyped whole".
+                if (differs && !kinds.ContainsKey(childPath))
                 {
                     // An object still present on both sides did not change in itself - things under
                     // it did, and they may be a mix of all three kinds. Anything else was retyped.
@@ -559,6 +601,15 @@ public sealed class DocumentEditor
             MarkAll(child, path.Length == 0 ? key : $"{path}:{key}", kind, kinds);
         }
     }
+
+    /// <summary>
+    /// Whether every element is a scalar — the flattener's "this array is one value" shape, a
+    /// Couchbase scope set or a list of prefixes. Those are one leaf on every grid, so one mark at
+    /// the array's own path is the matching statement; per-position marks would name rows that
+    /// exist nowhere else.
+    /// </summary>
+    private static bool AllScalars(JsonArray array) =>
+        array.All(element => element is null or JsonValue);
 
     private static string Text(JsonNode? node) =>
         node is null ? "null" : OrdinalJsonWriter.SerializeToText(node);

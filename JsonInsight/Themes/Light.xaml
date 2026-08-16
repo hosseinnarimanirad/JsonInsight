@@ -35,6 +35,15 @@
     <SolidColorBrush x:Key="Brush.ShapeSoft" Color="#FCF2DE" />
     <SolidColorBrush x:Key="Brush.Differs" Color="#1F6FB2" />
     <SolidColorBrush x:Key="Brush.DiffersSoft" Color="#E6F1FA" />
+
+    <!-- Values that are present everywhere and disagree, on the multi-tier grid. Orange = drift a
+         value that should match everywhere does not; the muted pair is the same statement about a
+         deployment-specific value, where differing is the expected state. Distinct from Differs,
+         which marks the pending (unwritten) edits. -->
+    <SolidColorBrush x:Key="Brush.Drift" Color="#C05621" />
+    <SolidColorBrush x:Key="Brush.DriftSoft" Color="#FBEBDD" />
+    <SolidColorBrush x:Key="Brush.DriftExpected" Color="#97705B" />
+    <SolidColorBrush x:Key="Brush.DriftExpectedSoft" Color="#F5EDE7" />
     <SolidColorBrush x:Key="Brush.Ok" Color="#2E7D46" />
     <SolidColorBrush x:Key="Brush.OkSoft" Color="#E7F4EB" />
 

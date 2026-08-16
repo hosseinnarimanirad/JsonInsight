@@ -512,8 +512,9 @@ public sealed class RenderTests : TestContext
         RenderComponent<ProjectsScreen>(p => p.Add(c => c.Vm, main.Projects));
         RenderComponent<TierEditorTab>(p => p.Add(c => c.Vm, main.JsonEditor));
 
-        // Show identical turns ~350 hidden rows back on, which is the widest the grid ever gets.
-        main.Tiers!.ShowIdentical = true;
+        // The grid opens at its widest now — every row shown — so the narrowed state is the one
+        // reached by toggling.
+        main.Tiers!.OnlyChanges = true;
         RenderComponent<AllTiersTab>(p => p.Add(c => c.Vm, main.Tiers));
 
         // The editor's two modes: the pane, and the diff that replaces it.

@@ -77,15 +77,11 @@ else
 
                 <span class="spacer"></span>
 
-                @* The only way an edit leaves this window. There is no Save, because there is nowhere
-                   to save to. This tab is looking at exactly one tier, so it passes that one rather
-                   than letting the push screen offer a picker. *@
-                @* CanPush, not CanEdit: a writable tier with nothing changed has nothing to push, and
-                   the WPF button has always been greyed out for it. *@
-                <button class="btn btn-small btn-danger" disabled="@(!Vm.CanPush)"
-                        @onclick="OpenPush" title="@Vm.PushHint">
-                    <Icon Name="push" Size="13" /> <span>Push to Vault or disk…</span>
-                </button>
+                @* No push button here any more. An edit lands in the shared in-memory document the
+                   moment it is applied, so the title bar's push already sends exactly what this pane
+                   shows — two buttons for the same act is one of them pressed by mistake. The hint
+                   still says what a push would do, or why it will not. *@
+                <span class="caption inline" title="@Vm.PushHint">@Vm.PushHint</span>
             </div>
 
             @if (!Vm.CanEdit && !string.IsNullOrEmpty(Vm.ReadOnlyReason))
@@ -414,18 +410,6 @@ else
         foreach (var node in Vm.Nodes)
         {
             Observe(node);
-        }
-    }
-
-    /// <summary>
-    /// Hands the document as edited in the pane to the push screen. The edited tree, not the tier's
-    /// own — the whole point of this tab is the difference between the two.
-    /// </summary>
-    private void OpenPush()
-    {
-        if (Vm?.Tier is { } tier)
-        {
-            Dialogs.OpenPush(tier, Vm.Editor?.Working, "the document as edited on the Tier editor tab");
         }
     }
 

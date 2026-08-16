@@ -171,18 +171,9 @@ public partial class TiersView : UserControl
     private void OnReviewChangesClick(object sender, RoutedEventArgs e) =>
         ReviewChangesRequested?.Invoke(this, EventArgs.Empty);
 
-    /// <summary>
-    /// No tier is named: this tab is about all of them at once, so the dialog opens on its own
-    /// picker. The Tier editor, which is always looking at exactly one, passes that one instead.
-    /// </summary>
-    private void OnPushClick(object sender, RoutedEventArgs e) =>
-        PushRequested?.Invoke(this, EventArgs.Empty);
-
     public event EventHandler<TierRowVm>? PromoteRequested;
 
     public event EventHandler<IReadOnlyList<string>>? EditRequested;
 
     public event EventHandler? ReviewChangesRequested;
-
-    public event EventHandler? PushRequested;
 }

@@ -1,3 +1,4 @@
+using JsonInsight.Diff;
 using JsonInsight.Promote;
 using JsonInsight.ViewModels;
 
@@ -188,6 +189,70 @@ public sealed class LiveDocumentTests
         // Both, not one or the other.
         Assert.Equal("42", dev.Flat.Find(Path)!.Value);
         Assert.Equal("redis://edited", dev.Flat.Find(other)!.Value);
+    }
+
+    /// <summary>
+    /// A key inside an array element, set to the same value everywhere through Apply to all, stays on
+    /// the All tiers grid — with its pending mark, its number still a number.
+    ///
+    /// <para>
+    /// The reported arrangement, exactly: a services array whose duplicate <c>code</c> forces index
+    /// paths, an <c>amount:max</c> edited through the dialog. Three things used to go wrong at once.
+    /// The bulk type box defaulted to string, so the number was retyped as <c>"90000000"</c> in every
+    /// tier; the change tracker compared the array as one blob, so no per-path consumer saw the edit;
+    /// and the grid, having made the row identical across tiers, hid it — the edit's only visible
+    /// result was the row that showed it disappearing.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void An_edit_inside_an_array_element_stays_on_the_grid_and_keeps_its_type()
+    {
+        static string Doc(long max) => $$"""
+            {
+              "services": [
+                { "code": "bill", "inputDigits": { "max": 13, "min": 6 } },
+                { "amount": { "max": {{max}}, "min": 10000 }, "code": "charity", "status": "active" },
+                { "code": "charity", "status": "inactive" }
+              ]
+            }
+            """;
+
+        var main = new MainVm(vaultAtStartup: false);
+        main.Seed([
+            Fixtures.AsTier("dev", 1, Doc(50000000)),
+            Fixtures.AsTier("stage", 2, Doc(70000000)),
+        ]);
+        var tiers = main.Tiers!;
+
+        // The filter that hides identical rows is on, because it is what used to remove the row.
+        tiers.OnlyChanges = true;
+
+        var maxRow = tiers.Diff.Rows.Single(r => r.Path.EndsWith("amount:max", StringComparison.Ordinal));
+        var path = maxRow.Path;
+        Assert.Equal("services[1]:amount:max", path);
+        Assert.Contains(tiers.Rows, r => r.Path == path);
+
+        // The tiers disagree on a business value, so its cells carry the drift colouring.
+        Assert.All(maxRow.Cells, c => Assert.Equal(CellVariance.Drift, c.Variance));
+
+        var edit = new EditVm(main, [path]) { BulkValue = "90000000" };
+
+        // The bulk type follows the keys being edited: these are numbers, so it starts on number.
+        Assert.Equal(System.Text.Json.JsonValueKind.Number, edit.BulkKind);
+
+        edit.ApplyToAllCommand.Execute(null);
+        edit.QueueCommand.Execute(null);
+
+        // The change tracker names the element precisely, in the grid's own spelling.
+        Assert.Contains(path, main.Store.ChangedPaths());
+
+        var row = tiers.Rows.SingleOrDefault(r => r.Path == path);
+        Assert.NotNull(row);
+        Assert.True(row.HasPendingEdit);
+
+        var leaf = main.Documents.First(d => d.Id == "dev").Flat.Find(path)!;
+        Assert.Equal("90000000", leaf.Value);
+        Assert.Equal(System.Text.Json.JsonValueKind.Number, leaf.Kind);
     }
 
     /// <summary>An edit that sets a key to what it already holds is not a change.</summary>

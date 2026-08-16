@@ -34,9 +34,25 @@ else
                     {
                         <button class="rail-item @(section.Name == Vm.SectionFilter ? "selected" : "")"
                                 @key="section.Name"
-                                @onclick="() => Vm.SectionFilter = section.Name">
+                                @onclick="() => Vm.SectionFilter = section.Name"
+                                title="@section.Counts">
                             <div class="rail-name">@section.Name</div>
-                            <div class="rail-counts @(section.HasFindings ? "has-findings" : "")">@section.Counts</div>
+
+                            @* Three parts, three colours: the key count is neutral, missing keys take
+                               the grid's red and differing ones its orange. One string could only
+                               carry one colour, so the rail could only be read line by line rather
+                               than scanned for one. *@
+                            <div class="rail-counts">
+                                <span>@section.KeysLabel</span>
+                                @if (section.HasMissing)
+                                {
+                                    <span class="rail-missing">@section.MissingLabel</span>
+                                }
+                                @if (section.HasDiffering)
+                                {
+                                    <span class="rail-differing">@section.DifferingLabel</span>
+                                }
+                            </div>
                         </button>
                     }
                 </div>
@@ -66,11 +82,14 @@ else
                            Placeholder="Filter by path — or a glob, e.g. ConnectionStrings:*:Url" />
 
                 <div class="toolbar-row">
-                    <label class="check">
-                        <input type="checkbox" checked="@Vm.ShowIdentical"
-                               @onchange="e => Vm.ShowIdentical = (bool?)e.Value ?? false" />
-                        <span>Show identical</span>
-                    </label>
+                    @* A switch rather than a checkbox: it is a state you leave on while working
+                       through the differences, same as the Find switch on the Tier editor. *@
+                    <button class="switch @(Vm.OnlyChanges ? "on" : "")"
+                            @onclick="() => Vm.OnlyChanges = !Vm.OnlyChanges"
+                            title="Hide every row the sources agree on. Keys with unwritten edits stay visible either way.">
+                        <span class="switch-track"><span class="switch-knob"></span></span>
+                        <span>Only changed values</span>
+                    </button>
                     <label class="check">
                         <input type="checkbox" checked="@Vm.ShowExpected"
                                @onchange="e => Vm.ShowExpected = (bool?)e.Value ?? false" />
@@ -81,17 +100,12 @@ else
                     <span class="caption inline">@Vm.ShownLabel</span>
                 </div>
 
+                @* Nothing pushes from here. The title bar's push button is the single way in: it
+                   opens the review of everything unwritten, which is where the tier is chosen and
+                   where a batch spanning several tiers is sent one tier at a time. A second way in
+                   is a second thing to keep in step with it. *@
                 <div class="toolbar-row">
                     <span class="pill pill-quiet">@Vm.SourceLabel</span>
-
-                    @* Beside the pill that says where these values came from, because that is the
-                       sentence it completes: read from Vault, changed here, written back. No tier is
-                       named — this tab is about all of them at once, so the dialog opens on its own
-                       picker. *@
-                    <button class="btn btn-small btn-danger" @onclick="() => Dialogs.OpenPush()"
-                            title="Upload a source exactly as the app is currently holding it, after reviewing it against what that source holds right now. This is the write half of Pull.">
-                        <Icon Name="push" Size="13" /> <span>Push a tier…</span>
-                    </button>
                 </div>
 
                 @if (Vm.HasPendingEdits)
@@ -166,7 +180,7 @@ else
 
                                     @foreach (var cell in row.Cells)
                                     {
-                                        <td class="col-tier cell-@cell.State.ToString().ToLowerInvariant() @(row.IsSecret ? "cell-secret" : "")"
+                                        <td class="col-tier cell-@cell.State.ToString().ToLowerInvariant() @VarianceClass(cell) @(row.IsSecret ? "cell-secret" : "")"
                                             title="@CellTitle(cell)">@cell.Display</td>
                                     }
 
@@ -195,7 +209,7 @@ else
                         <div class="grid-empty">
                             @(string.IsNullOrEmpty(Vm.Filter) && Vm.SectionFilter is null
                                 ? "Nothing to compare yet — pull the sources, or tick some on the Sources tab."
-                                : "Nothing matches. Every row that agrees across all sources is hidden unless Show identical is ticked.")
+                                : "Nothing matches. Rows the sources agree on are hidden while Only changed values is on.")
                         </div>
                     }
                 </div>
@@ -303,4 +317,12 @@ else
     private string CellTitle(MultiCell cell) => cell.State == CellState.Unavailable
         ? Vm?.UnavailableReason(cell.TierId) ?? cell.Tooltip
         : cell.Tooltip;
+
+    /// <summary>Present everywhere and not equal — the colouring the WPF cell template does with triggers.</summary>
+    private static string VarianceClass(MultiCell cell) => cell.Variance switch
+    {
+        CellVariance.Drift => "cell-drift",
+        CellVariance.Expected => "cell-drift-expected",
+        _ => string.Empty,
+    };
 }

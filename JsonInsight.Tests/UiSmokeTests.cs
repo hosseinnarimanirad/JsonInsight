@@ -589,48 +589,37 @@ public sealed class UiSmokeTests
     }
 
     /// <summary>
-    /// Pushing from the Tier editor must offer the pane as edited, not the tier as it was loaded.
+    /// A push offered a moment after typing in the Tier editor carries that edit.
     ///
     /// <para>
-    /// The pane edits a <c>SortedClone</c> that never touches <c>Tier.Root</c>, so a request carrying
-    /// only the tier makes the dialog diff the unedited document and announce that the source already
-    /// holds exactly this — the whole tab's work, silently discarded at the last step. This window did
-    /// that until the request began carrying <c>Working</c>; the Blazor host never did.
-    /// </para>
-    ///
-    /// <para>
-    /// Raised through the real button rather than by calling the handler, because the wiring is what
-    /// broke: the payload type was never the problem.
+    /// The tab has no push button of its own any more — a push starts from the title bar or the All
+    /// tiers tab, and reaches the dialog as the tier's live document. An edit only lands in that
+    /// document once it is published, and publishing normally happens on the tab change that has not
+    /// happened yet when you type a value and immediately press Push. <see cref="WriteFlows.Push"/>
+    /// publishing first is what closes that gap; this pins it, because the failure mode is the whole
+    /// tab's work silently absent from the diff at the last step.
     /// </para>
     /// </summary>
     [Fact]
-    public void Pushing_from_the_tier_editor_offers_the_edited_pane()
+    public void A_push_opened_right_after_a_pane_edit_carries_that_edit()
     {
-        var (request, working) = RunOnStaThread(() =>
-        {
-            EnsureApplication();
+        var main = NewMainVm();
 
-            var main = NewMainVm();
-            var vm = main.JsonEditor!;
-            vm.Tier = vm.Tiers.First(t => t.Id.Equals("dev", StringComparison.OrdinalIgnoreCase));
-            vm.SelectedNode = vm.Nodes.First(n => n.Path == "Redis:Database");
-            vm.EditorText = "4242";
+        var vm = main.JsonEditor!;
+        vm.Tier = vm.Tiers.First(t => t.Id.Equals("dev", StringComparison.OrdinalIgnoreCase));
+        vm.SelectedNode = vm.Nodes.First(n => n.Path == "Redis:Database");
+        vm.EditorText = "4242";
+        vm.ApplyCommand.Execute(null);
 
-            var view = new JsonEditorView { DataContext = vm };
-            Render(view);
+        // Straight to the push guard, with no tab change in between — the arrangement that used to
+        // hand the dialog the unedited document.
+        var guarded = WriteFlows.Push(main);
 
-            PushRequest? seen = null;
-            view.PushRequested += (_, r) => seen = r;
+        Assert.Null(guarded.Refusal);
+        var dev = guarded.Value!.Tiers.First(t => t.Id.Equals("dev", StringComparison.OrdinalIgnoreCase));
 
-            ((Button)view.FindName("PushButton")).RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
-
-            return (seen, vm.Editor?.Working);
-        });
-
-        Assert.NotNull(request);
-        Assert.NotNull(working);
-        Assert.Same(working, request.Updated);
-        Assert.Equal("the document as edited on the Tier editor tab", request.What);
+        Assert.Equal("4242", dev.Flat.Find("Redis:Database")!.Value);
+        Assert.Equal("4242", Promote.JsonNavigator.Find(dev.Live, "Redis:Database")!.ToJsonString());
     }
 
     /// <summary>

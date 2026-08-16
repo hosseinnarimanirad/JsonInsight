@@ -198,15 +198,21 @@ values came from and, for a Vault source, which version: `Vault v34`, not merely
 version a column holds is the difference between "stage does not have this key" and "stage did not
 have it an hour ago". A local-file column says `file`; it has no version to name. A subtree missing wholesale from the same tiers collapses to a single row
 (`AccountSettings:NightlyApprovalJob — 11 keys, only in dev`), and that rolled-up node is exactly what
-the Promote button acts on. Identical rows are hidden by default; deployment-specific differences
-are shown separately so a misclassified key can never quietly vanish.
+the Promote button acts on. The grid opens showing every key, with disagreements carrying their own
+colour: a value present everywhere that should match and does not is washed orange, a
+deployment-specific one (a URL, a host — expected to differ) gets a muted shade of the same hue, and
+a missing key keeps its red. **Only changed values** narrows the grid to the rows where the sources
+disagree; **Show expected** controls whether the deployment-specific ones count. A key with an
+unwritten change against it stays on the grid whatever the filters say, until the change is written:
+setting a key to the same value in every tier is the ordinary edit here, and it is also precisely
+what makes the row identical — hiding it would mean the grid answered a successful edit by removing
+the row that showed its result.
 
 This is also where configuration is changed: a row's own **Edit** button changes or removes that key
 across the tiers. Editing starts from the row rather than from a toolbar button, because a button
 acting on "whatever is selected" is the one that eventually gets pressed against the wrong row.
-Nothing on this tab writes directly — see *Editing* below. **Push a tier…**, beside the pill that
-says where these values came from, is the other direction: it uploads one tier with whatever is
-queued against it applied, chosen in its own dialog. See *Pushing to Vault*.
+Nothing on this tab writes directly — see *Editing* below. The other direction is the title bar's
+**Push to Vault or disk**, which is the only place a push starts. See *Pushing to Vault*.
 
 **Text diff** — any two *configured tiers*, both serialized through the same writer, diffed line by
 line, laid out **as left | as right**. Long lines wrap rather than scrolling sideways: a PEM block or
@@ -712,18 +718,22 @@ question.
 
 ## Pushing to Vault
 
-The other half of Pull, and the only way anything leaves this app. **Push** appears in four places
-and all four open the same screen:
+The other half of Pull, and the only way anything leaves this app. A push starts in exactly one
+place — the title bar's **Push to Vault or disk** — and everything else hands on to the same screen:
 
 | From | What it pushes |
 |---|---|
-| Tier editor → **Push to Vault** | the document as edited in the pane |
-| All tiers → **Push a tier…** | one tier, with whatever key changes are queued against it |
-| Pending changes → **Push to Vault…** | that batch, applied |
+| Title bar → **Push to Vault or disk** | opens the review of everything unwritten; you pick the tier |
+| Pending changes → **Push to Vault…** | that tier, as the app is holding it |
 | Promote → **Push to Vault…** | the destination with the promoted subtree added |
 
-They differ only in which document they hand over, which is why there is one push screen rather than
-four write buttons that each grew their own idea of what a confirmation is.
+The tabs have no push buttons of their own. Every edit lands in the tier's shared in-memory document
+the moment it is applied, wherever it was made, so the title bar's button already sends exactly what
+any tab is showing — and a second way in is a second thing to keep in step with the first.
+
+A push is one tier: one secret, one version, one typed confirmation. When several tiers are unwritten
+the review stays open between them, advancing to the next tier each time one goes out, so a batch
+spanning four tiers is four presses rather than four trips back through a tab.
 
 The screen **reads the secret live as it opens**, and lays the two sides out **as Vault | as
 pushed**:

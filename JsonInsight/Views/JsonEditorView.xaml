@@ -108,32 +108,19 @@
             </StackPanel>
         </Border>
 
-        <!-- Push bar. There is no Save beside it, and nothing missing: a tier is a Vault secret, so
-             the only place an edit can go is back into it. -->
+        <!-- There is no push button on this tab any more. An edit lands in the shared in-memory
+             document the moment it is applied, so the title bar's push button already sends exactly
+             what this pane shows — two buttons for the same act is one of them pressed by mistake.
+             What remains is the hint line: what a push would do, or why it will not. -->
         <Border DockPanel.Dock="Bottom" Style="{StaticResource Card}" Margin="0,10,0,0"
                 Visibility="{Binding CanEdit, Converter={StaticResource BoolVis}}">
-            <DockPanel>
-                <Button DockPanel.Dock="Right" x:Name="PushButton" Style="{StaticResource Button.Danger}"
-                        MinWidth="170" Click="OnPushClick" Margin="8,0,0,0"
-                        IsEnabled="{Binding CanPush}" ToolTip="{Binding PushHint}"
-                        ToolTipService.ShowOnDisabled="True">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="&#xE898;" FontFamily="{StaticResource Font.Icons}" FontSize="13"
-                                   VerticalAlignment="Center" Margin="0,0,8,0" />
-                        <TextBlock Text="Push to Vault or disk" VerticalAlignment="Center" />
-                    </StackPanel>
-                </Button>
-
-                <!-- What the button would do, or why it will not. A greyed button that keeps its
-                     reason to itself is one you press twice and then go looking for a bug. -->
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="&#xE8A5;" FontFamily="{StaticResource Font.Icons}" FontSize="12"
-                               Foreground="{DynamicResource Brush.TextTertiary}" VerticalAlignment="Top"
-                               Margin="0,2,8,0" />
-                    <TextBlock Text="{Binding PushHint}" Style="{StaticResource Text.Secondary}"
-                               FontSize="12" TextWrapping="Wrap" MaxWidth="1050" />
-                </StackPanel>
-            </DockPanel>
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="&#xE8A5;" FontFamily="{StaticResource Font.Icons}" FontSize="12"
+                           Foreground="{DynamicResource Brush.TextTertiary}" VerticalAlignment="Top"
+                           Margin="0,2,8,0" />
+                <TextBlock Text="{Binding PushHint}" Style="{StaticResource Text.Secondary}"
+                           FontSize="12" TextWrapping="Wrap" MaxWidth="1050" />
+            </StackPanel>
         </Border>
 
         <Border DockPanel.Dock="Bottom" Style="{StaticResource Notice.Danger}" Margin="0,10,0,0"
