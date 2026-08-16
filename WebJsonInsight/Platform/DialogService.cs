@@ -160,8 +160,8 @@ public sealed class DialogService
     {
         // The restart-config dialog edits the row directly, so closing it — however it closes, the
         // Done button or another dialog opening over it — is the moment an edit is real, and the
-        // settings save then and there rather than waiting on a Save settings press that was easy
-        // to forget. Mirrors the WPF window, which saves when its modal ShowDialog returns changed.
+        // settings land then and there rather than after the Sources tab's usual pause. Mirrors the
+        // WPF window, which saves when its modal ShowDialog returns changed.
         if (RestartConfig is { } edited &&
             (edited.RestartUrl, edited.RestartBody, edited.RestartAllowInsecureTls) != _restartConfigOpened)
         {

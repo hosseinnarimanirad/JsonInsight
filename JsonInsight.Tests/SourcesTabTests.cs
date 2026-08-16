@@ -473,11 +473,11 @@ public sealed class SourcesTabTests
         Row(tab, "stage").Kind = SourceKind.LocalFile;
         Row(tab, "stage").LocalFilePath = @"c:\Snapshots\DEV.JSON";
 
-        // The whole chain, not only the detector: the error is up, and the save the buttons bind to
+        // The whole chain, not only the detector: the error is up, and the Apply the buttons bind to
         // is off.
         Assert.NotNull(tab.DuplicateSourceProblem());
         Assert.NotEqual(string.Empty, tab.DuplicateError);
-        Assert.False(tab.SaveSettingsCommand.CanExecute(null));
+        Assert.False(tab.ApplyCommand.CanExecute(null));
     }
 
     /// <summary>A trailing slash is the most likely way of typing the same server twice.</summary>
@@ -493,7 +493,7 @@ public sealed class SourcesTabTests
         Row(tab, "beta").SecretPath = "kv/app/config.json";
 
         Assert.NotNull(tab.DuplicateSourceProblem());
-        Assert.False(tab.SaveSettingsCommand.CanExecute(null));
+        Assert.False(tab.ApplyCommand.CanExecute(null));
     }
 
     /// <summary>
@@ -512,12 +512,36 @@ public sealed class SourcesTabTests
     }
 
     /// <summary>
-    /// The clash is reported the moment it is typed, disables Save for as long as it exists, and
-    /// clears itself the moment one row moves — a complaint that had to be dismissed by hand would
-    /// still be on screen after the problem was gone.
+    /// Apply is off until there is something to apply. A freshly built tab holds exactly what the
+    /// other tabs were built from, so pressing it could only do nothing — and a button that can be
+    /// pressed to no effect teaches that pressing it means nothing.
     /// </summary>
     [Fact]
-    public void A_duplicate_disables_save_until_it_is_resolved()
+    public void Apply_is_off_until_a_source_actually_changes()
+    {
+        // Built directly rather than through NewTab, which unticks every row to get a known start —
+        // and unticking is itself a change to apply.
+        var main = new MainVm(vaultAtStartup: false);
+        var tab = new VaultVm(main, new Flattener(ArrayStrategies.Load(), Classifier.Load()));
+
+        Assert.False(tab.NeedsApply);
+        Assert.False(tab.CanApply);
+        Assert.False(tab.ApplyCommand.CanExecute(null));
+
+        Row(tab, "stage").SecretPath = "kv/app/stage/somewhere-else.json";
+
+        Assert.True(tab.NeedsApply);
+        Assert.True(tab.ApplyCommand.CanExecute(null));
+    }
+
+    /// <summary>
+    /// The clash is reported the moment it is typed, disables Apply for as long as it exists, and
+    /// clears itself the moment one row moves — a complaint that had to be dismissed by hand would
+    /// still be on screen after the problem was gone. It also holds the write back: a clash is the
+    /// one arrangement this tab will not put in the file, so those edits stay on screen until it goes.
+    /// </summary>
+    [Fact]
+    public void A_duplicate_disables_apply_until_it_is_resolved()
     {
         var tab = NewTab();
 
@@ -525,18 +549,18 @@ public sealed class SourcesTabTests
         Row(tab, "stage").SecretPath = "kv/app/config.json";
         Row(tab, "beta").Address = "https://vault.example.com";
 
-        Assert.True(tab.CanSaveSettings);
+        Assert.True(tab.CanApply);
 
         Row(tab, "beta").SecretPath = "kv/app/config.json";
 
         Assert.Contains("the same Vault secret", tab.DuplicateError, StringComparison.Ordinal);
-        Assert.False(tab.CanSaveSettings);
-        Assert.False(tab.SaveSettingsCommand.CanExecute(null));
+        Assert.False(tab.CanApply);
+        Assert.False(tab.ApplyCommand.CanExecute(null));
 
         Row(tab, "beta").SecretPath = "kv/app/beta/config.json";
 
         Assert.Equal(string.Empty, tab.DuplicateError);
-        Assert.True(tab.SaveSettingsCommand.CanExecute(null));
+        Assert.True(tab.ApplyCommand.CanExecute(null));
     }
 
     /// <summary>

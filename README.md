@@ -244,10 +244,9 @@ anything on Vault Enterprise, and it is empty on every row in these deployments 
 from the JSON path, which is the longest thing here and the one most worth reading in full.
 
 Tick **ON** to make a row one of the compared columns; four at a time, and a fifth is refused here
-with a reason rather than accepted and quietly dropped later. A tick changes nothing until
-**Save settings** — the row says so as you tick it — and the save is what rebuilds the other tabs
-around the new set. Until something is ticked and saved, `config/tiers.json` decides that instead, so
-an existing install upgrades to this tab without moving.
+with a reason rather than accepted and quietly dropped later. The tick is written as you make it;
+**Apply** is what rebuilds the other tabs around it. Until something is ticked and applied,
+`config/tiers.json` decides that instead, so an existing install upgrades to this tab without moving.
 
 **ON decides what is compared, not what is read.** A pull reads *every* environment with a source
 configured, ticked or not, so a fifth one is available on the **Tier editor** and **Text diff**
@@ -302,11 +301,32 @@ tokens go only to .NET user secrets (`%APPDATA%\Microsoft\UserSecrets\jsoninsigh
 the same file `dotnet user-secrets` edits), enforced structurally — the token properties are
 `[JsonIgnore]`, so the serializer that produces appsettings.json cannot emit them.
 
-**Save settings rebuilds the other tabs.** Ticking a source is a statement about what you want to
-see, so the screens that show it follow: after a save, the All tiers grid has the columns that are
-now ticked and the Tier editor's picker holds the sources that are now configured. This used to
-change a file and nothing else — the tabs went on comparing the set they were built from, and the
-only ways to catch them up were to restart the app or open another project and come back.
+**There is no Save button: this tab writes itself.** A tick, a corrected path, a pasted token — each
+is a setting, and a setting that needs a second press to survive is a setting that silently does not.
+Edits land in `appsettings.json` and user secrets about half a second after you stop typing, so a
+burst of keystrokes is one write of the final value rather than one per character. The one
+arrangement that is never written is a duplicate: two rows reading the same place is one source
+counted twice, so those edits stay on screen until the clash is resolved, and land the moment it is.
+**Reload settings** is still there for a file changed outside the app.
+
+**Apply rebuilds the other tabs.** Ticking a source is a statement about what you want to see, so the
+screens that show it follow: after Apply, the All tiers grid has the columns that are now ticked and
+the Tier editor's picker holds the sources that are now configured. This is the press worth asking
+for, because it can mean reading a source; writing never was. The caption beside the button says
+where the two halves stand — *saved, the other tabs are still showing the previous set*, or *the
+other tabs are showing these sources*.
+
+**Apply is off until there is something to apply**, which is most of the time — a tab that still holds
+what the other tabs were built from can only be pressed to no effect, and a button like that teaches
+that pressing it means nothing. It lights up on the first change that a read depends on: a tick, a
+path, a server, a namespace, a token, a kind, a file, the TLS setting. A restart endpoint is not one
+of them — nothing reads it, so nothing can be behind on it. It goes off again once the rebuild is
+done, and stays on through a refusal so the second press has something to press. Its tooltip says
+which of the two reasons it is off, and shows while it is.
+
+This replaced a **Save settings** that did neither job well: it wrote the file and left every other
+tab describing the set it was built from, so ticking a source changed a file and nothing else and the
+only ways to catch up were to restart the app or open another project and come back.
 
 **Only what actually moved is read again.** A source nobody touched keeps the document it already
 has, unsaved edits included. Unticking `prod` costs no request at all — it is still read, it just
@@ -317,10 +337,9 @@ is what keeps closing the **Restart config…** dialog from re-reading four secr
 
 **A change that would discard unsaved edits asks first.** A source that has been repointed, or that
 has left the catalog entirely, takes its in-memory edits with it — they were made against something
-this project no longer reads. So the save happens, the rebuild does not, and the status line names
-the tiers and offers the two ways out: push them first, or press **Save settings** again to rebuild
-and throw them away. The same second-press shape as **Pull** and as **Delete** on the projects
-screen.
+this project no longer reads. So the rebuild stops, and the status line names the tiers and offers
+the two ways out: push them first, or press **Apply** again to rebuild and throw them away. The same
+second-press shape as **Pull** and as **Delete** on the projects screen.
 
 **Logs** — everything the app has said, newest first: every warning, every read failure and every
 status line, each with the time it happened. **Clear** empties it.

@@ -31,6 +31,11 @@ public partial class App : Application
         // the first window, because MainVm reads the theme while it is being constructed.
         WpfPlatform.Register();
 
+        // The Sources tab writes itself as it is edited. Switched on here rather than defaulted on,
+        // so a test that pokes a row can never write the developer's real settings — see
+        // VaultVm.WriteAsYouGo.
+        ViewModels.VaultVm.WriteAsYouGo = true;
+
         // Opens in whichever theme Windows itself is set to; Ctrl+D switches it for the session.
         // Applied after the headless branches above, which shut down before there is a window.
         ThemeManager.Apply(ThemeManager.SystemTheme());

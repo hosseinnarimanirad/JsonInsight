@@ -15,7 +15,8 @@
 
     <!--
         Where one source's restart endpoint is set. The DataContext is the row itself, so what is
-        typed here is saved by the Sources tab's own Save settings alongside everything else on it.
+        typed here is written with the rest of that row — the Sources tab saves itself as it is
+        edited, and closing this makes it land now rather than after the usual pause.
 
         The bearer token is deliberately not on this screen. It is typed for each call, on the other
         dialog, and is never written anywhere.

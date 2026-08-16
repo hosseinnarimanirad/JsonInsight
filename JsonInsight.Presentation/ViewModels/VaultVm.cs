@@ -405,7 +405,10 @@ public sealed partial class VaultVm : ObservableObject
     {
         _main = main;
         _flattener = flattener;
-        ReloadSettings();
+
+        // Built as part of building the tabs, out of the same settings they were built from — so
+        // there is nothing waiting to be applied, and Apply opens disabled.
+        LoadRows();
     }
 
     /// <summary>
@@ -440,8 +443,81 @@ public sealed partial class VaultVm : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Re-reads the two settings files into the rows. Now that the tab writes itself there is nothing
+    /// unsaved to lose here — this is for a file that was edited outside the app.
+    ///
+    /// <para>
+    /// Re-reading is not itself a change, so it does not light up Apply. It only does if what came
+    /// back differs from what was on screen, which means the files moved under the tab — and then
+    /// there genuinely is something for the other tabs to catch up with.
+    /// </para>
+    /// </summary>
     [RelayCommand]
     private void ReloadSettings()
+    {
+        var before = Signature();
+
+        LoadRows();
+
+        if (!string.Equals(before, Signature(), StringComparison.Ordinal))
+        {
+            NeedsApply = true;
+        }
+    }
+
+    /// <summary>
+    /// Fills the rows from the settings files.
+    ///
+    /// <para>
+    /// Under the loading flag, because filling a row raises the same changes editing one does —
+    /// <see cref="MarkActive"/> ticks them one by one — and every one of those would queue a write of
+    /// what was just read.
+    /// </para>
+    /// </summary>
+    private void LoadRows()
+    {
+        _loadingSettings = true;
+
+        try
+        {
+            Repopulate();
+        }
+        finally
+        {
+            _loadingSettings = false;
+        }
+    }
+
+    /// <summary>
+    /// Everything about these rows that a read depends on, in one string, for telling whether the tab
+    /// has moved. Deliberately not the restart endpoint: nothing reads it, so changing it is not
+    /// something the other tabs can be behind on.
+    /// </summary>
+    private string Signature()
+    {
+        var sources = Connections
+            .Where(row => !row.IsEmpty)
+            .OrderBy(row => row.TierId, StringComparer.OrdinalIgnoreCase)
+            .Select(row => Field(row));
+
+        var active = Connections.Where(c => c.Active && c.CanActivate).Select(c => c.TierId);
+
+        return $"{string.Join('\n', sources)}#{string.Join(',', active)}";
+
+        static string Field(VaultConnectionVm c) => string.Join(
+            '|',
+            c.TierId,
+            c.Kind,
+            c.SecretPath.Trim(),
+            c.LocalFilePath.Trim(),
+            c.Address.Trim(),
+            c.Namespace.Trim(),
+            c.Token.Trim(),
+            c.AllowInsecureTls);
+    }
+
+    private void Repopulate()
     {
         foreach (var row in Connections)
         {
@@ -574,6 +650,13 @@ public sealed partial class VaultVm : ObservableObject
             return;
         }
 
+        // Everything the file holds writes itself; see QueueSave. A restart endpoint is written like
+        // the rest but nothing reads it, so it does not put the other tabs behind.
+        if (e.PropertyName is { } changed && Persisted.Contains(changed))
+        {
+            QueueSave(affectsTabs: ChangesWhatIsRead(changed));
+        }
+
         switch (e.PropertyName)
         {
             case nameof(VaultConnectionVm.Active):
@@ -600,20 +683,40 @@ public sealed partial class VaultVm : ObservableObject
     /// <summary>
     /// The duplicate-source complaint, live: set the moment two rows come to read the same place,
     /// cleared the moment they stop. Its own property rather than a write into <see cref="Status"/>,
-    /// because it has two jobs the status line cannot do — it is what disables Save settings, and it
+    /// because it has two jobs the status line cannot do — it is what disables Apply, and it
     /// stays on screen in red for as long as the clash exists instead of scrolling away under the
     /// next report.
     /// </summary>
     [ObservableProperty]
     private string _duplicateError = string.Empty;
 
-    /// <summary>What gates Save settings: nothing else does, so the button reads as always-on until two rows clash.</summary>
-    public bool CanSaveSettings => DuplicateError.Length == 0;
+    /// <summary>
+    /// What gates Apply: something to apply, and no two rows reading the same place. A tab that
+    /// matches what the other tabs were built from has nothing to do, and a button that can be
+    /// pressed to no effect teaches that pressing it means nothing.
+    /// </summary>
+    public bool CanApply => DuplicateError.Length == 0 && NeedsApply;
+
+    /// <summary>The button's tooltip, which is where a disabled button says which of the two it is.</summary>
+    public string ApplyTooltip => DuplicateError.Length > 0
+        ? DuplicateError
+        : NeedsApply
+            ? "Rebuild the other tabs around these sources: the All tiers columns, the Tier editor's " +
+              "picker, the Text diff's two sides. Only a source that is new or has been repointed is read again."
+            : "Nothing to apply — the other tabs are already showing these sources.";
 
     partial void OnDuplicateErrorChanged(string value)
     {
-        OnPropertyChanged(nameof(CanSaveSettings));
-        SaveSettingsCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(CanApply));
+        OnPropertyChanged(nameof(ApplyTooltip));
+        ApplyCommand.NotifyCanExecuteChanged();
+
+        // A clash is the one arrangement this tab will not write, so edits made during one are still
+        // only on screen. Clearing it is the moment they can land.
+        if (value.Length == 0)
+        {
+            QueueSave();
+        }
     }
 
     private void RefreshDuplicateError() => DuplicateError = DuplicateSourceProblem() ?? string.Empty;
@@ -647,8 +750,8 @@ public sealed partial class VaultVm : ObservableObject
         }
 
         Status = row.Active
-            ? $"{row.Label} joins the comparison when you press Save settings."
-            : $"{row.Label} leaves the comparison when you press Save settings.";
+            ? $"{row.Label} joins the comparison when you press Apply."
+            : $"{row.Label} leaves the comparison when you press Apply.";
 
         OnPropertyChanged(nameof(ActiveSummary));
     }
@@ -660,63 +763,245 @@ public sealed partial class VaultVm : ObservableObject
         _syncingActive = false;
     }
 
-    /// <summary>
-    /// Whether the next Save press is the one that goes ahead and discards. See
-    /// <see cref="MainVm.AdoptSavedSourcesAsync"/>; cleared by anything that resolves the question.
-    /// </summary>
-    private bool _confirmingDiscard;
+    // ------------------------------------------------------------------ save as you go
 
-    [RelayCommand(CanExecute = nameof(CanSaveSettings))]
-    private async Task SaveSettingsAsync()
+    /// <summary>
+    /// Whether an edit on this tab writes itself to disk. Off by default, and switched on by each
+    /// host at startup.
+    ///
+    /// <para>
+    /// The default is the safety. <see cref="AppPaths.AppSettingsFile"/> resolves to the authored
+    /// <c>appsettings.json</c> even from a test run, so a test that pokes a row — several do — would
+    /// otherwise write the developer's real settings, beside their live tokens. Forgetting to switch
+    /// it on costs an unsaved edit; having it on by default would cost somebody their configuration.
+    /// </para>
+    /// </summary>
+    public static bool WriteAsYouGo { get; set; }
+
+    /// <summary>How long the tab waits after the last keystroke before writing. See <see cref="QueueSave"/>.</summary>
+    private static readonly TimeSpan SaveDelay = TimeSpan.FromMilliseconds(600);
+
+    /// <summary>True while <see cref="ReloadSettings"/> is filling the rows rather than reading them.</summary>
+    private bool _loadingSettings;
+
+    private CancellationTokenSource? _pendingSave;
+
+    /// <summary>
+    /// The properties that end up in <c>appsettings.json</c> or user secrets. Everything else a row
+    /// raises — its status, its busy flag, its menu, whether Test has passed — is screen state, and
+    /// writing the file for it would be a write per mouse move.
+    /// </summary>
+    private static readonly HashSet<string> Persisted = new(StringComparer.Ordinal)
     {
-        if (!_main.HasProjectOpen)
+        nameof(VaultConnectionVm.Active),
+        nameof(VaultConnectionVm.Kind),
+        nameof(VaultConnectionVm.SecretPath),
+        nameof(VaultConnectionVm.LocalFilePath),
+        nameof(VaultConnectionVm.Address),
+        nameof(VaultConnectionVm.Namespace),
+        nameof(VaultConnectionVm.Token),
+        nameof(VaultConnectionVm.AllowInsecureTls),
+        nameof(VaultConnectionVm.RestartUrl),
+        nameof(VaultConnectionVm.RestartBody),
+        nameof(VaultConnectionVm.RestartAllowInsecureTls),
+    };
+
+    /// <summary>Whether a saved property is one a read depends on, and so one the other tabs follow.</summary>
+    private static bool ChangesWhatIsRead(string property) => property is not (
+        nameof(VaultConnectionVm.RestartUrl) or
+        nameof(VaultConnectionVm.RestartBody) or
+        nameof(VaultConnectionVm.RestartAllowInsecureTls));
+
+    /// <summary>
+    /// True while this tab holds sources the rest of the app has not been rebuilt around — what the
+    /// Apply button is for, and what the hint beside it says.
+    /// </summary>
+    [ObservableProperty]
+    private bool _needsApply;
+
+    partial void OnNeedsApplyChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ApplyHint));
+        OnPropertyChanged(nameof(CanApply));
+        OnPropertyChanged(nameof(ApplyTooltip));
+        ApplyCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <summary>Where the two halves stand: written, and whether the other tabs have caught up.</summary>
+    public string ApplyHint => NeedsApply
+        ? "Saved. The other tabs are still showing the previous set — press Apply."
+        : "The other tabs are showing these sources.";
+
+    /// <summary>
+    /// Writes this tab shortly after you stop editing it.
+    ///
+    /// <para>
+    /// There is no Save button any more, and that is the point: a tick, a corrected path or a pasted
+    /// token is a setting, and a setting that needs a second press to survive is a setting that
+    /// silently does not. What the button that replaced it does is the other half — rebuilding the
+    /// tabs that read these sources, which is a Vault read and genuinely worth asking for.
+    /// </para>
+    ///
+    /// <para>
+    /// Debounced rather than written per change, because a path is typed a character at a time and
+    /// each one raises a change. The previous write is cancelled rather than allowed to race, so a
+    /// burst of keystrokes is one write of the final value.
+    /// </para>
+    /// </summary>
+    /// <param name="affectsTabs">
+    /// False for a setting nothing reads — the restart endpoint — so it is written without also
+    /// claiming the other tabs have fallen behind.
+    /// </param>
+    private void QueueSave(bool affectsTabs = true)
+    {
+        if (_loadingSettings)
         {
-            Status = "No project is open, so there is nothing to save these into. Open one first.";
             return;
         }
 
-        // Refused rather than saved-and-warned: two rows reading the same place is one source
-        // counted twice on every tab that compares them, and a save is the moment it becomes real.
+        if (affectsTabs)
+        {
+            NeedsApply = true;
+        }
+
+        // The flag above is set either way: it describes the tab, and the tab can be edited with no
+        // project open. The write cannot — there is nothing to write into.
+        if (!WriteAsYouGo || !_main.HasProjectOpen)
+        {
+            return;
+        }
+
+        _pendingSave?.Cancel();
+        _pendingSave = new CancellationTokenSource();
+
+        var token = _pendingSave.Token;
+        _ = SaveWhenIdleAsync(token);
+    }
+
+    private async Task SaveWhenIdleAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(SaveDelay, token).ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (!token.IsCancellationRequested)
+        {
+            SaveNow();
+        }
+    }
+
+    /// <summary>
+    /// Writes the tab as it stands. Returns false when it could not be written, having said why.
+    ///
+    /// <para>
+    /// A duplicate is refused rather than saved-and-warned: two rows reading the same place is one
+    /// source counted twice on every tab that compares them, and this is the moment it would become
+    /// real. The edits stay on screen and land as soon as the clash is resolved.
+    /// </para>
+    /// </summary>
+    private bool SaveNow()
+    {
+        _pendingSave?.Cancel();
+
+        if (!_main.HasProjectOpen)
+        {
+            return false;
+        }
+
         if (DuplicateSourceProblem() is { } duplicate)
         {
             Status = duplicate;
-            return;
+            return false;
         }
 
-        string saved;
         try
         {
-            var settings = BuildSettings();
-            var (appSettingsPath, secretsPath) = VaultSettingsStore.Save(settings, _main.ActiveProject);
+            VaultSettingsStore.Save(BuildSettings(), _main.ActiveProject);
 
             // Pull is off while a ticked environment names no source, and this is the screen where
             // that gets fixed. Re-asked here so unticking the last empty row turns the button back on
             // without waiting for a full reload.
             _main.RefreshPullState();
-
-            saved = $"Saved into the '{_main.ActiveProject}' project — paths and addresses in " +
-                    $"{Path.GetFileName(appSettingsPath)}, tokens in user secrets ({secretsPath}).";
+            return true;
         }
         catch (Exception ex)
         {
-            Status = $"Save failed: {ex.Message}";
+            Status = $"Could not save the sources: {ex.Message}";
+            return false;
+        }
+    }
+
+    // ------------------------------------------------------------------ apply
+
+    /// <summary>
+    /// Whether the next Apply press is the one that goes ahead and discards. See
+    /// <see cref="MainVm.AdoptSavedSourcesAsync"/>; cleared by anything that resolves the question.
+    /// </summary>
+    private bool _confirmingDiscard;
+
+    /// <summary>
+    /// Rebuilds the rest of the app around the sources on this tab: the All tiers columns, the Tier
+    /// editor's picker, the Text diff's two sides.
+    ///
+    /// <para>
+    /// This used to be <b>Save settings</b>, and it did neither thing well — it wrote the file and
+    /// left every other tab describing the set it was built from, so ticking a source changed a file
+    /// and nothing else and the only ways to catch up were to restart the app or open another project
+    /// and come back. Writing happens by itself now (see <see cref="QueueSave"/>); this is the press
+    /// that is genuinely worth asking for, because it can mean reading a source.
+    /// </para>
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanApply))]
+    private async Task ApplyAsync()
+    {
+        if (!_main.HasProjectOpen)
+        {
+            Status = "No project is open, so there is nothing to apply these to. Open one first.";
             return;
         }
 
-        // The tabs follow the save. They used to be left describing the set they were built from, so
-        // ticking a source changed a file and nothing else and the only ways to catch up were to
-        // restart the app or open another project and come back. Only what actually moved is read —
-        // see AdoptSavedSourcesAsync — so unticking a source costs no request at all.
-        Status = $"{saved} Rebuilding the other tabs…";
+        // Whatever the debounce was still holding goes in first: Apply reads the file back, and a
+        // rebuild around settings half a second older than the screen is the wrong answer arrived at
+        // honestly.
+        if (!SaveNow())
+        {
+            return;
+        }
+
+        // Only what actually moved is read — see AdoptSavedSourcesAsync — so unticking a source
+        // rebuilds the columns without a single request.
+        Status = "Rebuilding the other tabs…";
 
         var adopted = await _main.AdoptSavedSourcesAsync(_confirmingDiscard).ConfigureAwait(true);
         _confirmingDiscard = !adopted.Adopted && adopted.AtRisk.Count > 0;
 
-        Status = adopted.Message.Length == 0 ? saved : $"{saved} {adopted.Message}";
+        if (adopted.Adopted)
+        {
+            NeedsApply = false;
+        }
+
+        Status = adopted.Message.Length == 0
+            ? "The other tabs are showing these sources."
+            : adopted.Message;
     }
 
-    /// <summary>Saving from anywhere else — the restart dialog — goes through the same command.</summary>
-    private void SaveSettings() => SaveSettingsCommand.Execute(null);
+    /// <summary>
+    /// The restart dialog edits a row directly and closes, which is a commit rather than a keystroke,
+    /// so it lands now rather than in six hundred milliseconds. Nothing is applied: a restart endpoint
+    /// is not read by anything and changes no tab.
+    /// </summary>
+    public void SaveRestartConfig()
+    {
+        if (WriteAsYouGo)
+        {
+            SaveNow();
+        }
+    }
 
     /// <summary>
     /// Walks this row's Vault and fills its picker with every secret found there, so the JSON can be
@@ -1088,13 +1373,6 @@ public sealed partial class VaultVm : ObservableObject
     /// </summary>
     private static string SameAddressForm(string address) => address.Trim().TrimEnd('/');
 
-    /// <summary>
-    /// The save both hosts call when the restart-config dialog closes over a change, so the endpoint
-    /// lands in the project the moment it is set rather than waiting on a separate trip to Save
-    /// settings. It is the ordinary save — the endpoint is part of the row, and there is no narrower
-    /// write than the row's settings.
-    /// </summary>
-    public void SaveRestartConfig() => SaveSettings();
 
     /// <summary>The settings exactly as the tab currently shows them, ready to test with or save.</summary>
     public VaultSettings BuildSettings()

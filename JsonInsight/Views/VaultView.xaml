@@ -36,12 +36,21 @@
                                 <TextBlock Text="{Binding ActiveSummary}" FontSize="12"
                                            Foreground="{DynamicResource Brush.TextSecondary}" />
                             </Border>
+                            <!-- What this tab holds, and whether the rest of the app has caught up
+                                 with it. There is no Save button: an edit here writes itself. -->
+                            <TextBlock Text="{Binding ApplyHint}" Style="{StaticResource Text.Caption}"
+                                       VerticalAlignment="Center" Margin="0,0,10,0"
+                                       TextTrimming="CharacterEllipsis" MaxWidth="330" />
                             <Button Style="{StaticResource Button.Secondary}" Content="Reload settings"
                                     Command="{Binding ReloadSettingsCommand}" Margin="0,0,8,0"
-                                    ToolTip="Re-reads appsettings.json and user secrets, discarding unsaved edits." />
-                            <Button Style="{StaticResource Button.Primary}" Content="Save settings"
-                                    Command="{Binding SaveSettingsCommand}"
-                                    ToolTip="Write the paths and addresses to appsettings.json and the tokens to user secrets, then rebuild the other tabs around what is now ticked. Only a source that is new or has been repointed is read again." />
+                                    ToolTip="Re-read appsettings.json and user secrets into these rows — for when they have been changed outside this app. Nothing here is unsaved: the tab writes itself as you edit it." />
+                            <!-- ShowOnDisabled, because off is this button's ordinary state: it says
+                                 there is nothing to apply, and the tooltip is where it says which of
+                                 the two reasons it is. -->
+                            <Button Style="{StaticResource Button.Primary}" Content="Apply"
+                                    Command="{Binding ApplyCommand}"
+                                    ToolTipService.ShowOnDisabled="True"
+                                    ToolTip="{Binding ApplyTooltip}" />
                         </StackPanel>
                         <TextBlock Text="SOURCES" Style="{StaticResource Text.SectionLabel}"
                                    VerticalAlignment="Center" />
@@ -93,9 +102,9 @@
                         </ItemsControl>
 
                         <!-- The duplicate-source complaint. Red, and its own line rather than a
-                             Status write: it is what disables Save settings, and it stays for as
-                             long as the clash exists instead of scrolling away under the next
-                             report. -->
+                             Status write: it is what disables Apply and holds the write back, and it
+                             stays for as long as the clash exists instead of scrolling away under
+                             the next report. -->
                         <TextBlock Text="{Binding DuplicateError}" Style="{StaticResource Text.Missing}"
                                    FontSize="12" TextWrapping="Wrap" Margin="0,0,0,8"
                                    Visibility="{Binding DuplicateError, Converter={StaticResource NotEmptyVis}}" />
@@ -138,7 +147,7 @@
                                             <CheckBox Grid.Column="0" IsChecked="{Binding Active}"
                                                       IsEnabled="{Binding CanActivate}"
                                                       VerticalAlignment="Center"
-                                                      ToolTip="Compare this source. Four at a time - a fifth is refused with a note rather than silently dropped. Takes effect on Save settings; the tabs show it after a restart, or after opening another project and coming back." />
+                                                      ToolTip="Compare this source. Four at a time - a fifth is refused with a note rather than silently dropped. The tick is saved as you make it; press Apply to rebuild the other tabs around it." />
 
                                             <TextBlock Grid.Column="1" Text="{Binding Label}"
                                                        Style="{StaticResource Text.Base}" FontWeight="SemiBold"

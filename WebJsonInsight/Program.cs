@@ -38,6 +38,11 @@ public static class Program
 
         builder.RootComponents.Add<App>("#app");
 
+        // The Sources tab writes itself as it is edited. Switched on here rather than defaulted on,
+        // so a test that pokes a row can never write the developer's real settings — see
+        // VaultVm.WriteAsYouGo.
+        VaultVm.WriteAsYouGo = true;
+
         // One window, so one of each. MainVm is the same object the WPF app builds at startup - it
         // owns the projects screen, the tabs, the change set and the Vault refresh.
         builder.Services.AddSingleton(_ => new MainVm());

@@ -61,11 +61,11 @@ public sealed class SourcesRowTests : TestContext
 
     /// <summary>
     /// The whole duplicate chain through the real markup: two rows come to read the same secret,
-    /// the red notice appears, and the Save settings button the user would press is disabled — not
-    /// merely the command behind it. Undone, both go back.
+    /// the red notice appears, and the Apply button the user would press is disabled — not merely
+    /// the command behind it. Undone, both go back.
     /// </summary>
     [Fact]
-    public void A_duplicate_source_disables_the_save_button_and_shows_the_error()
+    public void A_duplicate_source_disables_the_apply_button_and_shows_the_error()
     {
         var main = Fixtures.NewMain();
         var page = Render(main);
@@ -78,15 +78,15 @@ public sealed class SourcesRowTests : TestContext
         rows[1].SecretPath = "kv/app/config.json";
         page.Render();
 
-        var save = page.FindAll(".card-head button").Single(b => b.TextContent.Contains("Save settings"));
-        Assert.True(save.HasAttribute("disabled"));
+        var apply = page.FindAll(".card-head button").Single(b => b.TextContent.Contains("Apply"));
+        Assert.True(apply.HasAttribute("disabled"));
         Assert.Contains(vault.DuplicateError, page.Find(".notice-danger").TextContent, StringComparison.Ordinal);
 
         rows[1].SecretPath = "kv/app/other.json";
         page.Render();
 
-        save = page.FindAll(".card-head button").Single(b => b.TextContent.Contains("Save settings"));
-        Assert.False(save.HasAttribute("disabled"));
+        apply = page.FindAll(".card-head button").Single(b => b.TextContent.Contains("Apply"));
+        Assert.False(apply.HasAttribute("disabled"));
     }
 
     [Fact]

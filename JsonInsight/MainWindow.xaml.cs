@@ -46,9 +46,10 @@ public partial class MainWindow : Window
 
     /// <summary>
     /// Where a source's restart endpoint is set. The dialog edits the row directly, and closing it
-    /// over a change saves the settings then and there — an endpoint configured and then lost to a
-    /// forgotten Save settings press was the endpoint most likely to be needed in a hurry. Compared
-    /// rather than assumed: opening the dialog to read what is configured is not an edit.
+    /// over a change writes the settings then and there rather than after the Sources tab's usual
+    /// pause — an endpoint configured and then lost is the endpoint most likely to be needed in a
+    /// hurry. Compared rather than assumed: opening the dialog to read what is configured is not an
+    /// edit.
     /// </summary>
     private void OnRestartConfigRequested(object? sender, VaultConnectionVm row)
     {

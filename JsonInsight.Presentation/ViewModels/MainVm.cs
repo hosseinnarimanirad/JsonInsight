@@ -697,10 +697,10 @@ public sealed partial class MainVm : ObservableObject
     /// reads whatever is new or has been repointed, and drops whatever is no longer configured.
     ///
     /// <para>
-    /// What the Sources tab's <b>Save settings</b> calls. Saving used to change the file and nothing
-    /// else — the tabs went on comparing the set they were built from, and the only ways to catch them
-    /// up were to restart the app or open another project and come back. Ticking a source is a
-    /// statement about what you want to see, and the screen that shows it has to follow.
+    /// What the Sources tab's <b>Apply</b> calls. Saving used to change the file and nothing else —
+    /// the tabs went on comparing the set they were built from, and the only ways to catch them up
+    /// were to restart the app or open another project and come back. Ticking a source is a statement
+    /// about what you want to see, and the screen that shows it has to follow.
     /// </para>
     ///
     /// <para>
@@ -785,9 +785,9 @@ public sealed partial class MainVm : ObservableObject
             // question rather than a half-applied save.
             return new SourcesAdopted(
                 false,
-                $"Saved. {string.Join(", ", atRisk)} {(atRisk.Count == 1 ? "has" : "have")} unsaved changes " +
-                $"against a source that has just moved or gone, so the other tabs have not been rebuilt yet. " +
-                "Push those first to keep them, or press Save settings again to rebuild and throw them away.",
+                $"{string.Join(", ", atRisk)} {(atRisk.Count == 1 ? "has" : "have")} unsaved changes against a " +
+                "source that has just moved or gone, so the other tabs have not been rebuilt yet. " +
+                "Push those first to keep them, or press Apply again to rebuild and throw them away.",
                 atRisk);
         }
 
