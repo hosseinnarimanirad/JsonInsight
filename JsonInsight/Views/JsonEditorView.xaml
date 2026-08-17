@@ -100,11 +100,11 @@
                 </DockPanel>
 
                 <!-- dev is readable here and never writable; saying why beats a greyed-out button. -->
-                <Border Style="{StaticResource Notice.Warn}" Margin="0,11,0,0"
-                        Visibility="{Binding ReadOnlyReason, Converter={StaticResource NotEmptyVis}}">
+                <ContentControl Style="{StaticResource Notice.Warn}" Margin="0,11,0,0"
+                                Visibility="{Binding ReadOnlyReason, Converter={StaticResource NotEmptyVis}}">
                     <TextBlock Text="{Binding ReadOnlyReason}" Foreground="{DynamicResource Brush.Shape}"
                                FontSize="12" TextWrapping="Wrap" />
-                </Border>
+                </ContentControl>
             </StackPanel>
         </Border>
 
@@ -123,11 +123,11 @@
             </StackPanel>
         </Border>
 
-        <Border DockPanel.Dock="Bottom" Style="{StaticResource Notice.Danger}" Margin="0,10,0,0"
-                Visibility="{Binding Error, Converter={StaticResource NotEmptyVis}}">
+        <ContentControl DockPanel.Dock="Bottom" Style="{StaticResource Notice.Danger}" Margin="0,10,0,0"
+                        Visibility="{Binding Error, Converter={StaticResource NotEmptyVis}}">
             <TextBlock Text="{Binding Error}" Foreground="{DynamicResource Brush.Danger}"
                        FontSize="12" TextWrapping="Wrap" />
-        </Border>
+        </ContentControl>
 
         <Grid>
             <Grid.ColumnDefinitions>

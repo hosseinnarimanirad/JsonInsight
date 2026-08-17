@@ -74,6 +74,16 @@ html, body {
     font-weight: 600;
 }
 
+/* The build, beside the app's name. Caption weight and tertiary colour, matching the WPF header:
+   loud enough to read off a screenshot, quiet enough not to compete with the project chip next to
+   it. `flex: none` because a long -alpha suffix must not be the thing that gets squeezed. */
+.brand-version {
+    font-size: var(--font-size-caption);
+    color: var(--brush-text-tertiary);
+    white-space: nowrap;
+    flex: none;
+}
+
 .brand-caption {
     font-size: var(--font-size-caption);
     color: var(--brush-text-tertiary);
@@ -168,6 +178,18 @@ html, body {
     min-height: 0;                  /* lets the tab body scroll instead of the page */
 }
 
+/*
+   A notice is capped and scrolls rather than growing. The messages in it are not written by this
+   app: a Vault refusal, a JSON parse failure or an aggregate load error arrives as whatever text the
+   server or System.Text.Json produced, and some of those run to hundreds of characters. Left
+   unbounded, one of them pushes the tree and the pane it is describing off the bottom of the window
+   — so the screen you need in order to act on the error is the thing the error takes away.
+
+   Ten lines of it is enough to see what went wrong; the rest is a scroll away. The cap is in `em`,
+   so it stays ten lines whatever --font-size-small becomes.
+
+   A single unbroken token — a URL, a secret path, a stack frame — wraps instead of scrolling the
+   notice sideways, because a horizontal scrollbar on a message is a message half read. */
 .notice {
     display: flex;
     align-items: flex-start;
@@ -177,7 +199,14 @@ html, body {
     font-size: var(--font-size-small);
     line-height: 1.45;
     flex: none;
+    max-height: 16em;
+    overflow-y: auto;
+    overflow-wrap: anywhere;
 }
+
+/* Pinned while the text under it scrolls. Without this the icon is the first thing to leave, and a
+   scrolled danger notice reads as an unlabelled block of red text. */
+.notice > .icon { position: sticky; top: 0; }
 
 .notice-warn   { background: var(--brush-shape-soft);  color: var(--brush-shape); }
 .notice-ok     { background: var(--brush-ok-soft);     color: var(--brush-ok); }
@@ -1263,7 +1292,18 @@ select.field { cursor: pointer; }
 
 /* The pane says which way it commits rather than leaving it to be inferred from whether a button
    greyed itself out. */
-.commit-hint { font-size: var(--font-size-caption); color: var(--brush-text-tertiary); flex: 1; min-width: 200px; }
+.commit-hint {
+    font-size: var(--font-size-caption);
+    color: var(--brush-text-tertiary);
+    flex: 1;
+    min-width: 200px;
+    /* Capped for the same reason the notices are, and lower: this line sits in the strip UNDER the
+       textarea, so every line it grows by is a line taken off the editor it belongs to. A parse
+       failure naming a long path is the usual way it gets long. */
+    max-height: 5em;
+    overflow-y: auto;
+    overflow-wrap: anywhere;
+}
 
 /* The same line, saying why Update is off instead of how the pane commits. Coloured but not a
    banner: half-typed JSON is a value on its way in, not a failure. */

@@ -82,12 +82,12 @@
         <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel>
 
-                <Border Style="{StaticResource Notice.Danger}" Margin="0,0,0,10">
+                <ContentControl Style="{StaticResource Notice.Danger}" Margin="0,0,0,10">
                     <TextBlock TextWrapping="Wrap" FontSize="12"
                                Foreground="{DynamicResource Brush.Danger}">
                         <Run Text="This restarts whatever reads" /><Run Text=" " /><Run Text="{Binding Environment, Mode=OneWay}" FontWeight="SemiBold" /><Run Text=". It drops live connections and cannot be undone from here." />
                     </TextBlock>
-                </Border>
+                </ContentControl>
 
                 <!-- The address in full: the one thing a confirmation must not leave to be assumed. -->
                 <Border Style="{StaticResource Card}" Margin="0,0,0,10"
@@ -124,11 +124,11 @@
                     </StackPanel>
                 </Border>
 
-                <Border Style="{StaticResource Notice.Danger}" Margin="0,10,0,0"
-                        Visibility="{Binding Problem, Converter={StaticResource NotEmptyVis}}">
+                <ContentControl Style="{StaticResource Notice.Danger}" Margin="0,10,0,0"
+                                Visibility="{Binding Problem, Converter={StaticResource NotEmptyVis}}">
                     <TextBlock Text="{Binding Problem}" TextWrapping="Wrap" FontSize="12"
                                Foreground="{DynamicResource Brush.Danger}" />
-                </Border>
+                </ContentControl>
 
                 <!-- Step by step rather than one verdict: this call can fail after being accepted,
                      and "the POST returned 202" and "it came back up" are different claims. -->

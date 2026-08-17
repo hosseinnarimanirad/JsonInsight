@@ -77,8 +77,8 @@
             </DockPanel>
         </Border>
 
-        <Border DockPanel.Dock="Bottom" Style="{StaticResource Notice.Warn}" Margin="0,10,0,0"
-                Visibility="{Binding Warnings.Count, Converter={StaticResource NotEmptyVis}}">
+        <ContentControl DockPanel.Dock="Bottom" Style="{StaticResource Notice.Warn}" Margin="0,10,0,0"
+                        Visibility="{Binding Warnings.Count, Converter={StaticResource NotEmptyVis}}">
             <ItemsControl ItemsSource="{Binding Warnings}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
@@ -87,7 +87,7 @@
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
-        </Border>
+        </ContentControl>
 
         <Grid>
             <Grid.ColumnDefinitions>

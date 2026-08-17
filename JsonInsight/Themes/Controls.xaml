@@ -148,17 +148,52 @@
         <Setter Property="Padding" Value="12,8" />
     </Style>
 
-    <!-- Notice strips: an amber one for the staleness warning, a red one for load problems. -->
-    <Style x:Key="Notice.Warn" TargetType="{x:Type Border}">
-        <Setter Property="Background" Value="{DynamicResource Brush.ShapeSoft}" />
-        <Setter Property="CornerRadius" Value="9" />
+    <!--
+        Notice strips: an amber one for the staleness warning, a red one for load problems.
+
+        A ContentControl rather than the Border these used to be, purely so the scrolling lives in one
+        place. The text in a notice is not written by this app - a Vault refusal, a System.Text.Json
+        parse failure or an aggregate load error arrives as whatever the server or the parser produced,
+        and some of those run to hundreds of characters. Docked to the bottom of a window, an
+        unbounded one grows upwards until it has pushed the tree and the pane it is describing off the
+        screen: the view you need in order to act on the error is the thing the error takes away.
+
+        MaxHeight caps it at roughly a dozen lines and the ScrollViewer gives back the rest. Border
+        cannot do this itself - it is not a Control and so has no Template to put a ScrollViewer in -
+        which is why the call sites say ContentControl. Everything else about them is unchanged: the
+        style key, the Margin, the DockPanel.Dock and the Visibility binding all still sit on the
+        element, and the single child still goes inside it.
+
+        WebJsonInsight's .notice rule in app.css is the same cap for the same reason.
+    -->
+    <Style x:Key="Notice.Base" TargetType="{x:Type ContentControl}">
         <Setter Property="Padding" Value="12,8" />
+        <Setter Property="MaxHeight" Value="200" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ContentControl}">
+                    <Border Background="{TemplateBinding Background}"
+                            CornerRadius="9"
+                            Padding="{TemplateBinding Padding}">
+                        <!-- Never sideways: a horizontal scrollbar on a message is a message half
+                             read. The call sites all wrap their text, so there is nothing to pan. -->
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled">
+                            <ContentPresenter />
+                        </ScrollViewer>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
-    <Style x:Key="Notice.Danger" TargetType="{x:Type Border}">
+    <Style x:Key="Notice.Warn" TargetType="{x:Type ContentControl}" BasedOn="{StaticResource Notice.Base}">
+        <Setter Property="Background" Value="{DynamicResource Brush.ShapeSoft}" />
+    </Style>
+
+    <Style x:Key="Notice.Danger" TargetType="{x:Type ContentControl}" BasedOn="{StaticResource Notice.Base}">
         <Setter Property="Background" Value="{DynamicResource Brush.DangerSoft}" />
-        <Setter Property="CornerRadius" Value="9" />
-        <Setter Property="Padding" Value="12,8" />
     </Style>
 
     <!-- Counter pill for the missing / differs / expected headline numbers. -->

@@ -48,6 +48,15 @@
                             <TextBlock Text="JsonInsight" Style="{StaticResource Text.Heading}"
                                        VerticalAlignment="Center" />
 
+                            <!-- The build. Quiet - caption weight, tertiary colour - because it is
+                                 reference rather than something to read every time. It is here at
+                                 all because this app writes to Vault: when a promote is reported to
+                                 have written the wrong thing, "which build did that" is the first
+                                 question, and a screenshot can only answer it if it says. -->
+                            <TextBlock Text="{Binding AppVersionLabel}" Style="{StaticResource Text.Caption}"
+                                       VerticalAlignment="Center" Margin="8,2,0,0"
+                                       ToolTip="{Binding AppVersionTooltip}" />
+
                             <!-- The project beside the app's name, not instead of it. A project here
                                  is often named after a file - config.json, content.json - so putting
                                  one where the title goes reads as the app having been renamed to a
@@ -225,8 +234,8 @@
             <!-- These values are only as current as the last pull, whether that read a Vault secret
                  or a file on disk, and they hold live credentials. Both facts are easy to forget
                  after five minutes of reading a diff. -->
-            <Border DockPanel.Dock="Top" Style="{StaticResource Notice.Warn}" Margin="0,0,0,10"
-                    Visibility="{Binding ShowingProjectList, Converter={StaticResource BoolVis}, ConverterParameter=invert}">
+            <ContentControl DockPanel.Dock="Top" Style="{StaticResource Notice.Warn}" Margin="0,0,0,10"
+                            Visibility="{Binding ShowingProjectList, Converter={StaticResource BoolVis}, ConverterParameter=invert}">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Text="&#xE7BA;" FontFamily="{StaticResource Font.Icons}" FontSize="13"
                                Foreground="{DynamicResource Brush.Shape}" VerticalAlignment="Top"
@@ -235,7 +244,7 @@
                                Foreground="{DynamicResource Brush.Shape}" FontSize="12"
                                Text="These values are only as fresh as the last pull from Vault or disk, and they hold live credentials — re-read before trusting a value, and never paste one into a report." />
                 </StackPanel>
-            </Border>
+            </ContentControl>
 
             <!-- Where the tiers on screen came from, said whether or not anything went wrong.
                  Reporting only failures left "it worked" indistinguishable from "nothing has

@@ -21,6 +21,13 @@
             <div class="brand-text">
                 <div class="brand-line">
                     <span class="brand-name">JsonInsight</span>
+
+                    @* The build. Quiet on purpose — it is reference rather than something to read
+                       every time. It is here at all because this app writes to Vault: when a promote
+                       is reported to have written the wrong thing, "which build did that" is the
+                       first question, and a screenshot can only answer it if it says. *@
+                    <span class="brand-version" title="@Main.AppVersionTooltip">@Main.AppVersionLabel</span>
+
                     @if (Main.HasProjectOpen)
                     {
                         @* The project beside the app's name, not instead of it: a project is often

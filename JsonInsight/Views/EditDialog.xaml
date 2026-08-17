@@ -71,8 +71,8 @@
 
         <!-- Warnings. These are the whole reason adding a key is not just a text box: a path that
              exists nowhere is indistinguishable from a typo, and the Vault loader has no fallback. -->
-        <Border DockPanel.Dock="Bottom" Style="{StaticResource Notice.Warn}" Margin="0,10,0,0"
-                Visibility="{Binding Warnings.Count, Converter={StaticResource NotEmptyVis}}">
+        <ContentControl DockPanel.Dock="Bottom" Style="{StaticResource Notice.Warn}" Margin="0,10,0,0"
+                        Visibility="{Binding Warnings.Count, Converter={StaticResource NotEmptyVis}}">
             <ItemsControl ItemsSource="{Binding Warnings}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
@@ -81,7 +81,7 @@
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
-        </Border>
+        </ContentControl>
 
         <Border Style="{StaticResource Card.Flush}">
             <DockPanel>

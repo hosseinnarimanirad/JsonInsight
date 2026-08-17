@@ -126,11 +126,11 @@
             </ItemsControl>
         </Border>
 
-        <Border DockPanel.Dock="Bottom" Style="{StaticResource Notice.Danger}" Margin="0,10,0,0"
-                Visibility="{Binding Problem, Converter={StaticResource NotEmptyVis}}">
+        <ContentControl DockPanel.Dock="Bottom" Style="{StaticResource Notice.Danger}" Margin="0,10,0,0"
+                        Visibility="{Binding Problem, Converter={StaticResource NotEmptyVis}}">
             <TextBlock Text="{Binding Problem}" Foreground="{DynamicResource Brush.Danger}"
                        FontSize="12" TextWrapping="Wrap" />
-        </Border>
+        </ContentControl>
 
         <!-- The comparison. Laid out as Vault | local, the same way round as every other two-sided
              view in the app: what is there now on the left, what would replace it on the right. -->

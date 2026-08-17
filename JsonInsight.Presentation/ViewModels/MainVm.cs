@@ -402,6 +402,24 @@ public sealed partial class MainVm : ObservableObject
     /// </summary>
     public string ProjectChip => ActiveProject;
 
+    /// <summary>
+    /// The build, beside the app's name in both headers. Constant for the life of the process, and
+    /// surfaced here rather than read from the views so the two front ends cannot drift into showing
+    /// it two different ways. <see cref="JsonInsight.Platform.AppVersion"/> says where the number
+    /// comes from.
+    ///
+    /// <para>
+    /// It earns its place on a screen this dense because of what this app does: it pushes
+    /// configuration to Vault. When somebody reports that a promote wrote the wrong thing, the first
+    /// question is which build did it, and "the one in the screenshot" is only an answer if the
+    /// screenshot says.
+    /// </para>
+    /// </summary>
+    public string AppVersionLabel => JsonInsight.Platform.AppVersion.Display;
+
+    /// <inheritdoc cref="JsonInsight.Platform.AppVersion.Tooltip"/>
+    public string AppVersionTooltip => JsonInsight.Platform.AppVersion.Tooltip;
+
     /// <summary>What the window is called, so the project is legible in the taskbar too.</summary>
     public string WindowTitle => HasProjectOpen ? $"{ActiveProject} — JsonInsight" : "JsonInsight";
 

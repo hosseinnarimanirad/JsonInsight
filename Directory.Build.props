@@ -5,13 +5,37 @@
 
     It lives here rather than in each csproj because the two front ends ship together: they read the
     same settings file, the same config folder and the same user secrets, so a build of one that is a
-    version behind the other is not a thing anyone wants to have to reason about. Bump this, and both
-    executables, both file-version resources and the release artifacts all move together.
+    version behind the other is not a thing anyone wants to have to reason about. This file versions
+    both executables, both file-version resources and the release artifacts together.
+
+    The number itself is not written here. It used to be - a hand-edited 1.0.0 - and a hand-edited
+    version is wrong from the first commit after somebody edits it: every build between two bumps
+    claims to be the release, so a bug report saying "1.0.0" names about forty different builds.
+
+    MinVer derives it instead, from git, at build time:
+
+        at tag v1.2.0 ........................ 1.2.0
+        3 commits past v1.2.0 ................ 1.2.1-alpha.0.3
+        no tag yet, 13 commits ............... 1.0.0-alpha.0.13   (see MinVerMinimumMajorMinor)
+
+    So the version moves on its own with every commit, sorts correctly as SemVer, and a release is
+    made by tagging rather than by editing a file - which is also what makes `git tag v1.2.0` and the
+    GitHub release built from it agree with what the binary reports. The build stays deterministic:
+    the same commit always produces the same version, which is the property a build number stamped
+    from the clock would throw away.
+
+    MinVer sets Version, PackageVersion, AssemblyVersion, FileVersion and
+    AssemblyInformationalVersion. AppVersion.cs reads the last of those back for the UI.
   -->
   <PropertyGroup>
-    <Version>1.0.0</Version>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.0.0</FileVersion>
+    <!-- Tags are v-prefixed: `git tag v1.2.0`, not `git tag 1.2.0`. GitHub's release UI defaults to
+         the same convention, so the tag, the release and the binary all read alike. -->
+    <MinVerTagPrefix>v</MinVerTagPrefix>
+
+    <!-- The floor before the first tag exists. Without it an untagged repository builds as
+         0.0.0-alpha.N, which reads as pre-1.0 software rather than as "1.0 has not been cut yet".
+         Raise it in step with the release line; it is ignored once a higher tag exists. -->
+    <MinVerMinimumMajorMinor>1.0</MinVerMinimumMajorMinor>
 
     <Product>JsonInsight</Product>
     <Authors>Hossein Narimani Rad</Authors>
@@ -21,5 +45,11 @@
     <RepositoryUrl>https://github.com/hosseinnarimanirad/JsonInsight</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- PrivateAssets="all": a build-time task, never a runtime dependency and never flowed to
+         anything referencing these projects. -->
+    <PackageReference Include="MinVer" Version="6.1.0" PrivateAssets="all" />
+  </ItemGroup>
 
 </Project>
