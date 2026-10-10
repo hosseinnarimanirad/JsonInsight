@@ -308,6 +308,58 @@ public sealed class LiveDocumentTests
     }
 
     /// <summary>
+    /// And off again once a push has gone through. A push drops its tier's edits and adopts the
+    /// read-back, neither of which goes through PublishEdits — so the button bound to
+    /// HasUnsavedChanges was never told, and stayed lit offering to write what had just been written.
+    /// </summary>
+    [Fact]
+    public void The_push_button_turns_off_again_once_the_tier_is_pushed()
+    {
+        var main = Seeded();
+        EditDev(main, "42");
+        main.PublishEdits();
+        Assert.True(main.HasUnsavedChanges);
+
+        var raised = new List<string?>();
+        main.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+        // What a successful push does to this tier: its edits are dropped and the read-back of what
+        // was written replaces the document. Seeded rather than written, so nothing leaves the test.
+        var dev = Fixtures.Documents.First(d => d.Id == "dev");
+        main.Store.Drop("dev");
+        main.AdoptDocument(dev);
+
+        Assert.False(main.HasUnsavedChanges);
+        Assert.Contains(nameof(MainVm.HasUnsavedChanges), raised);
+    }
+
+    /// <summary>
+    /// The review and the push are one window: the selected tier comes with a push for exactly what
+    /// it holds, and taking the changes back leaves nothing to push rather than a stale plan.
+    /// </summary>
+    [Fact]
+    public void The_review_carries_a_push_for_the_selected_tier_and_drops_it_when_nothing_is_left()
+    {
+        var main = Seeded();
+        EditDev(main, "42");
+
+        var changes = new ChangesVm(main, checksOnOpen: false);
+
+        Assert.NotNull(changes.Push);
+        Assert.Equal("dev", changes.Push!.Tier!.Id);
+        Assert.True(changes.Push.IsTierFixed);
+        Assert.Equal("42", JsonNavigator.Find(changes.BuildUpdated()!, Path)!.ToJsonString());
+
+        // Nothing has been read, so nothing may be confirmed or sent.
+        Assert.False(changes.CanPushNow);
+
+        changes.DiscardTierCommand.Execute(null);
+
+        Assert.Null(changes.Push);
+        Assert.False(changes.CanCheck);
+    }
+
+    /// <summary>
     /// The Tier editor is kept rather than rebuilt when edits are published, so it has to be told
     /// when a change lands in the document it is showing — otherwise it goes on rendering the tree
     /// it built before that happened, which is the same staleness the refactor exists to remove.

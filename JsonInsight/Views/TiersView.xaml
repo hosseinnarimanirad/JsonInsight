@@ -141,8 +141,25 @@
             <Border DockPanel.Dock="Bottom" Style="{StaticResource Card}" Margin="0,10,0,0"
                     Visibility="{Binding SelectedRow, Converter={StaticResource NotEmptyVis}}">
                 <StackPanel>
-                    <TextBlock Text="{Binding SelectedRow.Path}" Style="{StaticResource Text.Mono}"
-                               FontWeight="SemiBold" TextTrimming="None" TextWrapping="Wrap" />
+                    <!-- The path is what gets copied out of this strip, into reports and Vault
+                         queries, so the text itself copies on click as well as the button. -->
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Style="{StaticResource Button.Small}"
+                                Margin="10,0,0,0" VerticalAlignment="Top"
+                                Command="{Binding CopyPathCommand}"
+                                CommandParameter="{Binding SelectedRow}"
+                                ToolTip="Copy this path to the clipboard">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE8C8;" FontFamily="{StaticResource Font.Icons}" FontSize="11"
+                                           VerticalAlignment="Center" Margin="0,0,6,0" />
+                                <TextBlock Text="Copy" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <TextBlock Text="{Binding SelectedRow.Path}" Style="{StaticResource Text.Mono}"
+                                   FontWeight="SemiBold" TextTrimming="None" TextWrapping="Wrap"
+                                   Cursor="Hand" ToolTip="Click to copy this path"
+                                   MouseLeftButtonUp="OnPathClick" />
+                    </DockPanel>
                     <TextBlock Text="{Binding SelectedRow.Detail}" Style="{StaticResource Text.Secondary}"
                                FontSize="12" TextWrapping="Wrap" Margin="0,5,0,0"
                                Visibility="{Binding SelectedRow.Detail, Converter={StaticResource NotEmptyVis}}" />
@@ -226,5 +243,16 @@
                 </DataGrid>
             </Border>
         </DockPanel>
+
+        <!-- The copy confirmation, over the grid at the bottom centre. It ignores the mouse, so it
+             never swallows a click on the row underneath while it fades. -->
+        <Border Grid.Column="0" Grid.ColumnSpan="2" HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                Margin="0,0,0,28" Padding="14,8" CornerRadius="8" MaxWidth="640"
+                IsHitTestVisible="False"
+                Background="{DynamicResource Brush.Text}"
+                Visibility="{Binding CopyToast, Converter={StaticResource NotEmptyVis}}">
+            <TextBlock Text="{Binding CopyToast}" FontSize="12" TextWrapping="Wrap"
+                       Foreground="{DynamicResource Brush.Window}" />
+        </Border>
     </Grid>
 </UserControl>

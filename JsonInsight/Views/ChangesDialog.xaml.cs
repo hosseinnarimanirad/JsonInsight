@@ -5,35 +5,17 @@ namespace JsonInsight.Views;
 
 public partial class ChangesDialog : Window
 {
-    private readonly ChangesVm _vm;
-
     public ChangesDialog(ChangesVm vm)
     {
         InitializeComponent();
         DataContext = vm;
-        _vm = vm;
+
+        // The comparison is half of this window, so it reads the source as it opens rather than
+        // waiting to be asked. Deferred to Loaded so the window is on screen while the read is in
+        // flight - a dialog that appears only once the network has answered looks like a button that
+        // did nothing. Nothing is sent by this: it is the same read the Pull button performs.
+        Loaded += async (_, _) => await vm.OpenedAsync();
     }
 
     private void OnCloseClick(object sender, RoutedEventArgs e) => Close();
-
-    /// <summary>
-    /// Hands the batch to the push screen as a whole document. The dialog opens the window rather
-    /// than the view model, for the same reason every other one does: a view model that opens
-    /// windows cannot be constructed in a test, and these ones are.
-    /// </summary>
-    private void OnPushClick(object sender, RoutedEventArgs e)
-    {
-        if (_vm.PendingPush() is not { } pending)
-        {
-            return;
-        }
-
-        var push = new PushVm(_vm.Main, pending.Tier, pending.Updated, pending.What);
-        new PushDialog(push) { Owner = this }.ShowDialog();
-
-        if (push.PushedTier is not null)
-        {
-            _vm.Pushed();
-        }
-    }
 }

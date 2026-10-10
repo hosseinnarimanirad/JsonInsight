@@ -390,7 +390,7 @@ public sealed class UiSmokeTests
             Environment.NewLine + string.Join(Environment.NewLine, errors));
     }
 
-    /// <summary>Queues a batch, then renders the review screen that would commit it.</summary>
+    /// <summary>Queues a batch, then renders the window that reviews and pushes it.</summary>
     [Fact]
     public void Changes_dialog_renders_a_queued_batch()
     {
@@ -410,15 +410,13 @@ public sealed class UiSmokeTests
 
                 Assert.NotEmpty(main.Store.ModifiedTiers);
 
-                var vm = new ChangesVm(main);
+                var vm = new ChangesVm(main, checksOnOpen: false);
                 Assert.NotNull(vm.Tier);
                 Assert.NotEmpty(vm.Changes);
 
-                // The batch is ready to hand to the push screen, and the preview is a real diff of
-                // the document it would produce.
+                // The batch comes with its push, built for exactly the document it would produce.
                 Assert.True(vm.CanPush);
-                vm.PreviewCommand.Execute(null);
-                Assert.NotEmpty(vm.PreviewLines);
+                Assert.NotNull(vm.Push);
                 Assert.NotNull(vm.BuildUpdated());
 
                 Render(new ChangesDialog(vm));
@@ -537,7 +535,8 @@ public sealed class UiSmokeTests
     }
 
     /// <summary>
-    /// The push dialog, rendered with real diff rows in it and with the live read switched off.
+    /// Pending changes with its push half filled in — diff rows, notes and a push report — rendered
+    /// with the live read switched off.
     ///
     /// <para>
     /// Switched off deliberately: this screen reads Vault as it opens, and a rendering check that
@@ -549,7 +548,7 @@ public sealed class UiSmokeTests
     [Theory]
     [InlineData(AppTheme.Dark)]
     [InlineData(AppTheme.Light)]
-    public void Push_dialog_renders_without_contacting_vault(AppTheme theme)
+    public void Pending_changes_renders_its_push_without_contacting_vault(AppTheme theme)
     {
         var errors = RunOnStaThread(() =>
         {
@@ -560,24 +559,32 @@ public sealed class UiSmokeTests
             using (listener.Capture())
             {
                 var main = NewMainVm();
-                var vm = new PushVm(main, main.Documents.First(d => d.Writable), checksOnOpen: false);
 
-                Assert.False(vm.ChecksOnOpen);
-                Assert.NotEmpty(vm.Tiers);
-                Assert.DoesNotContain(vm.Tiers, t => !t.Writable);
+                var edit = new EditVm(main, ["ConnectionStrings:Couchbase:Modules:Auth:Url"]);
+                edit.BulkValue = "couchbase://10.0.0.34,10.0.0.35";
+                edit.ApplyToAllCommand.Execute(null);
+                edit.QueueCommand.Execute(null);
+
+                var changes = new ChangesVm(main, checksOnOpen: false);
+                Assert.False(changes.ChecksOnOpen);
+
+                var vm = changes.Push!;
+                Assert.True(vm.Tier!.Writable);
 
                 // Nothing has been read, so there is nothing to confirm - typing the tier name is
                 // not enough on its own, because the check-and-set version comes from that read.
                 vm.ConfirmText = vm.Tier!.Id;
                 Assert.True(vm.ConfirmMatches);
                 Assert.False(vm.CanPush);
+                Assert.False(changes.CanPushNow);
 
                 vm.Lines.Add(new DiffLineVm("12", "\"Url\": \"redis://old\"", "12", "\"Url\": \"redis://new\"",
                     ChangeType.Modified));
                 vm.Lines.Add(new DiffLineVm("13", "\"Gone\": 1", string.Empty, string.Empty, ChangeType.Deleted));
                 vm.Notes.Add("A note, so the notes banner is realised too.");
+                changes.PushReport.Add("Pushed. stage is now version 12 in Vault.");
 
-                Render(new PushDialog(vm));
+                Render(new ChangesDialog(changes));
             }
 
             return listener.Errors;
@@ -611,13 +618,15 @@ public sealed class UiSmokeTests
         vm.EditorText = "4242";
         vm.ApplyCommand.Execute(null);
 
-        // Straight to the push guard, with no tab change in between — the arrangement that used to
-        // hand the dialog the unedited document.
-        var guarded = WriteFlows.Push(main);
+        // Straight to the top bar's push button, with no tab change in between — the arrangement
+        // that used to hand the push the unedited document.
+        var guarded = WriteFlows.Changes(main);
 
         Assert.Null(guarded.Refusal);
-        var dev = guarded.Value!.Tiers.First(t => t.Id.Equals("dev", StringComparison.OrdinalIgnoreCase));
+        var push = guarded.Value!.Push!;
+        Assert.Equal("dev", push.Tier!.Id, ignoreCase: true);
 
+        var dev = push.Tier;
         Assert.Equal("4242", dev.Flat.Find("Redis:Database")!.Value);
         Assert.Equal("4242", Promote.JsonNavigator.Find(dev.Live, "Redis:Database")!.ToJsonString());
     }

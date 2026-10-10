@@ -65,37 +65,9 @@ public static class WriteFlows
     /// </summary>
     public const int MaximumEditRows = 60;
 
-    /// <summary>
-    /// Everything a push needs is already loaded — the tier, its path and the connection — so what the
-    /// dialog adds is the review: the live read, the diff against it, and the tier name typed out.
-    /// </summary>
-    /// <param name="tier">
-    /// Null from the All tiers tab, which is about every source at once and gets the dialog's own
-    /// picker. The Tier editor is looking at exactly one and passes it.
-    /// </param>
-    /// <param name="updated">
-    /// The document to push when the caller has one that is not simply the tier as it stands — the Tier
-    /// editor's pane. Null means the tier plus whatever change set is queued against it.
-    /// </param>
-    public static Guarded<PushVm> Push(
-        MainVm main,
-        TierDocument? tier = null,
-        JsonNode? updated = null,
-        string? what = null)
-    {
-        // Published first, same as Changes, and it has to be: with no push button on the Tier editor
-        // any more, a value typed there a moment ago reaches this dialog only through the documents —
-        // and those only carry an edit once it is published. Before the PushVm is built, because the
-        // dialog snapshots main.Documents as it opens.
-        main.PublishEdits();
-
-        if (main.Documents.All(d => !d.Writable))
-        {
-            return Guarded<PushVm>.Refuse("No source is writable, so there is nothing this app may upload.");
-        }
-
-        return Guarded<PushVm>.Allow(new PushVm(main, tier, updated, what));
-    }
+    // A Push guard used to sit here, in front of a separate push dialog. The push is part of the
+    // Pending changes window now (see ChangesVm), so the one way in is Changes below — which publishes
+    // first for the same reason the push guard did.
 
     public static Guarded<EditVm> Edit(MainVm main, IReadOnlyList<string> paths)
     {
@@ -142,9 +114,9 @@ public static class WriteFlows
     }
 
     /// <summary>
-    /// The review of everything held in memory and not yet written. Published first, so a change made
-    /// a moment ago on another tab counts — otherwise pressing this straight after an edit would
-    /// report nothing to review.
+    /// The review of everything held in memory and not yet written, and the push. Published first, so
+    /// a change made a moment ago on another tab counts — otherwise pressing this straight after an
+    /// edit would report nothing to review, and the push would send the document without it.
     /// </summary>
     public static Guarded<ChangesVm> Changes(MainVm main)
     {

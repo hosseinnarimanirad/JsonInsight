@@ -1,0 +1,867 @@
+{
+  "about": {
+    "description": "دیگر نیازی به خروج از خانه و یا محل کار برای کارهای بانکی نخواهید داشت، با اپلیکیشن سکه می‌توانید بسیاری از امور بانکی و پرداختی خود را انجام دهید. همچنین می‌توانید در فروشگاه‌های طرف قرارداد با سکه، مبلغ مورد نظر را با تلفن همراه خود پرداخت نمایید. سکه جایگزین مطمئنی برای کیف پول شماست. </CR> سکه محصول شرکت به پرداخت ملت، یک پلتفرم کسب و کاری است. اگر شما هم کسب و کاری دارید که می‌خواهید آن را بر روی پلتفرم سکه قراردهید با ما تماس بگیرید",
+    "instagram": "https://instagram.com/behpardakht",
+    "linkedin": "https://www.linkedin.com/company/behpardakht-mellat",
+    "location": "تهران، خیابان شهید کلاهدوز، خیابان دیباجی جنوبی، کوچه مژگان، پلاک 2",
+    "website": "https://sekeh.behpardakht.com/"
+  },
+  "banks": [
+    {
+      "bankCode": "AYANDEH",
+      "iban": "062",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/ayandeh-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/ayandeh-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/ayandeh.png",
+      "panlist": [
+        "636214",
+        "686214"
+      ],
+      "title": "آینده"
+    },
+    {
+      "bankCode": "ENBANK",
+      "iban": "055",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/enbank-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/enbank-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/enbank.png",
+      "panlist": [
+        "627412"
+      ],
+      "title": "اقتصاد نوین"
+    },
+    {
+      "bankCode": "ANSAR",
+      "iban": "063",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/ansar-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/ansar-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/sepah.png",
+      "panlist": [
+        "627381"
+      ],
+      "title": "انصار"
+    },
+    {
+      "bankCode": "IRANZAMIN",
+      "iban": "069",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/iranzamin-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/iranzamin-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/iranzamin.png",
+      "panlist": [
+        "505785"
+      ],
+      "title": "ایران زمین"
+    },
+    {
+      "bankCode": "PARSIAN",
+      "iban": "054",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/parsian-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/parsian-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/parsian.png",
+      "panlist": [
+        "622106",
+        "639194",
+        "627884"
+      ],
+      "title": "پارسیان"
+    },
+    {
+      "bankCode": "PASARGAD",
+      "iban": "057",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/pasargad-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/pasargad-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/pasargad.png",
+      "panlist": [
+        "639347",
+        "502229"
+      ],
+      "title": "پاسارگاد"
+    },
+    {
+      "bankCode": "TEJARAT",
+      "iban": "018",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/tejarat-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/tejarat-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/tejarat.png",
+      "panlist": [
+        "627353",
+        "585983"
+      ],
+      "title": "تجارت"
+    },
+    {
+      "bankCode": "TOSET",
+      "iban": "022",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/toset-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/toset-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/toset.png",
+      "panlist": [
+        "502908"
+      ],
+      "title": "توسعه تعاون"
+    },
+    {
+      "bankCode": "TOSES",
+      "iban": "020",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/toses-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/toses-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekehimages/bank/toses.png",
+      "panlist": [
+        "627648"
+      ],
+      "title": "توسعه صادرات"
+    },
+    {
+      "bankCode": "HEKMAT",
+      "iban": "",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/hekmat-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/hekmat-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/sepah.png",
+      "panlist": [
+        "636949"
+      ],
+      "title": "حکمت ایرانیان"
+    },
+    {
+      "bankCode": "KHAVAR",
+      "iban": "078",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/khavar-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/khavar-dight.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/khavar.png",
+      "panlist": [
+        "505809",
+        "585947"
+      ],
+      "title": "خاورمیانه"
+    },
+    {
+      "bankCode": "DEY",
+      "iban": "",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/dey-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/dey-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/dey.png",
+      "panlist": [
+        "502938"
+      ],
+      "title": "دی"
+    },
+    {
+      "bankCode": "REFAH",
+      "iban": "013",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/refah-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/refah-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/refah.png",
+      "panlist": [
+        "589463"
+      ],
+      "title": "رفاه"
+    },
+    {
+      "bankCode": "SAMAN",
+      "iban": "056",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/saman-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/saman-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/saman.png",
+      "panlist": [
+        "621986"
+      ],
+      "title": "سامان"
+    },
+    {
+      "bankCode": "SEPAH",
+      "iban": "015",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/sepah-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/sepah-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/sepah.png",
+      "panlist": [
+        "589210",
+        "604932"
+      ],
+      "title": "سپه"
+    },
+    {
+      "bankCode": "SARMAYE",
+      "iban": "058",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/sarmaye-gark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/sarmaye-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/sarmaye.png",
+      "panlist": [
+        "639607"
+      ],
+      "title": "سرمایه"
+    },
+    {
+      "bankCode": "SINA",
+      "iban": "059",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/sina-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/sina-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/sina.png",
+      "panlist": [
+        "639346"
+      ],
+      "title": "سینا"
+    },
+    {
+      "bankCode": "SHAHR",
+      "iban": "",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/shahr-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/shahr-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/shahr.png",
+      "panlist": [
+        "502806",
+        "504706"
+      ],
+      "title": "شهر"
+    },
+    {
+      "bankCode": "SADERAT",
+      "iban": "019",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/saderat-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/saderat-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/saderat.png",
+      "panlist": [
+        "603769"
+      ],
+      "title": "صادرات"
+    },
+    {
+      "bankCode": "SANAT",
+      "iban": "011",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/sanat-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/sanat-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/sanat.png",
+      "panlist": [
+        "627961"
+      ],
+      "title": "صنعت و معدن"
+    },
+    {
+      "bankCode": "RESALAT",
+      "iban": "070",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/resalat-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/resalat-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/resalat.png",
+      "panlist": [
+        "504172"
+      ],
+      "title": "رسالت"
+    },
+    {
+      "bankCode": "MEHRI",
+      "iban": "060",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/mehri-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/mehri-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/mehri.png",
+      "panlist": [
+        "606373"
+      ],
+      "title": "مهر ایران"
+    },
+    {
+      "bankCode": "GHAVAMIN",
+      "iban": "015",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/ghavamin-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/ghavamin-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/sepah.png",
+      "panlist": [
+        "639599"
+      ],
+      "title": "سپه(قوامین سابق)"
+    },
+    {
+      "bankCode": "KARAFARIN",
+      "iban": "053",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/karafarin-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/karafarin-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/karafarin.png",
+      "panlist": [
+        "627488",
+        "502910"
+      ],
+      "title": "کارآفرین"
+    },
+    {
+      "bankCode": "KESHAVARZI",
+      "iban": "016",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/keshavarzi-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/keshavarzi-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/keshavarzi.png",
+      "panlist": [
+        "603770",
+        "639217"
+      ],
+      "title": "کشاورزی"
+    },
+    {
+      "bankCode": "GARDESH",
+      "iban": "010",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/gardesh-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/gardesh-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/gardesh.png",
+      "panlist": [
+        "505416"
+      ],
+      "title": "گردشگری"
+    },
+    {
+      "bankCode": "MARKAZI",
+      "iban": "010",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/markazi-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/markazi-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/markazi.png",
+      "panlist": [
+        "599999",
+        "636795"
+      ],
+      "title": "مرکزی"
+    },
+    {
+      "bankCode": "MASKAN",
+      "iban": "014",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/maskan-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/maskan-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/maskan.png",
+      "panlist": [
+        "628023"
+      ],
+      "title": "مسکن"
+    },
+    {
+      "bankCode": "MELLAT",
+      "iban": "012",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/mellat-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/mellat-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/mellat.png",
+      "panlist": [
+        "610433"
+      ],
+      "title": "ملت"
+    },
+    {
+      "bankCode": "SADAD",
+      "iban": "017",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/melli-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/melli-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/melli.png",
+      "panlist": [
+        "603799"
+      ],
+      "title": "ملی"
+    },
+    {
+      "bankCode": "MEHRE",
+      "iban": "",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/sepah-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/sepah-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/sepah.png",
+      "panlist": [
+        "639370"
+      ],
+      "title": "سپه(مهراقتصاد سابق)"
+    },
+    {
+      "bankCode": "POST",
+      "iban": "021",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/post-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/post-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/post.png",
+      "panlist": [
+        "627760"
+      ],
+      "title": "پست بانک"
+    },
+    {
+      "bankCode": "TOSE",
+      "iban": "051",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/tose.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/tose.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/tose.png",
+      "panlist": [
+        "628157"
+      ],
+      "title": "توسعه"
+    },
+    {
+      "bankCode": "KOSAR",
+      "iban": "073",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/kosar-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/kosar-;ight.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/sepah.png",
+      "panlist": [
+        "505801"
+      ],
+      "title": "کوثر"
+    },
+    {
+      "bankCode": "MELAL",
+      "iban": "",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/melal-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/melal-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/melal.png",
+      "panlist": [
+        "606256"
+      ],
+      "title": "ملل"
+    },
+    {
+      "bankCode": "NOOR",
+      "iban": "",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/noor-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/noor-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/noor.png",
+      "panlist": [
+        "507677"
+      ],
+      "title": "نور"
+    },
+    {
+      "bankCode": "SAMEN",
+      "iban": "",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/samen-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/samen-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/samen.png",
+      "panlist": [
+        "504165"
+      ],
+      "title": "ثامن"
+    },
+    {
+      "bankCode": "IR-VE",
+      "iban": "095",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/irve-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/irve-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/irve.png",
+      "panlist": [
+        "581874"
+      ],
+      "title": "ایران-ونزوئلا"
+    },
+    {
+      "bankCode": "SOROUSH",
+      "iban": "",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/shaparak-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank-/shaparak-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/shaparak.png",
+      "panlist": [
+        "936450"
+      ],
+      "title": "سروش"
+    },
+    {
+      "bankCode": "SHAPARAK",
+      "iban": "",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/shaparak-dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/shaparak-light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/shaparak.png",
+      "panlist": [],
+      "title": "شاپرک"
+    },
+    {
+      "bankCode": "DAMAVAND",
+      "iban": "",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/bank/damavand.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/bank/damavand.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/bank/damavand.png",
+      "panlist": [
+        "672022"
+      ],
+      "title": "دماوند"
+    }
+  ],
+  "faq": [
+    {
+      "id": "9e2288a6-918d-4321-a3be-314a2b7a5ff7",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/faq-dark/profileMenu-Dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/faq-light/profileMenu-Light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/faq/loginFaq.png",
+      "items": [
+        {
+          "A": "کاربران سکه نصب اپلیکیشن سکه، می توانند به سه طریق ورود با کد یکبار مصرف، ورود با رمز عبور و ورود با اثر انگشت وارد اپلیکیشن سکه شوند. لازم به ذکر است، کاربران جدید اپلیکیشن سکه، پس از نصب اپلیکیشن سکه صرفا با کد یکبارمصرف ارسال شده به شماره موبایل خود می توانند وارد اپلیکیشن سکه شوند.",
+          "Q": "به چند طریق می‌توان وارد اپلیکیشن سکه شد؟"
+        },
+        {
+          "A": "به منظور تعریف رمز عبور لازم است تا از منو بالا سمت راست صفحه خانه اپلیکیشن سکه، گزینه تنظیمات را انتخاب نمود. سپس با انتخاب گزینه مدیریت رمز عبور و تعیین رمز عبور ، رمز عبور را تعریف نمایید. به این منظور لازم است ابتدا دو مرتبه رمز عبور مورد نظر خود را (حداقل 8 کاراکتر و شامل حداقل یک حرف بزرگ، یک حرف کوچک، یک رقم و یک سیمبل) وارد و سپس کد ارسال شده به شماره خود را به درستی وارد نمایید تا رمز عبور مورد نظر شما تعریف گردد.",
+          "Q": "چگونه میتوان رمز عبور برای اپلیکیشن سکه تعریف نمود؟"
+        },
+        {
+          "A": "به منظور تغییر رمز عبور، لازم است تا از منو بالا سمت راست صفحه خانه اپلیکیشن سکه، گزینه تنظیمات را انتخاب نمود. سپس با انتخاب گزینه  مدیریت رمز عبور و تغییر رمز عبور ، رمز عبور خود را تغییر دهید. . به این منظور لازم است ابتدا دو مرتبه رمز عبور مورد نظر خود را (حداقل 8 کاراکتر و شامل حداقل یک حرف بزرگ، یک حرف کوچک، یک رقم و یک سیمبل) وارد و سپس کد ارسال شده به شماره خود را به درستی وارد نمایید تا رمز عبور مورد نظر شما تعریف گردد.",
+          "Q": "چگونه میتوان رمز عبور تعریف شده برای اپلیکشن سکه را تغییر داد؟"
+        },
+        {
+          "A": "در صورتیکه حین ورود به اپلیکیشن سکه، رمز عبور خود را فراموش کرده بودید، ابتدا گزینه بازیابی رمز عبور را انتخاب نمایید. سپس شماره موبایل خود را وارد و گزینه درخواست فراموشی رمز عبور را انتخاب نمایید. پس از آن لازم است ابتدا دو مرتبه رمز عبور مورد نظر خود را (حداقل 8 کاراکتر و شامل حداقل یک حرف بزرگ، یک حرف کوچک، یک رقم و یک سیمبل) وارد و سپس کد ارسال شده به شماره خود را به درستی وارد نمایید تا رمز عبور جدید شما تعریف گردد.",
+          "Q": "در صورتی که رمز عبور خود را فراموش کرده بودم، می بایست چه اقدامی انجام دهم؟"
+        },
+        {
+          "A": "در صورتیکه تلفن همراه شما،قابلیت احراز هویت با اثر انگشت را داشته باشد و این قابلیت در وضعیت فعال باشد، لازم است تا ابتدا از منو بالا سمت راست صفحه خانه اپلیکیشن سکه، گزینه تنظیمات را انتخاب نمایید. سپس گزینه ورود بایومتریک را فعال نمایید.",
+          "Q": "چکونه میتوان ورود با اثر انگشت به اپلیکیشن سکه را فعال نمود؟"
+        }
+      ],
+      "title": "ورود به سکه"
+    },
+    {
+      "id": "3bf1976e-eb66-472f-8bfb-69c1b6576b74",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/faq-dark/faqActiveSession-Dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/faq-light/faqActiveSession-Light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/faq/sessionFaq.png",
+      "items": [
+        {
+          "A": "به منظور مشاهده نشست های فعال خود، ابتدا از منو بالا سمت راست خانه اپلیکیشن سکه، گزینه تنظیمات را انتخاب نمایید. سپس گزینه مدیریت نشست های فعال را انتخاب کنید تا از کلیه نشست های فعال خود در دستگاه مختلف در اپلیکیشن سکه با نام دستگاه و زمان ورود آن مطلع شوید.",
+          "Q": "چگونه می توانم نشست های فعال خود را مشاهده کنم؟"
+        },
+        {
+          "A": "پس از مراجعه به گزینه مدیریت نشست های فعال این امکان برای شما فراهم است تا به صورتی موردی یا کلی، از سایر نشست های فعال خود در دستگاه های دیگر خارج شوید.",
+          "Q": "چگونه می‌توانم نشست های فعال خود را مدیریت کنم؟"
+        }
+      ],
+      "title": "مدیریت نشست‌های فعال"
+    },
+    {
+      "id": "b44fc0b4-a892-43f4-b1b3-571685dd16d1",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/faq-dark/faqAuth-Dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/faq-light/faqAuth-Light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/faq/authFaq.png",
+      "items": [
+        {
+          "A": "نظر به مقررات موجود کشور و مبارزه با پولشویی، کاربران کلیه اپلیکیشن های دارای کیف پول دیجیتال می بایست، پیش از استفاده به صورت رسمی احراز هویت شوند.",
+          "Q": "پس از نصب اپلیکیشن سکه، از هیچ یکی از سرویس های این اپلیکیشن نمی توانم استفاده کنم؟"
+        },
+        {
+          "A": "کاربران جدید اپلیکشن سکه، پس از نصب می بایست به منو پروفایل مراجعه و اطلاعات هویتی خود را وارد نمایند. لازم به ذکر است کدملی وارد شده در فرآیند احراز هویت می بایست با کدملی مرتبط با شماره ورود شما یکسان باشد.",
+          "Q": "نحوه احراز هویت در اپلیکشن سکه چگونه است؟"
+        }
+      ],
+      "title": "احراز هویت"
+    },
+    {
+      "id": "bbed8274-9ff1-4137-80e1-b8eb4200ec53",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/faq-dark/addCard-Dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/faq-light/addCard-Light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/faq/cardFaq.png",
+      "items": [
+        {
+          "A": "در کلیه سرویس های قابل پرداخت، با انتخاب گزینه  ثبت کارت جدید شما به سامانه هاب هدایت خواهید شد. پس از ثبت کارت بانکی مجددا به اپلیکیشن سکه هدایت خواهید شد و کارت بانکی خود را مشاهده خواهید کرد.",
+          "Q": "چگونه می توانم کارت بانکی خود را در اپلیکیشن سکه ثبت کنم؟"
+        },
+        {
+          "A": "در کلیه سرویس های قابل پرداخت، این امکان برای شما وجود دارد که علاوه بر پرداخت از کیف پول سکه و درگاه اینترنتی، از کارت بانکی خود نیز جهت پرداخت های آنلاین بهره مند شوید.",
+          "Q": "چرا باید کارت بانکی خود را حین پرداخت ثبت کنم؟"
+        },
+        {
+          "A": "به منظور حذف کارت بانکی خود لازم است پس از انتخاب گزینه تنظیمات، گزینه مدیریت اطلاعات را انتخاب نموده و از گزینه کارت های ثبت شده کارت بانکی مورد نظر خود را حذف نمایید. به منظور حذف کارت بانکی مورد نظر خود، لازم است انگشتتان را روی کارت بانکی مورد نظر نگه دارید تا امکان حذف یک یا تعدادی از کارت های بانکی خود را مشاهده نمایید.",
+          "Q": "آیا امکان حذف کارت بانکی ثبت شده من وجود دارد؟"
+        }
+      ],
+      "title": "افزودن کارت جدید"
+    },
+    {
+      "id": "bfe169cc-c119-4bf2-9e3f-b69a8183d3c8",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/faq-dark/faqSekehWallet-Dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/faq-light/faqSekehWallet-Light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/faq/walletFaq.png",
+      "items": [
+        {
+          "A": "کیف پول سکه یک کیف پول دیجیتال است که علاوه بر اتصال به خدمات متنوع پرداخت موجود در سکه، امکان افزایش و کاهش موجودی را نیز برای کاربران سکه فراهم می سازد. در آینده امکان پرداخت از طریق بارکدخوان، پرداخت خودکار و موجودی اعتباری نیز به آن اضافه خواهد شد.",
+          "Q": "کیف پول سکه چه قابلیت هایی دارد؟"
+        },
+        {
+          "A": "به منظور افزایش موجودی نقدی کیف پول سکه لازم است پس از اطمینان از انتخاب بالانس نقدی در صفحه خانه، گزینه افزایش را انتخاب نمایید. در حال حاضر امکان افزایش کیف پول از طریق کارت بانکی و درگاه اینترنتی فراهم هست. درآینده افزایش خودکار موجودی، افزایش از طریق بارکدخوان و کارت هدیه نیز به کیف پول سکه اضافه خواهد شد.",
+          "Q": "چگونه میتوانم موجودی کیف پول سکه خود را افزایش دهم؟"
+        },
+        {
+          "A": "حداقل میزان افزایش موجودی کیف پول سکه از طریق درگاه بانکی و یا کارت بانکی 10,000  ریال می باشد.",
+          "Q": "حداقل میزان افزایش موجودی کیف پول سکه چقدر است؟"
+        },
+        {
+          "A": "حداکثر میزان افزایش موجودی کیف پول سکه از طریق درگاه بانکی و یا کارت بانکی 1,000,000,000 ریال می باشد.",
+          "Q": "حداکثر میزان افزایش موجودی کیف پول سکه چقدر است؟"
+        },
+        {
+          "A": "به منظور برداشت از موجودی نقدی کیف پول سکه لازم است پس از اطمینان از انتخاب بالانس نقدی در صفحه خانه، گزینه برداشت را انتخاب نمایید. در حال حاضر برداشت از کیف پول صرفا از طریق شماره شبا بانکی به نام کاربر امکان پذیر است. لازم به ذکر است شماره موبایل مرتبط با شماره شبا مورد نظر می بایست",
+          "Q": "چگونه می توانم از موجودی کیف پول سکه خود برداشت کنم؟"
+        }
+      ],
+      "title": "کیف پول سکه"
+    },
+    {
+      "id": "4a08278c-d487-4cc0-80eb-e33ebbfb23d3",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/faq-dark/charge-Dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/faq-light/charge-Light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/faq/chargeFaq.png",
+      "items": [
+        {
+          "A": "در حال حاضر امکان خرید شارژ برای سیم کارت های اعتباری از اپراتورهای همراه اول، ایرانسل، رایتل و شاتل در اپلیکیشن سکه فراهم است.",
+          "Q": "امکان خرید شارژ از چه اپراتورهایی در اپلیکیشن سکه وجود دارد؟"
+        },
+        {
+          "A": "حداقل مبلغ خرید شارژ در اپلیکیشن سکه برای اپراتورهای همراه اول، ایرانسل، رایتل و شاتل، 50,000 ریال است",
+          "Q": "حداقل میزان خرید شارژ در اپلیکشن سکه چقدر است؟"
+        },
+        {
+          "A": "با مراجعه به سرویس خرید شارژ، در صورتی که کاربر تا کنون شارژی نخریده باشد، به صفحه انتخاب شماره، مبلغ شارژ و انتخاب نوع اپراتور هدایت خواهد شد. در صورتی که کاربر شارژی را خریداری نموده باشد، با انتخاب سرویس خرید شارژ، تاریخچه خریدهای شارژ خود را مشاهده خواهد کرد. در صورتی که کاربر تمایل داشته باشد، یکی از خرید شارژهای قبلی خود را حذف نماید، میتواند با انتخاب آیکون حذف بالا سمت چپ صفحه خرید شارژ، اقدام به انتخاب و حذف یک یا تعدادی از خریدهای قبلی شارژ خود نماید.",
+          "Q": "چگونه می توانم خرید های شارژ گذشته خود را حذف کنم؟"
+        }
+      ],
+      "title": "خرید شارژ"
+    },
+    {
+      "id": "003960a4-3e8e-4d0a-ac49-ae111b4cb92b",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/faq-dark/internet-Dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/faq-light/internet-Light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/faq/internetFaq.png",
+      "items": [
+        {
+          "A": "در حال حاضر امکان بسته اینترنتی برای سیم کارت های اعتباری از اپراتورهای همراه اول، ایرانسل، رایتل و شاتل در اپلیکیشن سکه فراهم است.",
+          "Q": "امکان خرید بسته اینترنت از چه اپراتورهایی در اپلیکشن سکه وجود دارد؟"
+        },
+        {
+          "A": "با مراجعه به سرویس خر�د اینترنت، در صورتی که کاربر تا کنون بسته اینترنتی خریداری نکرده باشد، به صفحه انتخاب شماره و نوع اپراتور هدایت خواهد شد. در صورتی که کاربر  پیش تر بسته اینترنتی را خریداری نموده باشد، با انتخاب سرویس خرید بسته اینترنت، تاریخچه خریدهای بسته اینترنت خود را مشاهده خواهد کرد. در صورتی که کاربر تمایل داشته باشد، یکی از خریدهای بسته اینترنت قبلی خود را حذف نماید، میتواند با انتخاب آیکون حذف بالا سمت چپ صفحه بسته اینترنت، اقدام به انتخاب و حذف یک یا تعدادی از خریدهای قبلی بسته اینترنت خود نماید.",
+          "Q": "چگونه می توانم خرید های بسته اینترنتی گذشته خود را حذف کنم؟"
+        }
+      ],
+      "title": "خرید بسته اینترنت"
+    },
+    {
+      "id": "46fc738a-d742-48f7-9640-cfd0c32f3c1d",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/faq-dark/bill-Dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/faq-light/bill-Light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/faq/billFaq.png",
+      "items": [
+        {
+          "A": "در حال حاضر امکان ثبت و پرداخت قبض تلفن همراه، تلفن ثابت، گاز، برق و آب در اپلیکیشن سکه فراهم است.",
+          "Q": "امکان پرداخت چه قبوضی در اپلیکشن سکه وجود دارد؟"
+        },
+        {
+          "A": "در صورتی که کاربر تمایل داشته باشد، یکی از قبوض ثبت شده خود را حذف نماید، میتواند با انتخاب آیکون حذف بالا سمت چپ صفحه پرداخت قبض، اقدام به انتخاب و حذف یک یا تعدادی از قبوض ثبت شده خود نماید",
+          "Q": "چگونه می توانم قبوض ثبت شده خود را حذف کنم؟"
+        }
+      ],
+      "title": "پرداخت قبض"
+    },
+    {
+      "id": "d1a5f743-1e1b-4328-ae50-75d4f26c9745",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/faq-dark/card2card-Dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/faq-light/card2card-Light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/faq/moneyTransferFaq.png",
+      "items": [
+        {
+          "A": "در حال حاضر امکان انتقال وجه از طریق کیف به کیف و کارت به کارت در اپلیکیشن سکه فراهم است.",
+          "Q": "روش های انتقال وجه در اپلیکشن سکه کدامند؟"
+        },
+        {
+          "A": "با استفاده از سرویس کیف به کیف سکه امکان انتقال وجه بدون کارمزد از مبدا یک کیف پول به سایر کیف پول های سکه فراهم است. بدین منظور لازم است تا شماره تلفن کیف پول مورد نظر خود را وارد نمایید. پس از مشخص نمود مبلغ مورد نظرتان، در صورتی که کد ارسال شده به شماره موبایل خود را بدرستی وارد نمایید، مبلغ بدون کارمزد به شماره مقصد واریز خواهد شد.",
+          "Q": "روش کیف به کیف چیست؟"
+        },
+        {
+          "A": "سرویس کارت به کارت سکه کلیه بانک های رسمی کشور را پشتیانی می کند.",
+          "Q": "سرویس کارت به کارت سکه چه بانک هایی را پشتیبانی می کند؟"
+        }
+      ],
+      "title": "انتقال وجه"
+    },
+    {
+      "id": "3d67f664-2d4e-495a-ba44-53766580eb8a",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/faq-dark/faqCharity-Dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/faq-light/faqCharity-Light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/faq/charityFaq.png",
+      "items": [
+        {
+          "A": "خیر، مشخص نمودن نیت در پرداخت های نیکوکاری الزامی نیست.",
+          "Q": "آیا انتخاب نیت در پرداخت نیکوکاری الزمی است؟"
+        },
+        {
+          "A": "به منظور آشنایی با موسسه خیریه مورد نظرتان لازم است پس از انتخاب موسسه موردنظر، گزینه i  را که در بالا سمت چپ صفحه قرار دارد، انتخاب نمایید.",
+          "Q": "چگونه می توانم با موسسات خیریه ای که در نیکوکاری سکه فعال هستند، آشنا شوم؟"
+        }
+      ],
+      "title": "نیکوکاری"
+    },
+    {
+      "id": "ebac0b0c-509a-408b-a3f5-8c65added963",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/faq-dark/balanceInquiry-Dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/faq-light/balanceInquiry-Light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/faq/accountInquiryFaq.png",
+      "items": [
+        {
+          "A": "در حال حاضر امکان استعلام موجودی حساب کلیه بانک های رسمی کشور در اپلیکیشن سکه فراهم است ",
+          "Q": "امکان استعلام موجودی از چه بانک هایی در حال حاضر در اپلیکشن سکه وجود دارد؟"
+        },
+        {
+          "A": "کارمزد استعلام موجودی حساب بانکی در اپلیکیشن سکه 1440 ریال می باشد که این مبلغ از حساب بانکی شما کسر خواهد شد. در نظر داشته باشید در صورتی که موجودی حساب شما کمتر از 1440 ریال باشد، امکان استعلام موجودی حساب آن وجود ندارد.",
+          "Q": "کارمزد استعلام موجودی حساب بانکی در اپلیکشن سکه چقدر است و چگونه پرداخت می شود؟"
+        }
+      ],
+      "title": "استعلام موجودی"
+    },
+    {
+      "id": "84a4e4fb-c2d1-45da-be07-5f3011af59f4",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/faq-dark/SAYADI-Dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/faq-light/SAYADI-Light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/faq/sayadiFaq.png",
+      "items": [
+        {
+          "A": "دریافت کننده چک می تواند از سرویس های استعلام اطلاعات چک، استعلام اعتبار صادرکننده چک، استعلام چک های صادرکننده، استعلام زنجیره انتقالات چک استفاده کند. همچنین دریافت کننده چک می تواند چک مورد نظر خود را رد یا تایید نمایید و همچنین نسبت به عودت انتقال چک اقدام نماید",
+          "Q": "دریافت کننده چک، از چه امکاناتی از سرویس چک صیادی اپلیکیشن سکه می تواند استفاده کند؟"
+        },
+        {
+          "A": "صادرکننده چک می تواند، چک موردنظر خود را ثبت نماید و از وضعیت تایید یا رد چک خود توسط دریافت کننده چک مطلع گردد.",
+          "Q": "صادرکننده چک، از چه امکاناتی از سرویس چک صیادی اپلیکیشن سکه می تواند استفاده کند؟"
+        },
+        {
+          "A": "در حال حاضر پنج نوع استعلام چک در اپلیکیشن سکه وجود دارد که شامل: استعلام اطلاعات چک، استعلام چک توسط صادرکننده، استعلام اعتبار صادرکننده چک، استعلام چک های صادرکنده و استعلام زنجیره انتقالات چک",
+          "Q": "چه استعلاماتی در سرویس چک صیادی اپلیکیشن سکه وجود دارد؟"
+        }
+      ],
+      "title": "چک صیادی"
+    },
+    {
+      "id": "aa53e00e-ed7f-42af-b9ec-97e1f8b6e704",
+      "image": {
+        "dark": "https://rynt.ir/static/app/sekeh/images/faq-dark/last10turnover-Dark.png",
+        "light": "https://rynt.ir/static/app/sekeh/images/faq-light/last10turnover-Light.png"
+      },
+      "imageUrl": "https://rynt.ir/static/app/sekeh/images/faq/lasttenFaq.png",
+      "items": [
+        {
+          "A": "در حال حاضر امکان استعلام 10 گردش آخر حساب بانک ملت در اپلیکیشن سکه فراهم است ",
+          "Q": "سرویس 10 گردش آخر اپلیکیشن سکه چه بانک هایی را پوشش می دهد؟"
+        },
+        {
+          "A": "کارمزد سرویس استعلام 10 گردش آخر حساب بانکی در اپلیکیشن سکه 1440 ریال می باشد که این مبلغ از حساب بانکی شما کسر خواهد شد. در نظر داشته باشید در صورتی که موجودی حساب شما کمتر از 1440 ریال باشد، امکان استعلام 10 گردش آخر آن وجود ندارد.",
+          "Q": "کارمزد سرویس 10 گردش آخر اپلیکیشن سکه چقدر است؟"
+        }
+      ],
+      "title": "ده گردش آخر"
+    }
+  ],
+  "intro": [
+    {
+      "description": "با برنامه سکه شما به گسترده متنوعی از سرویس‌های پرداخت و خدمات کاربردی دسترسی خواهید داشت",
+      "imageUrl": "https://rynt.ir/static/sekeh/app/intro/intro.png",
+      "title": "به اپلیکیشن سکه خوش آمدید"
+    },
+    {
+      "description": "با کیف پول هوشمند سکه، تجربه‌ی متفاوتی را در پرداخت‌های خود تجربه خواهید کرد",
+      "imageUrl": "https://rynt.ir/static/sekeh/app/intro/intro.png",
+      "title": "کیف پول هوشمند سکه"
+    },
+    {
+      "description": "با اپلیکیشن سکه می‌توانید از هر مبدا بانکی انتقال‌ وجه داشته باشید",
+      "imageUrl": "https://rynt.ir/static/sekeh/app/intro/intro.png",
+      "title": "خدمات انتقال وجه"
+    },
+    {
+      "description": "اپلیکیشن سکه شامل مجموعه متنوعی از خدمات دیجیتالی شامل: پرداخت قبوض، خرید شارژ و بسته، خدمات سفر، خدمات خودرو و ... است.",
+      "imageUrl": "https://rynt.ir/static/sekeh/app/intro/intro.png",
+      "title": "خدمات دیجیتال"
+    }
+  ],
+  "messages": {
+    "redirectToShaparak": "کاربر گرامی، به منظور ارتقا امنیت تراکنش‌ها و رعایت مقررات بانک مرکزی، برای احراز هویت و ثبت کارت مبدا، به سامانه امن شاپرک منتقل میشوید."
+  }
+}

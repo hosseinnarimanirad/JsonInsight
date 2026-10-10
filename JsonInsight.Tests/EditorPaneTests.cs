@@ -8,7 +8,14 @@ namespace JsonInsight.Tests;
 /// The Tier editor's pane: how it commits, what the tree says afterwards, and find/replace over the
 /// text. Built against real view models rather than the editor alone, because two of these are about
 /// what happens between the pane and the tree beside it.
+///
+/// <para>
+/// In the sample-files collection because the copy tests swap the static
+/// <c>Platform.Clipboard</c>, and so does <c>ArrayNodeTests</c>: run in parallel, one class's
+/// <c>Reset</c> lands in the middle of the other's copy and the clipboard it asserts on is empty.
+/// </para>
 /// </summary>
+[Collection("sample-files")]
 public sealed class EditorPaneTests
 {
     private static readonly SampleFiles Fixtures = new();
@@ -781,6 +788,39 @@ public sealed class EditorPaneTests
 
         // The freshly read document, not the one it was showing before.
         Assert.NotSame(before.Tier, after.Tier);
+    }
+
+    /// <summary>
+    /// The All tiers detail strip copies the selected row's path — the colon form a report cites a key
+    /// by — and says so in a toast. The path and never the value: a value here can be a live
+    /// credential, and the path is what gets pasted.
+    /// </summary>
+    [Fact]
+    public void Copying_a_grid_path_puts_the_path_on_the_clipboard_and_says_so()
+    {
+        var clipboard = new CapturingClipboard();
+        JsonInsight.Platform.Platform.Clipboard = clipboard;
+
+        try
+        {
+            var main = new MainVm(vaultAtStartup: false);
+            main.Seed(Fixtures.Documents);
+
+            var tiers = main.Tiers!;
+            var row = tiers.Rows.First(r => r.Path.Length > 0);
+            tiers.SelectedRow = row;
+
+            Assert.Null(tiers.CopyToast);
+
+            tiers.CopyPathCommand.Execute(null);
+
+            Assert.Equal(row.Path, clipboard.Text);
+            Assert.Contains(row.Path, tiers.CopyToast!, StringComparison.Ordinal);
+        }
+        finally
+        {
+            JsonInsight.Platform.Platform.Reset();
+        }
     }
 
     private sealed class CapturingClipboard : JsonInsight.Platform.IClipboard

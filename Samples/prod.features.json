@@ -1,0 +1,24 @@
+{
+  "list": [
+    
+      {
+        "action": "AUTH_WEBVIEW",
+        "imageUrl": "https://rynt.ir/static/app/sekeh/images/features/gold.png",
+        "target": "GOLDECM1",
+        "title": "خرید و فروش دارایی دیجیتال"
+      },
+      {
+        "action": "AUTH_WEBVIEW",
+        "imageUrl": "https://rynt.ir/static/app/sekeh/images/features/tashilat.png",
+        "target": "TASHILAT",
+        "title": "تسهیلات تجدیدپذیر"
+      },
+      {
+        "action": "WEBVIEW",
+        "imageUrl": "https://rynt.ir/static/app/sekeh/images/banner/kaam_2.png",
+        "target": "https://kam.behfarsw.ir",
+        "title": "کام، سرمایه آینده"
+      }
+    
+  ]
+}

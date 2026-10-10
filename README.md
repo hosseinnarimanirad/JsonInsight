@@ -12,6 +12,40 @@ Within a project it works on one JSON at a time, compared across up to four envi
 pointed at the whole path to one Vault secret, or at one file on disk. See *Where a source lives* and
 *Finding the JSON* below.
 
+## Two front ends, and the name
+
+`JsonInsight/` is the WPF window this README describes. `WebJsonInsight/` is the same engine and the
+same view models behind a Photino + Blazor window that also runs on Linux and macOS — a different
+window, not a website and not a server. **A feature lands in both, in the same pass.** See
+`WebJsonInsight/README.md`.
+
+The app has been renamed twice: `VaultManager` → `JsonLens` (2026-08-05) → `JsonInsight`. Reports,
+memories and commit messages written before those dates use the old names for this same app.
+
+## What it is used for in this workspace
+
+In `D:\Projects` this is how a **deployed** Sekeh .NET config value gets read or compared, because
+there is no file to read one from. `dev` is `Sekeh-dotnet/sekeh-dotnet/src/Sekeh.API/appsettings.json`
+(Vault is skipped in DEBUG), while `stage`, `beta` and `prod` exist **only** as Vault secrets — there
+is no `appsettings.Stage.json` or `appsettings.Beta.json`, and the snapshot folder
+`Sekeh-dotnet/Vaults/` was removed on 2026-08-18. A tier's value is whatever Vault currently holds.
+
+Each tier is root-shaped exactly like `Sekeh.API/appsettings.json` (`PaymentSettings`,
+`ConnectionStrings`, `AuthSettings`, …), because the Vault loader replaces the appsettings file layer
+wholesale rather than merging it — a key missing from a tier is simply absent at runtime, with no
+fallback. Dev and the deployed tiers are known to drift: `PaymentSettings:TransactionExpiry` is
+`1500` in dev and `3600` in the deployed tiers. Quoting `appsettings.json` as though it were the
+deployed value is the specific mistake this app exists to prevent; when it cannot be reached, the
+honest answer is that the value could not be verified.
+
+`Sekeh/JS ENV/` holds the JS side's `.env` snapshot. This app **cannot** read it — a source is JSON,
+from Vault or from a file on disk — so comparing a tier against the JS environment is a manual
+exercise, not something the Compare files tab can do.
+
+⚠️ Every tier it reads carries live credentials — bank gateway tokens, Couchbase and Elasticsearch
+passwords, private keys — as do the Vault tokens it stores in user secrets. Cite a key path such as
+`PaymentSettings:Hub:Payment:TerminalId`; never paste the value into a report, a commit or chat.
+
 ## A source has exactly one answer
 
 That is the whole of it, and everything else follows from it.
@@ -493,9 +527,9 @@ sequential single-key pushes would be six versions of a secret describing one ch
 3. **Queue.** Changes join the pending set and the toolbar says how many are waiting. An edit that
    matches the existing value is dropped rather than queued.
 4. **Review and push.** One tier at a time — one secret, one version, one typed confirmation — but
-   every key for that tier in a single version. *Review and write* opens the batch; **Push to Vault…**
-   hands the document it produces to the push screen, which diffs it against the version Vault holds
-   at that moment. See *Pushing to Vault*.
+   every key for that tier in a single version. *Review and write* opens Pending changes, which lists
+   the batch and, below it, diffs the document it produces against the version Vault holds at that
+   moment. See *Pushing to Vault*.
 
 Three things worth knowing:
 
@@ -768,23 +802,35 @@ question.
 ## Pushing to Vault
 
 The other half of Pull, and the only way anything leaves this app. A push starts in exactly one
-place — the title bar's **Push to Vault or disk** — and everything else hands on to the same screen:
-
-| From | What it pushes |
-|---|---|
-| Title bar → **Push to Vault or disk** | opens the review of everything unwritten; you pick the tier |
-| Pending changes → **Push to Vault…** | that tier, as the app is holding it |
-| Promote → **Push to Vault…** | the destination with the promoted subtree added |
+place — the title bar's **Push to Vault or disk**, which is off while nothing is unsaved and goes off
+again as soon as the last unsaved tier has been pushed. It opens **Pending changes**, which is the
+review and the push in one window. All tiers' *Review and write* opens the same window, and a
+promotion lands in memory and is pushed from there like any other edit.
 
 The tabs have no push buttons of their own. Every edit lands in the tier's shared in-memory document
 the moment it is applied, wherever it was made, so the title bar's button already sends exactly what
 any tab is showing — and a second way in is a second thing to keep in step with the first.
 
-A push is one tier: one secret, one version, one typed confirmation. When several tiers are unwritten
-the review stays open between them, advancing to the next tier each time one goes out, so a batch
-spanning four tiers is four presses rather than four trips back through a tab.
+The window is one column, read top to bottom in the order the decision is made:
 
-The screen **reads the secret live as it opens**, and lays the two sides out **as Vault | as
+1. **Tier** picker, **Check Vault again** (*Check file again* for a file source) and **Discard this
+   tier's changes**, then the destination in full.
+2. **Queued changes** — one row per changed key, each with its own *Discard*.
+3. **What the push would change** — the diff against what the source holds right now, with *Show
+   unchanged*. Discarding a key rebuilds it and reads the source again.
+4. The typed confirmation and **Push to Vault** (*Write to disk* for a file).
+
+It used to be two windows: the review, with a preview of its own against the tier *as it was read*,
+and a push window opened from it with the diff against the source *as it is now*. That was two diffs
+answering one question, and only the live one is worth confirming against, so the first preview is
+gone.
+
+A push is one tier: one secret, one version, one typed confirmation. When several tiers are unwritten
+the window moves to the next one as each goes out, keeping what each push reported — the new version,
+and anything that went wrong after the write landed — so a batch spanning four tiers is four
+confirmations in one window.
+
+The window **reads the secret live as it opens**, and lays the two sides out **as Vault | as
 pushed**:
 
 ```
@@ -865,8 +911,8 @@ failure.
 ## Promoting a section
 
 Pick a row that is missing from a tier, choose a destination, review the per-key actions, preview,
-then **Push to Vault…** — which hands the destination-with-the-subtree-added to the push screen,
-where it is diffed against the live secret and confirmed. Defaults per key:
+then **Apply** — which lands the subtree on the destination in memory, to be pushed from Pending
+changes, where it is diffed against the live secret and confirmed. Defaults per key:
 
 | Class | Default | Why |
 |---|---|---|
@@ -994,7 +1040,7 @@ classify → (promote or edit).
 | `Promote/` | `PromotionPlanner` builds the promote plan and applies it to a copy of the destination; `OrdinalJsonWriter` is the byte-exact canonical serializer; `JsonNavigator` resolves a configuration path against a tree, array elements included. None of it writes anything — a mutation produces a document, and `VaultPusher` is what does anything with one. |
 | `Sources/` | What a source *is*, and the seam the rest of the app sees instead of Vault. `SourceKind` and `ISourceProvider` (load, blocked, preflight, save); `VaultSourceProvider` and `LocalFileSourceProvider`, which carry the same write fence — `PayloadValidator` is the shared middle of it rather than a copy; `SourceEnvironment`, the closed list of environment names a source is chosen from; `SourceProject`, one project's set of sources; `SourceProviders`, the registry both the read and the write path resolve through; and `SourceCatalog`, which turns the open project's settings into the `TiersConfig` everything downstream compares, or stands aside for `tiers.json` when nothing has been chosen. |
 | `Vault/` | `VaultClient` (KV v2 read, list, mount enumeration, and one check-and-set write), `VaultPusher` (the fences, the preflight and the read-back for a Vault write), `VaultTierLoader` (a payload → a `TierDocument`), `TierRefresher` (the whole-fleet read behind both startup and the pull button, dispatching each tier to its provider), `VaultBrowser` (the bounded per-row metadata walk behind Search), and the settings pair: `VaultWorkspace` (every project, and the migration off the pre-projects shape — folding the app-wide document into each row's path and pushing the shared credentials down into the rows that relied on them) with `VaultSettings` (one project as everything else sees it) and `VaultSettingsStore`, the only code that knows which half goes to appsettings.json and which to user secrets. |
-| `ViewModels/`, `Views/` | One VM and one view per tab, plus `ProjectsVm`/`ProjectsView` for the screen the app opens on, `PromoteDialog`, `EditDialog`, `ChangesDialog`, `PushDialog` and the layout converters. `JsonEditorVm` is the largest, because the hierarchy, the pane, the change markers and the undo state all belong to one screen. |
+| `ViewModels/`, `Views/` | One VM and one view per tab, plus `ProjectsVm`/`ProjectsView` for the screen the app opens on, `PromoteDialog`, `EditDialog`, `ChangesDialog` (the review and the push, one window) and the layout converters. `JsonEditorVm` is the largest, because the hierarchy, the pane, the change markers and the undo state all belong to one screen. |
 | `Themes/` | The look. `Light.xaml` and `Dark.xaml` hold colours and nothing else; `Controls.xaml` holds every style and template; `ThemeManager.cs` swaps the colour dictionary at runtime. |
 | `Assets/` | `JsonInsight.ico` — a vault handwheel in the app's navy and accent blue, ten frames from 16 to 256px (the 16 and 20px frames drop the spokes, which turn to mush at that scale). `make-icon.ps1` draws and repacks it; run it only to change the icon. |
 | `config/` | The four JSON files above. |

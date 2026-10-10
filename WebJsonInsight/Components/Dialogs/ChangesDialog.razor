@@ -1,99 +1,178 @@
 @*
-    Unsaved changes — everything the app is holding that no source has been told about, reviewed one
-    tier at a time before it becomes a version.
+    Pending changes — everything the app is holding that no source has been told about, reviewed one
+    tier at a time and pushed from the same window.
 
     Batching is not a convenience: the change that prompted the feature was one shape applied to six
     sibling Couchbase URLs across two environments, and six sequential single-key pushes would be six
     versions of a secret describing one change.
 
-    This used to review a queue that existed nowhere else until it was pushed, and each entry carried
-    the value it was made against so a read moving the tier underneath it could be caught. Edits land
-    in the tier's own in-memory document now, so there is no queue to go stale — whether the source
-    has moved since it was read is asked by the push screen, against the live secret or file.
+    One column, read top to bottom in the order the decision is made: which tier and where it goes,
+    the keys it changes, then the diff against what the source holds right now, then the typed
+    confirmation. The push used to be a second dialog opened from this one, and the review had a
+    preview of its own — a diff against the tier as it was read, sitting beside the queued keys,
+    which then had to be confirmed again in the other window against the live source. That was two
+    diffs answering one question, and only the live one is worth confirming against.
+
+    Every fence belongs to PushVm and the provider behind it, not to this markup. Push stays disabled
+    until the push says it may go: a live read, a real difference, a source that has not moved since,
+    and the tier's name typed out.
 *@
 @inherits ObservingComponent
 
-<Modal Title="@Vm.Title" Subtitle="@Vm.What" OnClose="OnClose">
+<Modal Title="@Vm.Title" Subtitle="@(Vm.Push?.SourceLine ?? Vm.What)" OnClose="OnClose">
     <ChildContent>
-    
+
         <div class="changes">
-    
+
             <div class="toolbar-row">
                 <label for="changes-tier">Tier</label>
-                <select id="changes-tier" class="field" value="@Vm.Tier?.Id"
+                <select id="changes-tier" class="field" value="@Vm.Tier?.Id" disabled="@(Vm.Push?.Busy == true)"
                         @onchange="e => Vm.Tier = Vm.Tiers.FirstOrDefault(t => t.Id == e.Value?.ToString())">
                     @foreach (var tier in Vm.Tiers)
                     {
                         <option value="@tier.Id" selected="@(tier.Id == Vm.Tier?.Id)">@tier.Label</option>
                     }
                 </select>
-    
-                <button class="btn btn-primary" @onclick="() => Vm.PreviewCommand.Execute(null)">Preview</button>
-                <button class="btn btn-small" @onclick="() => Vm.DiscardTierCommand.Execute(null)"
-                        title="Take this tier back to what its source last handed over.">Discard this tier's</button>
+
+                <button class="btn btn-small" disabled="@(!Vm.CanCheck)"
+                        @onclick="() => Vm.CheckAgainCommand.ExecuteAsync(null)"
+                        title="Read what this would replace again, right now, and rebuild the comparison. The version this read returns is what the write carries as a check-and-set. Nothing is sent.">
+                    <Icon Name="@(Vm.Push?.Busy == true ? "refresh" : "pull")" Size="12"
+                          Class="@(Vm.Push?.Busy == true ? "spinning" : "")" />
+                    <span>@(Vm.Push?.Busy == true ? "Reading…" : Vm.CheckLabel)</span>
+                </button>
+
+                <button class="btn btn-small" disabled="@(Vm.Push?.Busy == true || Vm.Changes.Count == 0)"
+                        @onclick="() => Vm.DiscardTierCommand.Execute(null)"
+                        title="Take this tier back to what its source last handed over.">Discard this tier's changes</button>
+
+                <span class="caption inline">@Vm.What</span>
             </div>
+
+            @* The address is the one thing a confirmation must not leave to be assumed. *@
+            @if (Vm.Push is { } push)
+            {
+                <div class="push-destination">@push.Destination</div>
+            }
+            else if (!string.IsNullOrEmpty(Vm.TargetDescription))
+            {
+                <div class="push-destination">@Vm.TargetDescription</div>
+            }
 
             @foreach (var warning in Vm.Warnings)
             {
                 <div class="notice notice-warn"><Icon Name="warn" /> <span>@warning</span></div>
             }
-    
+
+            @if (Vm.Push is { Problem.Length: > 0 } refused)
+            {
+                <div class="notice notice-danger"><Icon Name="warn" /> <span>@refused.Problem</span></div>
+            }
+
             @if (!string.IsNullOrEmpty(Vm.Message))
             {
                 <div class="notice notice-info">@Vm.Message</div>
             }
-    
-            <div class="changes-body">
-                <div class="card card-flush grid-card">
-                    <div class="grid-scroll">
-                        <table class="grid">
-                            <thead>
-                                <tr>
-                                    <th class="col-path">KEY</th>
-                                    <th style="width:74px">TIER</th>
-                                    <th style="width:66px">KIND</th>
-                                    <th class="col-tier">WAS</th>
-                                    <th class="col-tier">BECOMES</th>
-                                    <th style="width:76px"></th>
+
+            @* What the pushes made from this window reported. They outlive the tier they were about,
+               because the window moves on as soon as one goes through. *@
+            @foreach (var line in Vm.PushReport)
+            {
+                <div class="push-note">@line</div>
+            }
+
+            <div class="card card-flush changes-list">
+                <div class="card-head"><span class="section-label">QUEUED CHANGES</span></div>
+                <div class="grid-scroll">
+                    <table class="grid">
+                        <thead>
+                            <tr>
+                                <th class="col-path">KEY</th>
+                                <th style="width:66px">KIND</th>
+                                <th class="col-tier">WAS</th>
+                                <th class="col-tier">BECOMES</th>
+                                <th style="width:76px"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var change in Vm.Changes)
+                            {
+                                <tr @key="@($"{change.TierId}|{change.Path}")">
+                                    <td class="col-path"><span class="path-label">@change.Path</span></td>
+                                    <td>@change.KindName</td>
+                                    <td class="col-tier @SecretClass(change)">@change.BaseDisplay</td>
+                                    <td class="col-tier @SecretClass(change)">@change.NewDisplay</td>
+                                    <td>
+                                        <button class="btn btn-small" disabled="@(Vm.Push?.Busy == true)"
+                                                @onclick="() => Vm.DiscardCommand.Execute(change)"
+                                                title="Take this one path back to what the source last handed over.">Discard</button>
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var change in Vm.Changes)
-                                {
-                                    <tr @key="@($"{change.TierId}|{change.Path}")">
-                                        <td class="col-path"><span class="path-label">@change.Path</span></td>
-                                        <td>@change.TierId</td>
-                                        <td>@change.KindName</td>
-                                        <td class="col-tier @SecretClass(change)">@change.BaseDisplay</td>
-                                        <td class="col-tier @SecretClass(change)">@change.NewDisplay</td>
-                                        <td>
-                                            <button class="btn btn-small" @onclick="() => Vm.DiscardCommand.Execute(change)"
-                                                    title="Take this one path back to what the source last handed over.">Discard</button>
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-    
-                <div class="card card-flush grid-card">
-                    <DiffLinesView Lines="Vm.PreviewLines" LeftHeader="AS IT IS"
-                                   RightHeader="WITH THESE APPLIED" EmptyMessage="Press Preview." />
+                            }
+                        </tbody>
+                    </table>
+
+                    @if (Vm.Changes.Count == 0)
+                    {
+                        <div class="grid-empty">Nothing is queued for this tier.</div>
+                    }
                 </div>
             </div>
+
+            <div class="card card-flush push-diff">
+                <div class="card-head">
+                    <span class="section-label">WHAT THE PUSH WOULD CHANGE — AGAINST THE SOURCE AS IT IS NOW</span>
+                    <label class="check">
+                        <input type="checkbox" checked="@(Vm.Push?.ShowUnchanged == true)" disabled="@(Vm.Push is null)"
+                               @onchange="e => { if (Vm.Push is { } p) p.ShowUnchanged = (bool?)e.Value ?? false; }" />
+                        <span>Show unchanged</span>
+                    </label>
+                </div>
+
+                @if (Vm.Push is { Message.Length: > 0 } said)
+                {
+                    <div class="push-diff-message">@said.Message</div>
+                }
+
+                <DiffLinesView Lines="@((IReadOnlyList<DiffLineVm>?)Vm.Push?.Lines ?? [])"
+                               LeftHeader="@Vm.Push?.LeftHeader" RightHeader="@Vm.Push?.RightHeader"
+                               EmptyMessage="@EmptyMessage" />
+            </div>
+
+            @* It is the only part that can fail AFTER doing something, so it reports each step rather
+               than one verdict — the new version number, the read-back check, and anything that went
+               wrong after the write landed. *@
+            @foreach (var note in Vm.Push?.Notes ?? [])
+            {
+                <div class="push-note">@note</div>
+            }
         </div>
     </ChildContent>
 
     <Footer>
-        <span class="caption inline">
-            One tier per press — one secret, one version, one typed confirmation — but every key for
-            that tier in a single version.
-        </span>
+        @* Off as well when the source has moved: typing the tier's name is the act of confirming, and
+           there is nothing here left to confirm. *@
+        <div class="push-confirm">
+            <label for="push-confirm">
+                Type <strong>@Vm.Tier?.Id</strong> to confirm
+            </label>
+            <input id="push-confirm" class="field" type="text" autocomplete="off"
+                   disabled="@(Vm.Push is not { CanConfirm: true })"
+                   value="@Vm.Push?.ConfirmText"
+                   @oninput="e => { if (Vm.Push is { } p) p.ConfirmText = e.Value?.ToString() ?? string.Empty; }" />
+        </div>
+
         <span class="spacer"></span>
+
         <button class="btn" @onclick="OnClose">Close</button>
-        <button class="btn btn-danger" disabled="@(!Vm.CanPush)" @onclick="Push">
-            <Icon Name="push" Size="13" /> <span>Push to Vault or disk…</span>
+
+        <button class="btn btn-danger" disabled="@(!Vm.CanPushNow)"
+                @onclick="() => Vm.PushCommand.ExecuteAsync(null)"
+                title="@(Vm.Push is { IsStale: true } stale
+                           ? stale.Stale
+                           : "Write it. The payload is re-parsed before it leaves, the write carries the version read a moment ago as a check-and-set, and the result is read back and compared.")">
+            <Icon Name="push" Size="13" />
+            <span>@(Vm.Push?.Busy == true ? "Working…" : Vm.Push is { TierIsFile: true } ? "Write to disk" : "Push to Vault")</span>
         </button>
     </Footer>
 </Modal>
@@ -103,26 +182,53 @@
 
     [Parameter] public EventCallback OnClose { get; set; }
 
-    [Parameter] public EventCallback<PendingPush> OnPush { get; set; }
-
     protected override void OnInitialized()
     {
-        Observe(Vm, Vm.Changes, Vm.PreviewLines, Vm.Warnings, Vm.Tiers);
+        ObserveAll();
+        Vm.PropertyChanged += OnVmChanged;
+    }
 
-        foreach (var change in Vm.Changes)
+    /// <summary>
+    /// The push is replaced, not reset, whenever the tier or its changes move — so what this watches
+    /// has to move with it, or the diff would stop updating the first time a path was discarded.
+    /// </summary>
+    private void OnVmChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ChangesVm.Push))
         {
-            Observe(change);
+            StopObserving();
+            ObserveAll();
+        }
+    }
+
+    private void ObserveAll() =>
+        Observe(Vm, Vm.Changes, Vm.Warnings, Vm.Tiers, Vm.PushReport, Vm.Push, Vm.Push?.Lines, Vm.Push?.Notes);
+
+    protected override void Disposing() => Vm.PropertyChanged -= OnVmChanged;
+
+    /// <summary>
+    /// Reads the source as the window opens, because the comparison being confirmed has to be against
+    /// the current version rather than against whatever was on screen.
+    /// </summary>
+    protected override async Task OnAfterRenderAsync(bool first)
+    {
+        if (first)
+        {
+            await Vm.OpenedAsync();
         }
     }
 
     private static string SecretClass(ChangeRowVm change) =>
         change.Class == JsonInsight.Model.ValueClass.Secret ? "cell-secret" : string.Empty;
 
-    private async Task Push()
+    // No rows means one of three different things, and this is the one screen where saying the wrong
+    // one would be read as permission to stop: nothing may be pushed, the check has not run, or it
+    // ran and found nothing to send.
+    private string EmptyMessage => Vm.Push switch
     {
-        if (Vm.PendingPush() is { } pending)
-        {
-            await OnPush.InvokeAsync(pending);
-        }
-    }
+        null => "Nothing to push for this tier.",
+        { HasChecked: true } => "Nothing differs. A payload byte-identical to what is already there is refused rather than uploaded — a version that changes nothing is noise in a history whose whole value is that every entry means something.",
+        { Busy: true } => "Reading what this would replace …",
+        _ => "Press Check again to read what this would replace and diff against it.",
+    };
 }

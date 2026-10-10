@@ -6,13 +6,18 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         d:DataContext="{d:DesignInstance Type=vm:ChangesVm}"
         mc:Ignorable="d"
-        Title="Pending changes" Height="800" Width="1280"
+        Title="Pending changes" Height="880" Width="1280"
         WindowStartupLocation="CenterOwner"
         UseLayoutRounding="True"
         FontFamily="{StaticResource Font.Ui}"
         Foreground="{DynamicResource Brush.Text}"
         Background="{DynamicResource Brush.Window}">
 
+    <!-- One column, read top to bottom in the order the decision is made: which tier and where it
+         goes, the keys it changes, the diff against what the source holds right now, then the typed
+         confirmation. The push used to be a second window opened from this one, and this one had a
+         preview of its own against the tier as it was read — two diffs answering one question, and
+         only the live one is worth confirming against. -->
     <DockPanel Margin="16">
         <Border DockPanel.Dock="Top" Style="{StaticResource Card}" Margin="0,0,0,10">
             <StackPanel>
@@ -23,17 +28,54 @@
                                VerticalAlignment="Center" Margin="0,0,9,0" />
                     <ComboBox ItemsSource="{Binding Tiers}" SelectedItem="{Binding Tier}"
                               DisplayMemberPath="Label" MinWidth="230" />
+
+                    <Button Style="{StaticResource Button.Small}" Margin="14,0,0,0"
+                            Content="{Binding CheckLabel}"
+                            Command="{Binding CheckAgainCommand}"
+                            ToolTipService.ShowOnDisabled="True"
+                            ToolTip="Read what this would replace again, right now, and rebuild the comparison. This is a read — nothing is sent." />
                     <Button Style="{StaticResource Button.Small}" Content="Discard this tier's changes"
-                            Command="{Binding DiscardTierCommand}" Margin="14,0,0,0" />
+                            Command="{Binding DiscardTierCommand}" Margin="6,0,0,0" />
+
                     <TextBlock Style="{StaticResource Text.Caption}" VerticalAlignment="Center"
-                               Margin="16,0,0,0" TextWrapping="Wrap"
-                               Text="One tier per commit — one file, one backup, one typed confirmation. Every key for that tier goes in a single write." />
+                               Margin="16,0,0,0" TextWrapping="Wrap" MaxWidth="560"
+                               Text="One tier per push — one destination, one typed confirmation. Every key for that tier goes in a single write." />
                 </StackPanel>
 
-                <!-- Where this actually lands. For a tier read live from Vault there is no snapshot
-                     to edit, so the commit creates one and says so before you confirm. -->
-                <StackPanel Orientation="Horizontal" Margin="0,10,0,0"
-                            Visibility="{Binding TargetDescription, Converter={StaticResource NotEmptyVis}}">
+                <!-- Where this lands, shown before anything is typed rather than in a tooltip. The
+                     push's own description once there is one to make; before that — a read-only
+                     tier, or nothing left — the reason there is nowhere to push it. -->
+                <Border CornerRadius="8" Padding="11,8" Margin="0,11,0,0"
+                        Background="{DynamicResource Brush.SurfaceAlt}"
+                        DataContext="{Binding Push}"
+                        Visibility="{Binding Converter={StaticResource NotEmptyVis}}">
+                    <StackPanel>
+                        <TextBlock Text="DESTINATION" Style="{StaticResource Text.SectionLabel}" />
+                        <TextBlock Text="{Binding Destination}" Style="{StaticResource Text.Mono}"
+                                   TextWrapping="Wrap" Margin="0,5,0,0" />
+                        <TextBlock Text="{Binding What}" Style="{StaticResource Text.Base}"
+                                   FontSize="12" TextWrapping="Wrap" Margin="0,5,0,0"
+                                   Visibility="{Binding What, Converter={StaticResource NotEmptyVis}}" />
+                        <TextBlock Text="{Binding SourceLine}" Style="{StaticResource Text.Caption}"
+                                   TextWrapping="Wrap" Margin="0,4,0,0"
+                                   Visibility="{Binding SourceLine, Converter={StaticResource NotEmptyVis}}" />
+                    </StackPanel>
+                </Border>
+
+                <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Push}" Value="{x:Null}">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding TargetDescription}" Value="">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
                     <TextBlock Text="&#xE8A5;" FontFamily="{StaticResource Font.Icons}" FontSize="12"
                                Foreground="{DynamicResource Brush.TextTertiary}" VerticalAlignment="Top"
                                Margin="0,2,8,0" />
@@ -45,37 +87,96 @@
                            FontSize="12" TextWrapping="Wrap" Margin="0,10,0,0"
                            Visibility="{Binding Message, Converter={StaticResource NotEmptyVis}}" />
 
-                <!-- Re-basing used to live here, for edits queued against a value the source had
-                     since moved away from. There is no queue to go stale now: a change lands in the
-                     tier's own document as it is made. Whether the *source* has moved since it was
-                     read is still asked, on the push screen, against the live secret or file. -->
+                <!-- What the pushes made from this window reported. They outlive the tier they were
+                     about, because the window moves on to the next one as soon as one goes through. -->
+                <ItemsControl ItemsSource="{Binding PushReport}" Margin="0,6,0,0"
+                              Visibility="{Binding PushReport.Count, Converter={StaticResource NotEmptyVis}}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding}" Style="{StaticResource Text.MonoCaption}"
+                                       TextWrapping="Wrap" Margin="0,1" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
             </StackPanel>
         </Border>
 
-        <!-- Action bar. The confirmation lives on the push screen, with the diff against the live
-             secret: this screen is where the batch is reviewed, not where it is committed. -->
+        <!-- Action bar: the typed confirmation, then the one button that leaves this machine. -->
         <Border DockPanel.Dock="Bottom" Style="{StaticResource Card}" Margin="0,10,0,0">
             <DockPanel>
-                <Button DockPanel.Dock="Right" Style="{StaticResource Button.Danger}"
-                        MinWidth="170" Click="OnPushClick"
-                        IsEnabled="{Binding CanPush}" Margin="8,0,0,0"
-                        ToolTip="Opens the push screen: this batch applied to the tier, diffed against what that source holds now.">
+                <!-- ShowOnDisabled, because a refused push is the state this most needs to explain:
+                     when the source has moved, the tooltip carries the whole sentence saying so. -->
+                <Button DockPanel.Dock="Right"
+                        MinWidth="150" Command="{Binding PushCommand}"
+                        IsEnabled="{Binding CanPushNow}" Margin="8,0,0,0"
+                        ToolTipService.ShowOnDisabled="True">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource Button.Danger}">
+                            <Setter Property="ToolTip" Value="Write it. The payload is re-parsed before it leaves, the write carries the version read a moment ago as a check-and-set, and the result is read back and compared." />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Push.IsStale, FallbackValue=False}" Value="True">
+                                    <Setter Property="ToolTip" Value="{Binding Push.Stale}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="&#xE898;" FontFamily="{StaticResource Font.Icons}" FontSize="13"
                                    VerticalAlignment="Center" Margin="0,0,8,0" />
-                        <TextBlock Text="Push to Vault or disk…" VerticalAlignment="Center" />
+                        <TextBlock VerticalAlignment="Center">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Text" Value="Push to Vault or disk" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Push.Busy, FallbackValue=False}" Value="True">
+                                            <Setter Property="Text" Value="Working…" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
                     </StackPanel>
                 </Button>
-                <Button DockPanel.Dock="Right" Style="{StaticResource Button.Primary}" Content="Preview"
-                        MinWidth="118" Command="{Binding PreviewCommand}" />
+
                 <Button DockPanel.Dock="Right" Style="{StaticResource Button.Secondary}" Content="Close"
                         MinWidth="100" Click="OnCloseClick" Margin="0,0,8,0" />
 
-                <TextBlock Style="{StaticResource Text.Caption}" VerticalAlignment="Center"
-                           TextWrapping="Wrap" MaxWidth="700"
-                           Text="Nothing is written here or anywhere else on disk. The batch becomes one new version of the tier's secret." />
+                <!-- Scoped to the push, so with nothing to push there is nothing here to bind. -->
+                <StackPanel Orientation="Horizontal" DataContext="{Binding Push}">
+                    <TextBlock Style="{StaticResource Text.Base}" VerticalAlignment="Center"
+                               Margin="0,0,9,0" Text="Type the tier name to confirm:" />
+
+                    <!-- Off until there is a read to confirm against, and off when the source has
+                         moved: typing the tier's name is the act of confirming, and there is nothing
+                         left here to confirm. -->
+                    <TextBox Style="{StaticResource TextBox.Inline}" Width="150"
+                             IsEnabled="{Binding CanConfirm, FallbackValue=False}"
+                             Text="{Binding ConfirmText, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
             </DockPanel>
         </Border>
+
+        <!-- The push's own reports, in the order they happened: the new version's number, the
+             read-back verification, anything that went wrong after the write landed. -->
+        <Border DockPanel.Dock="Bottom" Style="{StaticResource Card}" Margin="0,10,0,0"
+                DataContext="{Binding Push}"
+                Visibility="{Binding Notes.Count, Converter={StaticResource NotEmptyVis}, FallbackValue=Collapsed}">
+            <ItemsControl ItemsSource="{Binding Notes}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding}" Style="{StaticResource Text.Secondary}"
+                                   FontSize="12" TextWrapping="Wrap" Margin="0,1" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Border>
+
+        <ContentControl DockPanel.Dock="Bottom" Style="{StaticResource Notice.Danger}" Margin="0,10,0,0"
+                        DataContext="{Binding Push}"
+                        Visibility="{Binding Problem, Converter={StaticResource NotEmptyVis}, FallbackValue=Collapsed}">
+            <TextBlock Text="{Binding Problem}" Foreground="{DynamicResource Brush.Danger}"
+                       FontSize="12" TextWrapping="Wrap" />
+        </ContentControl>
 
         <ContentControl DockPanel.Dock="Bottom" Style="{StaticResource Notice.Warn}" Margin="0,10,0,0"
                         Visibility="{Binding Warnings.Count, Converter={StaticResource NotEmptyVis}}">
@@ -90,13 +191,13 @@
         </ContentControl>
 
         <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="1.25*" />
-                <ColumnDefinition Width="10" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" MinHeight="110" />
+                <RowDefinition Height="10" />
+                <RowDefinition Height="1.5*" MinHeight="140" />
+            </Grid.RowDefinitions>
 
-            <Border Grid.Column="0" Style="{StaticResource Card.Flush}">
+            <Border Grid.Row="0" Style="{StaticResource Card.Flush}">
                 <DockPanel>
                     <Border DockPanel.Dock="Top" Style="{StaticResource TableHeader}">
                         <TextBlock Text="QUEUED CHANGES" Style="{StaticResource Text.SectionLabel}" />
@@ -120,7 +221,7 @@
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
 
-                            <DataGridTextColumn Header="FROM" Binding="{Binding BaseDisplay}" Width="150">
+                            <DataGridTextColumn Header="FROM" Binding="{Binding BaseDisplay}" Width="200">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock" BasedOn="{StaticResource Text.Mono}">
                                         <Setter Property="ToolTip" Value="{Binding BaseDisplay}" />
@@ -128,7 +229,7 @@
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
 
-                            <DataGridTextColumn Header="TO" Binding="{Binding NewDisplay}" Width="180">
+                            <DataGridTextColumn Header="TO" Binding="{Binding NewDisplay}" Width="240">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock" BasedOn="{StaticResource Text.Mono}">
                                         <Setter Property="ToolTip" Value="{Binding NewDisplay}" />
@@ -151,19 +252,47 @@
                 </DockPanel>
             </Border>
 
-            <GridSplitter Grid.Column="1" Width="10" HorizontalAlignment="Stretch" />
+            <GridSplitter Grid.Row="1" Height="10" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                          ResizeDirection="Rows" />
 
-            <!-- The real bytes, produced by the same writer that performs the write -->
-            <Border Grid.Column="2" Style="{StaticResource Card.Flush}">
+            <!-- The comparison. Laid out source | payload, the same way round as every other
+                 two-sided view in the app: what is there now on the left, what would replace it on
+                 the right. Scoped to the push; with nothing to push the card stays, empty. -->
+            <Border Grid.Row="2" Style="{StaticResource Card.Flush}">
                 <DockPanel>
                     <Border DockPanel.Dock="Top" Style="{StaticResource TableHeader}">
-                        <TextBlock Style="{StaticResource Text.SectionLabel}"
-                                   Text="PREVIEW — THE ACTUAL FILE DIFF, NOT A SUMMARY" />
+                        <DockPanel>
+                            <CheckBox DockPanel.Dock="Right" Content="Show unchanged lines"
+                                      DataContext="{Binding Push}"
+                                      IsChecked="{Binding ShowUnchanged, FallbackValue=False}" />
+                            <TextBlock Text="WHAT THE PUSH WOULD CHANGE — AGAINST THE SOURCE AS IT IS NOW"
+                                       Style="{StaticResource Text.SectionLabel}" VerticalAlignment="Center" />
+                        </DockPanel>
                     </Border>
-                    <ListBox Style="{StaticResource LineList}"
-                             ItemsSource="{Binding PreviewLines}" Padding="4"
-                             ItemTemplate="{StaticResource DiffRow.Preview}"
-                             ScrollViewer.HorizontalScrollBarVisibility="Auto" />
+
+                    <StackPanel DockPanel.Dock="Top" DataContext="{Binding Push}">
+                        <TextBlock Text="{Binding Message}" Style="{StaticResource Text.Secondary}"
+                                   FontSize="12" TextWrapping="Wrap" Margin="12,8,12,0"
+                                   Visibility="{Binding Message, Converter={StaticResource NotEmptyVis}, FallbackValue=Collapsed}" />
+                        <Grid Margin="12,8,12,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="{Binding LeftHeader}"
+                                       Style="{StaticResource Text.SectionLabel}" />
+                            <TextBlock Grid.Column="1" Text="{Binding RightHeader}"
+                                       Style="{StaticResource Text.SectionLabel}" />
+                        </Grid>
+                    </StackPanel>
+
+                    <!-- DiffRow.Edit rather than DiffRow: what is being confirmed here is an edit
+                         going out, so a modified line takes the same amber the editor gave it rather
+                         than the blue that means "two tiers differ". -->
+                    <ListBox Style="{StaticResource LineList}" DataContext="{Binding Push}"
+                             ItemsSource="{Binding Lines}" Padding="4"
+                             ItemTemplate="{StaticResource DiffRow.Edit}"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
                 </DockPanel>
             </Border>
         </Grid>

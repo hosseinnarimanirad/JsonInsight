@@ -218,7 +218,16 @@ else
             @if (Vm.SelectedRow is { } selected)
             {
                 <div class="card detail-strip">
-                    <div class="detail-path">@selected.Path</div>
+                    @* The path is the thing copied out of this strip, into reports and Vault queries,
+                       so the text itself copies on click as well as the button beside it. *@
+                    <div class="detail-path-row">
+                        <button class="detail-path" title="Click to copy this path"
+                                @onclick="() => Vm.CopyPathCommand.Execute(selected)">@selected.Path</button>
+                        <button class="btn btn-small" title="Copy this path to the clipboard"
+                                @onclick="() => Vm.CopyPathCommand.Execute(selected)">
+                            <Icon Name="copy" Size="12" /> <span>Copy</span>
+                        </button>
+                    </div>
                     @if (!string.IsNullOrEmpty(selected.Detail))
                     {
                         <div class="detail-note">@selected.Detail</div>
@@ -234,6 +243,11 @@ else
                         </div>
                     }
                 </div>
+            }
+
+            @if (Vm.CopyToast is { } toast)
+            {
+                <div class="toast" role="status">@toast</div>
             }
         </div>
     </div>

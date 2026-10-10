@@ -304,6 +304,69 @@ public sealed partial class TiersVm : ObservableObject
     private void ClearSection() => SectionFilter = null;
 
     /// <summary>
+    /// The short confirmation shown after a path is copied, or null when none is showing. A toast
+    /// rather than the status line: the press is made while looking at the detail strip, and the
+    /// status bar is the far edge of the window.
+    /// </summary>
+    [ObservableProperty]
+    private string? _copyToast;
+
+    /// <summary>How long the copy confirmation stays up. Long enough to read, short enough to forget.</summary>
+    public static readonly TimeSpan CopyToastDuration = TimeSpan.FromSeconds(1.8);
+
+    /// <summary>
+    /// Bumped on every copy, so the timer that hides a toast only hides its own — a second copy
+    /// inside the first one's window would otherwise have its confirmation taken down early.
+    /// </summary>
+    private int _copyToastGeneration;
+
+    /// <summary>
+    /// Copies the selected row's full path — <c>PaymentSettings:Hub:CardTransfer:Banks</c> — in the
+    /// colon form the configuration binder and every report in this workspace cite it by. The path,
+    /// never the value: values here carry live credentials, and a key path is what gets pasted.
+    /// </summary>
+    [RelayCommand]
+    private void CopyPath(TierRowVm? row)
+    {
+        if ((row ?? SelectedRow) is not { Path.Length: > 0 } target)
+        {
+            return;
+        }
+
+        try
+        {
+            JsonInsight.Platform.Platform.Clipboard.SetText(target.Path);
+        }
+        catch (Exception ex)
+        {
+            // Another process can hold the clipboard open. Nothing was copied, so the toast says so
+            // rather than claiming otherwise.
+            ShowCopyToast($"Could not copy: {ex.Message}");
+            return;
+        }
+
+        ShowCopyToast($"Copied {target.Path}");
+    }
+
+    private void ShowCopyToast(string text)
+    {
+        var generation = ++_copyToastGeneration;
+        CopyToast = text;
+        _ = HideCopyToastAsync(generation);
+    }
+
+    private async Task HideCopyToastAsync(int generation)
+    {
+        // Back on the caller's context, so the property change is raised where WPF binds it.
+        await Task.Delay(CopyToastDuration).ConfigureAwait(true);
+
+        if (generation == _copyToastGeneration)
+        {
+            CopyToast = null;
+        }
+    }
+
+    /// <summary>
     /// Reads every tier again and rebuilds the grid. Nothing is written: a pull replaces what is in
     /// memory, and what is in memory is all there is.
     /// </summary>

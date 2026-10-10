@@ -1,0 +1,499 @@
+{
+  "result": {
+    "schemaVersion": 1,
+    "bundleVersion": 9999,
+    "entryTabId": "home",
+    "tabs": [
+      {
+        "id": "home",
+        "title": "خانه",
+        "icon": "home",
+        "screen": "home",
+        "node": "home-root",
+        "minAppVersion": null,
+        "maxAppVersion": null
+      },
+      {
+        "id": "payment",
+        "title": "خدمات پرداخت",
+        "icon": "payment",
+        "screen": "payment",
+        "node": "payment-root",
+        "minAppVersion": null,
+        "maxAppVersion": null
+      },
+      {
+        "id": "transfer",
+        "title": "انتقال وجه",
+        "icon": "transfer",
+        "screen": "transfer",
+        "node": "transfer-root",
+        "minAppVersion": null,
+        "maxAppVersion": null
+      },
+      {
+        "id": "services",
+        "title": "سرویس‌ها",
+        "icon": "services",
+        "screen": "services",
+        "node": "services-root",
+        "minAppVersion": null,
+        "maxAppVersion": null
+      }
+    ],
+    "nodes": {
+      "home-root": {
+        "kind": "PAGE",
+        "title": "خانه",
+        "minAppVersion": null,
+        "maxAppVersion": null,
+        "itemLayout": [
+          {
+            "id": "balance_selector",
+            "visible": true
+          },
+          {
+            "id": "increase",
+            "visible": true
+          },
+          {
+            "id": "decrease",
+            "visible": true
+          },
+          {
+            "id": "transactions",
+            "visible": true
+          }
+        ],
+        "sections": [
+          {
+            "id": "feature-banners",
+            "type": "feature_banners",
+            "slot": "SCROLL_BODY",
+            "order": 0,
+            "visible": true
+          },
+          {
+            "id": "services",
+            "type": "services",
+            "slot": "SCROLL_BODY",
+            "order": 1,
+            "visible": true,
+            "props": {
+              "items": [
+                {
+                  "id": "charge",
+                  "title": "شارژ",
+                  "icon": "https://rynt.ir/static/app/sekeh/icons/service_charge_light.png",
+                  "iconDark": "https://rynt.ir/static/app/sekeh/icons/service_charge_light.png"
+                },
+                {
+                  "id": "internet",
+                  "title": "اینترنت",
+                  "icon": "https://rynt.ir/static/app/sekeh/icons/payment_internet_light.png",
+                  "iconDark": "https://rynt.ir/static/app/sekeh/icons/payment_internet_light.png"
+                },
+                {
+                  "id": "bill",
+                  "title": "قبض",
+                  "icon": "https://rynt.ir/static/app/sekeh/icons/service_bill_light.png",
+                  "iconDark": "https://rynt.ir/static/app/sekeh/icons/service_bill_light.png"
+                },
+                {
+                  "id": "cardToCard",
+                  "title": "کارت به کارت",
+                  "icon": "https://rynt.ir/static/app/sekeh/icons/service_transfer_light.png",
+                  "iconDark": "https://rynt.ir/static/app/sekeh/icons/service_transfer_light.png"
+                }
+              ]
+            }
+          },
+          {
+            "id": "digital-services",
+            "type": "digital_services",
+            "slot": "SCROLL_BODY",
+            "order": 2,
+            "visible": true,
+            "props": {
+              "title": "خدمات دیجیتال",
+              "items": [
+                {
+                  "id": "financial",
+                  "title": "خدمات مالی",
+                  "icon": "https://rynt.ir/static/app/sekeh/icons/digital_financial_light.png",
+                  "iconDark": "https://rynt.ir/static/app/sekeh/icons/digital_financial_light.png"
+                },
+                {
+                  "id": "tashilat",
+                  "title": "تسهیلات تجدید‌پذیر",
+                  "icon": "https://rynt.ir/static/app/sekeh/icons/digital_tashilat_light.png",
+                  "iconDark": "https://rynt.ir/static/app/sekeh/icons/digital_tashilat_light.png"
+                },
+                {
+                  "id": "kahroba",
+                  "title": "کهربا",
+                  "icon": "https://rynt.ir/static/app/sekeh/icons/digital_kahroba_light.png",
+                  "platforms": [
+                    "android"
+                  ],
+                  "iconDark": "https://rynt.ir/static/app/sekeh/icons/digital_kahroba_light.png"
+                },
+                {
+                  "id": "sayadi",
+                  "title": "چک صیادی",
+                  "icon": "https://rynt.ir/static/app/sekeh/icons/cheque_sayadi_light.png",
+                  "iconDark": "https://rynt.ir/static/app/sekeh/icons/cheque_sayadi_dark.png"
+                },
+                {
+                  "id": "travel",
+                  "title": "استعلام موجودی",
+                  "icon": "https://rynt.ir/static/app/sekeh/icons/digital_balance_inquiry_light.png",
+                  "iconDark": "https://rynt.ir/static/app/sekeh/icons/digital_balance_inquiry_light.png"
+                }
+              ]
+            }
+          },
+          {
+            "id": "banners",
+            "type": "banners",
+            "slot": "SCROLL_BODY",
+            "order": 3,
+            "visible": true
+          },
+          {
+            "id": "recent",
+            "type": "recent_services",
+            "slot": "SCROLL_BODY",
+            "order": 4,
+            "visible": true
+          }
+        ]
+      },
+      "payment-root": {
+        "kind": "TAB",
+        "minAppVersion": null,
+        "maxAppVersion": null,
+        "itemLayout": [
+          {
+            "id": "kahroba",
+            "visible": true,
+            "platforms": ["android"],
+            "minAppVersion": "<نسخه‌ای که این کامیت در آن منتشر می‌شود>",
+            "icon": "https://rynt.ir/static/app/sekeh/icons/digital_kahroba_light.png",
+            "iconDark": "https://rynt.ir/static/app/sekeh/icons/digital_kahroba_light.png"
+          },
+          {
+            "id": "charge",
+            "visible": true,
+            "icon": "https://rynt.ir/static/app/sekeh/icons/payment_charge_light.png",
+            "iconDark": "https://rynt.ir/static/app/sekeh/icons/payment_charge_dark.png"
+          },
+          {
+            "id": "internet",
+            "visible": true,
+            "icon": "https://rynt.ir/static/app/sekeh/icons/payment_internet_light.png",
+            "iconDark": "https://rynt.ir/static/app/sekeh/icons/payment_internet_dark.png"
+          },
+          {
+            "id": "bill",
+            "visible": true,
+            "icon": "https://rynt.ir/static/app/sekeh/icons/payment_bill_light.png",
+            "iconDark": "https://rynt.ir/static/app/sekeh/icons/payment_bill_dark.png"
+          },
+          {
+            "id": "installment",
+            "visible": true,
+            "icon": "https://rynt.ir/static/app/sekeh/icons/payment_installment_light.png",
+            "iconDark": "https://rynt.ir/static/app/sekeh/icons/payment_installment_dark.png"
+          },
+          {
+            "id": "tala",
+            "visible": true,
+            "icon": "https://rynt.ir/static/app/sekeh/icons/payment_tala_light.png",
+            "iconDark": "https://rynt.ir/static/app/sekeh/icons/payment_tala_dark.png"
+          },
+          {
+            "id": "charity",
+            "visible": true,
+            "icon": "https://rynt.ir/static/app/sekeh/icons/payment_charity_light.png",
+            "iconDark": "https://rynt.ir/static/app/sekeh/icons/payment_charity_dark.png"
+          }
+        ]
+      },
+      "transfer-root": {
+        "kind": "TAB",
+        "minAppVersion": null,
+        "maxAppVersion": null,
+        "itemLayout": [
+          {
+            "id": "card",
+            "visible": true,
+            "icon": "https://rynt.ir/static/app/sekeh/icons/transfer_light.png",
+            "iconDark": "https://rynt.ir/static/app/sekeh/icons/transfer_dark.png"
+          },
+          {
+            "id": "wallet",
+            "visible": true,
+            "icon": "https://rynt.ir/static/app/sekeh/icons/transfer_wallet_light.png",
+            "iconDark": "https://rynt.ir/static/app/sekeh/icons/transfer_wallet_dark.png"
+          },
+          {
+            "id": "IRDR",
+            "visible": true,
+            "icon": "https://rynt.ir/static/app/sekeh/icons/rial_digital_transfer_light.png",
+            "iconDark": "https://rynt.ir/static/app/sekeh/icons/rial_digital_transfer_dark.png"
+          },
+          {
+            "id": "account",
+            "visible": true,
+            "enabled": false,
+            "icon": "https://rynt.ir/static/app/sekeh/icons/transfer_account_light.png",
+            "iconDark": "https://rynt.ir/static/app/sekeh/icons/transfer_account_dark.png"
+          },
+          {
+            "id": "sheba",
+            "visible": true,
+            "enabled": false,
+            "icon": "https://rynt.ir/static/app/sekeh/icons/transfer_sheba_light.png",
+            "iconDark": "https://rynt.ir/static/app/sekeh/icons/transfer_sheba_dark.png"
+          }
+        ]
+      },
+      "services-root": {
+        "kind": "TAB",
+        "minAppVersion": null,
+        "maxAppVersion": null,
+        "itemLayout": [
+          {
+            "id": "sayadi",
+            "visible": true,
+            "icon": "https://rynt.ir/static/app/sekeh/icons/cheque_sayadi_light.png",
+            "iconDark": "https://rynt.ir/static/app/sekeh/icons/cheque_sayadi_dark.png"
+          },
+          {
+            "id": "tashilat",
+            "title": "تسهیلات تجدید‌پذیر",
+            "icon": "https://rynt.ir/static/app/sekeh/icons/digital_tashilat_light.png",
+            "iconDark": "https://rynt.ir/static/app/sekeh/icons/digital_tashilat_light.png"
+          },
+          {
+            "id": "invoice",
+            "visible": true,
+            "icon": "https://rynt.ir/static/app/sekeh/icons/invoice_light.png",
+            "iconDark": "https://rynt.ir/static/app/sekeh/icons/invoice_dark.png"
+          },
+          {
+            "id": "balance_inquiry",
+            "visible": true,
+            "icon": "https://rynt.ir/static/app/sekeh/icons/balance_inquiry_light.png",
+            "iconDark": "https://rynt.ir/static/app/sekeh/icons/balance_inquiry_dark.png"
+          },
+          {
+            "id": "representation",
+            "visible": true,
+            "icon": "https://rynt.ir/static/app/sekeh/icons/bp_logo_color_light.png",
+            "iconDark": "https://rynt.ir/static/app/sekeh/icons/bp_logo_color_dark.png"
+          },
+          {
+            "id": "farasood",
+            "visible": true,
+            "icon": "https://rynt.ir/static/app/sekeh/icons/farasood_light.png",
+            "iconDark": "https://rynt.ir/static/app/sekeh/icons/farasood_dark.png"
+          },
+          {
+            "id": "insurance",
+            "visible": true,
+            "icon": "https://rynt.ir/static/app/sekeh/icons/services_insurance_light.png",
+            "iconDark": "https://rynt.ir/static/app/sekeh/icons/services_insurance_dark.png"
+          },
+          {
+            "id": "judiciary",
+            "visible": true,
+            "icon": "https://rynt.ir/static/app/sekeh/icons/judiciary_light.png",
+            "iconDark": "https://rynt.ir/static/app/sekeh/icons/judiciary_dark.png"
+          },
+          {
+            "id": "reservation",
+            "visible": true,
+            "icon": "https://rynt.ir/static/app/sekeh/icons/services_reservation_light.png",
+            "iconDark": "https://rynt.ir/static/app/sekeh/icons/services_reservation_dark.png"
+          },
+          {
+            "id": "pos_transactions",
+            "visible": true,
+            "icon": "https://rynt.ir/static/app/sekeh/icons/pos_transactions_light.png",
+            "iconDark": "https://rynt.ir/static/app/sekeh/icons/pos_transactions_dark.png"
+          }
+        ]
+      },
+      "wallet-increase": {
+        "kind": "TAB",
+        "itemLayout": [
+          {
+            "id": "increase_by_card",
+            "visible": true
+          },
+          {
+            "id": "increase_by_web",
+            "visible": true
+          },
+          {
+            "id": "increase_by_wallet_qr",
+            "visible": true
+          },
+          {
+            "id": "increase_qr",
+            "visible": true,
+            "enabled": false
+          },
+          {
+            "id": "increase_gift_card",
+            "visible": true,
+            "enabled": false
+          }
+        ]
+      },
+      "wallet-decrease": {
+        "kind": "TAB",
+        "itemLayout": [
+          {
+            "id": "decrease_by_sheba",
+            "visible": true
+          },
+          {
+            "id": "decrease_scanner_qr",
+            "visible": true
+          },
+          {
+            "id": "decrease_transfer_id",
+            "visible": true
+          },
+          {
+            "id": "decrease_auto",
+            "visible": true,
+            "enabled": false
+          },
+          {
+            "id": "decrease_qr",
+            "visible": true,
+            "enabled": false
+          },
+          {
+            "id": "decrease_gift_card",
+            "visible": true,
+            "enabled": false
+          }
+        ]
+      },
+      "select-balance": {
+        "kind": "TAB",
+        "itemLayout": [
+          {
+            "id": "main",
+            "visible": true
+          },
+          {
+            "id": "digital",
+            "visible": true
+          },
+          {
+            "id": "credit",
+            "visible": true
+          },
+          {
+            "id": "pos",
+            "visible": true
+          }
+        ]
+      },
+      "sayadi-menu": {
+        "kind": "MENU",
+        "title": "چک صیادی",
+        "items": [
+          {
+            "id": "receiver",
+            "title": "گیرندهٔ چک",
+            "subtitle": "تأیید و انتقالِ چکِ دریافتی",
+            "icon": "cheque_sayadi_light",
+            "iconDark": "cheque_sayadi_dark",
+            "action": {
+              "type": "NAVIGATE_NODE",
+              "node": "sayadi-receiver-menu"
+            }
+          },
+          {
+            "id": "issuer",
+            "title": "صادرکنندهٔ چک",
+            "subtitle": "ثبت و واگذاریِ چک",
+            "icon": "service_transfer_light",
+            "action": {
+              "type": "NAVIGATE_NODE",
+              "node": "sayadi-issuer-menu"
+            }
+          },
+          {
+            "id": "inquiry",
+            "title": "استعلام چک",
+            "subtitle": "وضعیتِ چک با شناسهٔ صیادی",
+            "icon": "service_bill_light",
+            "action": {
+              "type": "OPEN_FORM",
+              "route": "sayadi_cheque_input",
+              "params": {
+                "flow": "inquiry"
+              }
+            }
+          }
+        ]
+      },
+      "sayadi-receiver-menu": {
+        "kind": "MENU",
+        "title": "گیرندهٔ چک",
+        "items": [
+          {
+            "id": "accept",
+            "title": "تأیید چک",
+            "icon": "cheque_sayadi_light",
+            "action": {
+              "type": "OPEN_FORM",
+              "route": "sayadi_cheque_input",
+              "params": {
+                "flow": "receiver_accept"
+              }
+            }
+          },
+          {
+            "id": "transfer",
+            "title": "انتقال چک",
+            "icon": "service_transfer_light",
+            "action": {
+              "type": "OPEN_FORM",
+              "route": "sayadi_cheque_transfer",
+              "params": {}
+            }
+          }
+        ]
+      },
+      "sayadi-issuer-menu": {
+        "kind": "MENU",
+        "title": "صادرکنندهٔ چک",
+        "items": [
+          {
+            "id": "register",
+            "title": "ثبت چک",
+            "icon": "cheque_sayadi_light",
+            "action": {
+              "type": "OPEN_FORM",
+              "route": "sayadi_cheque_register",
+              "params": {}
+            }
+          }
+        ]
+      }
+    }
+  },
+  "status": {
+    "code": 0,
+    "message": "OK"
+  }
+}

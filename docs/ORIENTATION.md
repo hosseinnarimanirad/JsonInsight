@@ -214,6 +214,13 @@ Recent, and each was a deliberate reversal of something that looked reasonable:
   from the caret (which used to re-find the same match), and revealing never steals focus (which used
   to turn the second Enter into a newline).
 - **Tier pickers read `dev v39` / `prod v11` / `dev (file)`** — `TierDocument.PickerLabel`.
+- **Pending changes and the push are one window** *(2026-10-10)*. `ChangesVm.Push` is a `PushVm` for
+  the selected tier, rebuilt (and re-checked) on every tier change and every discard; the standalone
+  `PushDialog` in both hosts is gone, and so is the review's own preview against the tier as read.
+  One column: tier/check/discard → destination → queued changes → live diff → typed confirmation.
+- **Anything that rebuilds the tabs re-announces `HasUnsavedChanges`** (`MainVm.BuildTabs`). A push
+  drops its tier and adopts the read-back without passing `PublishEdits`, and the title bar's push
+  button used to stay lit afterwards.
 
 ---
 
@@ -248,7 +255,7 @@ Concrete conventions:
 | change the Sources tab | `VaultVm`, `SourcesTab.razor`, `Views/VaultView.xaml` |
 | change the grid | `TiersVm`, `MultiDiff`, `AllTiersTab.razor`, `Views/TiersView.xaml(.cs)` |
 | change the editor / find | `JsonEditorVm`, `TextFinder`, `TierEditorTab.razor`, `Views/JsonEditorView.xaml(.cs)`, `FindHighlightAdorner` |
-| change writing | `VaultPusher`, `LocalFileSourceProvider`, `PushVm`, both `PushDialog`s |
+| change writing | `VaultPusher`, `LocalFileSourceProvider`, `PushVm`, `ChangesVm` (which holds the `PushVm`), both `ChangesDialog`s |
 | change how JSON is flattened/diffed | `Flattener`, `MultiDiff`, `config/arrays.json`, `config/aliases.json` |
 | change what counts as a secret | `config/classify.json`, `Classifier` |
 | add a colour | all four theme dictionaries, then use the token |

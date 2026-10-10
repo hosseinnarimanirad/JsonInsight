@@ -192,6 +192,13 @@ public sealed partial class PushVm : ObservableObject
         ? "WHAT WOULD BE PUSHED"
         : $"WHAT WOULD BE PUSHED  —  {_plan.What}";
 
+    /// <summary>
+    /// Whether the confirmation box takes typing: only once there is a read to confirm against, not
+    /// after the push has gone, and not when the source has moved — typing the tier's name is the act
+    /// of confirming, and then there is nothing left to confirm.
+    /// </summary>
+    public bool CanConfirm => HasChecked && !Completed && !IsStale;
+
     public bool ConfirmMatches =>
         Tier is not null && ConfirmText.Trim().Equals(Tier.Id, StringComparison.OrdinalIgnoreCase);
 
@@ -446,6 +453,10 @@ public sealed partial class PushVm : ObservableObject
         // it holding an "edit" against the state it was read in would keep claiming otherwise.
         _main.Store.Drop(Tier.Id);
 
+        // Said here as well as by the read-back's rebuild, because a read-back that fails rebuilds
+        // nothing — and the top bar would go on offering to push what was just pushed.
+        _main.NoteUnsavedChanged();
+
         PushedTier = Tier.Id;
         NotifyState();
 
@@ -510,5 +521,6 @@ public sealed partial class PushVm : ObservableObject
         OnPropertyChanged(nameof(LeftHeader));
         OnPropertyChanged(nameof(RightHeader));
         OnPropertyChanged(nameof(ConfirmMatches));
+        OnPropertyChanged(nameof(CanConfirm));
     }
 }

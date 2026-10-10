@@ -168,6 +168,14 @@ public partial class TiersView : UserControl
         }
     }
 
+    private void OnPathClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (DataContext is TiersVm vm)
+        {
+            vm.CopyPathCommand.Execute(vm.SelectedRow);
+        }
+    }
+
     private void OnReviewChangesClick(object sender, RoutedEventArgs e) =>
         ReviewChangesRequested?.Invoke(this, EventArgs.Empty);
 

@@ -947,7 +947,50 @@ select.field { cursor: pointer; }
 .grid-empty { padding: 28px; text-align: center; color: var(--brush-text-tertiary); }
 
 .detail-strip { flex: none; }
-.detail-path { font-family: var(--font-mono); font-weight: 600; word-break: break-all; }
+.detail-path-row { display: flex; align-items: flex-start; gap: 10px; }
+
+/* A button so it is reachable from the keyboard, dressed as the text it is. */
+.detail-path {
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    color: inherit;
+    text-align: left;
+    cursor: copy;
+    font: inherit;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    word-break: break-all;
+}
+
+.detail-path:hover { color: var(--brush-accent); }
+
+/* The copy confirmation: bottom centre of the window, above everything, gone on its own. Fixed rather
+ * than inside the strip so it cannot push the grid around while it is up. */
+.toast {
+    position: fixed;
+    left: 50%;
+    bottom: 28px;
+    transform: translateX(-50%);
+    z-index: 600;
+    max-width: min(640px, calc(100vw - 32px));
+    padding: 8px 14px;
+    border-radius: 8px;
+    background: var(--brush-text);
+    color: var(--brush-window);
+    font-size: var(--font-size-small);
+    box-shadow: 0 10px 26px rgb(0 0 0 / .22);
+    word-break: break-all;
+    pointer-events: none;
+    animation: toast-in .14s ease-out;
+}
+
+@keyframes toast-in {
+    from { opacity: 0; transform: translate(-50%, 6px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
+}
 .detail-note { margin-top: 5px; font-size: var(--font-size-small); color: var(--brush-text-secondary); }
 
 .detail-secret {
@@ -1390,7 +1433,21 @@ select.field { cursor: pointer; }
     word-break: break-word;
 }
 
-.push-diff { height: 340px; display: flex; flex-direction: column; }
+.push-diff { height: 340px; display: flex; flex-direction: column; flex: none; }
+.push-diff .card-head { flex: none; padding: 9px 14px; }
+
+.push-diff-message {
+    flex: none;
+    padding: 0 14px 9px;
+    font-size: var(--font-size-small);
+    color: var(--brush-text-secondary);
+}
+
+/* The queued keys above the diff, in one column: capped so a long batch scrolls inside its card
+ * rather than pushing the diff and the confirmation off the bottom of the window. */
+.changes-list { display: flex; flex-direction: column; flex: none; max-height: 260px; }
+.changes-list .card-head { flex: none; padding: 9px 14px; }
+.changes-list .grid-scroll { min-height: 0; }
 
 .push-confirm { display: flex; align-items: center; gap: 9px; }
 .push-confirm label { font-size: var(--font-size-small); white-space: nowrap; }
@@ -1398,8 +1455,8 @@ select.field { cursor: pointer; }
 
 /* ------------------------------ Promote / changes ------------------------ */
 
-.promote-body, .changes-body { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; height: 380px; }
-.promote-body .grid-card, .changes-body .grid-card { display: flex; flex-direction: column; min-height: 0; }
+.promote-body { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; height: 380px; }
+.promote-body .grid-card { display: flex; flex-direction: column; min-height: 0; }
 
 .editrows .grid-card { max-height: 460px; display: flex; }
 

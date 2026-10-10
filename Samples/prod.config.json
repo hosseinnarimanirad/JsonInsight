@@ -1,0 +1,1780 @@
+{
+  "configuration": {
+    "app": {
+      "android": {
+        "currentVersion": "7.2.3",
+        "downloadUrl": "https://sekeh.behpardakht.com/#download",
+        "forceUpdate": {
+          "body": [
+            "بروز رسانی کهربا"
+          ],
+          "footer": "لطفا به منظور استفاده از اپلیکیشن سکه، برنامه خود را بروزرسانی کنید.",
+          "header": "کاربر گرامی، نسخه اپلیکیشن سکه شما منقضی شده است."
+        },
+        "forceUpdateNotes": [
+          "کاربر گرامی، نسخه 6.3.1 با ویژگی‌های زیر منتشر شد:",
+          "بهبود تجربه کاربری",
+          "رفع باگ های گزارش شده"
+        ],
+        "mainHeaderLogo": {
+          "dark": "https://rynt.ir/static/app/sekeh/images/home/dark-header-logo.png",
+          "light": "https://rynt.ir/static/app/sekeh/images/home/light-header-logo.png"
+        },
+        "minVersion": "7.2.3",
+        "softUpdate": {
+          "body": [
+            " افزوده شدن سرویس «تسهیلات تجدیدپذیر»",
+            "نمایش کارمزد هنگام انتقال ریال دیجیتال",
+            "نمایش نام کیف پول مقصد هنگام انتقال ریال دیجیتال",
+            "رفع مشکل ذخیره رسید تراکنش در گالری",
+            "بهبود رابط کاربری و رفع مشکلات جزئی"
+          ],
+          "footer": "با انتخاب دکمه بروزرسانی، نسخه جدید اپلیکیشن سکه را دانلود نمایید",
+          "header": "کاربر گرامی، نسخه 7.2.2 با ویژگی‌های زیر منتشر شد:"
+        },
+        "softUpdateNotes": [
+          "اضافه شدن سرویس پرداخت کهربا"
+        ],
+        "wallpaper": {
+          "enterMsisdn": {
+            "dark": "https://rynt.ir/static/app/sekeh/images/wallpaper/dark-login.png",
+            "light": "https://rynt.ir/static/app/sekeh/images/wallpaper/light-login.png"
+          },
+          "home": {
+            "dark": "https://rynt.ir/static/app/sekeh/images/wallpaper/dark-home-eyd.png",
+            "light": "https://rynt.ir/static/app/sekeh/images/wallpaper/light-home-eyd.png"
+          },
+          "loginMethod": {
+            "dark": "https://rynt.ir/static/app/sekeh/images/wallpaper/dark-login.png",
+            "light": "https://rynt.ir/static/app/sekeh/images/wallpaper/light-login.png"
+          },
+          "payment": {
+            "dark": "https://rynt.ir/static/app/sekeh/images/wallpaper/dark-payment-eyd.png",
+            "light": "https://rynt.ir/static/app/sekeh/images/wallpaper/light-payment-eyd.png"
+          },
+          "services": {
+            "dark": "https://rynt.ir/static/app/sekeh/images/wallpaper/dark-services-eyd.png",
+            "light": "https://rynt.ir/static/app/sekeh/images/wallpaper/light-services-eyd.png"
+          },
+          "transfer": {
+            "dark": "https://rynt.ir/static/app/sekeh/images/wallpaper/dark-transfer-eyd.png",
+            "light": "https://rynt.ir/static/app/sekeh/images/wallpaper/light-transfer-eyd.png"
+          }
+        }
+      },
+      "ios": {
+        "currentVersion": "7.2.2",
+        "downloadUrl": "https://sekeh.behpardakht.com/",
+        "forceUpdate": {
+          "body": [],
+          "footer": "",
+          "header": "کاربر گرامی، نسخه اپلیکیشن سکه شما منقضی شده است."
+        },
+        "forceUpdateNotes": [
+          "به‌‌روز رسانی اپلیکیشن سکه",
+          "لطفا آپدیت کنید"
+        ],
+        "mainHeaderLogo": {
+          "dark": "https://rynt.ir/static/app/sekeh/images/home/dark-header-logo.png",
+          "light": "https://rynt.ir/static/app/sekeh/images/home/light-header-logo.png"
+        },
+        "minVersion": "7.1.9",
+        "softUpdate": {
+          "body": [
+            " افزوده شدن سرویس «تسهیلات تجدیدپذیر»",
+            "نمایش کارمزد هنگام انتقال ریال دیجیتال",
+            "نمایش نام کیف پول مقصد هنگام انتقال ریال دیجیتال",
+            "رفع مشکل ذخیره رسید تراکنش در گالری",
+            "بهبود رابط کاربری و رفع مشکلات جزئی"
+          ],
+          "footer": "",
+          "header": "کاربر گرامی، نسخه 7.2.2 با ویژگی‌های زیر منتشر شد:"
+        },
+        "softUpdateNotes": [
+          "به‌‌روز رسانی اپلیکیشن سکه",
+          "لطفا آپدیت کنید"
+        ],
+        "wallpaper": {
+          "home": {
+            "dark": "https://rynt.ir/static/app/sekeh/images/wallpaper/dark-home.png",
+            "light": "https://rynt.ir/static/app/sekeh/images/wallpaper/light-home.png"
+          },
+          "payment": {
+            "dark": "https://rynt.ir/static/app/sekeh/images/wallpaper/dark-payment.png",
+            "light": "https://rynt.ir/static/app/sekeh/images/wallpaper/light-payment.png"
+          },
+          "services": {
+            "dark": "https://rynt.ir/static/app/sekeh/images/wallpaper/dark-services.png",
+            "light": "https://rynt.ir/static/app/sekeh/images/wallpaper/light-services.png"
+          },
+          "transfer": {
+            "dark": "https://rynt.ir/static/app/sekeh/images/wallpaper/dark-transfer.png",
+            "light": "https://rynt.ir/static/app/sekeh/images/wallpaper/light-transfer.png"
+          }
+        }
+      },
+      "pwa": {
+        "currentVersion": "7.2.5",
+        "downloadUrl": "https://sekeh.behpardakht.com/",
+        "forceUpdate": {
+          "body": [],
+          "footer": "",
+          "header": "کاربر گرامی، نسخه اپلیکیشن سکه شما منقضی شده است."
+        },
+        "forceUpdateNotes": [
+          "به‌‌روز رسانی اپلیکیشن سکه",
+          "لطفا آپدیت کنید"
+        ],
+        "mainHeaderLogo": {
+          "dark": "https://rynt.ir/static/app/sekeh/images/home/dark-header-logo.png",
+          "light": "https://rynt.ir/static/app/sekeh/images/home/light-header-logo.png"
+        },
+        "minVersion": "7.1.9",
+        "softUpdate": {
+          "body": [
+            " افزوده شدن سرویس «تسهیلات تجدیدپذیر»",
+            "نمایش کارمزد هنگام انتقال ریال دیجیتال",
+            "نمایش نام کیف پول مقصد هنگام انتقال ریال دیجیتال",
+            "رفع مشکل ذخیره رسید تراکنش در گالری",
+            "بهبود رابط کاربری و رفع مشکلات جزئی"
+          ],
+          "footer": "",
+          "header": "کاربر گرامی، نسخه 7.2.5 با ویژگی‌های زیر منتشر شد:"
+        },
+        "softUpdateNotes": [
+          "به‌‌روز رسانی اپلیکیشن سکه",
+          "لطفا آپدیت کنید"
+        ],
+        "wallpaper": {
+          "home": {
+            "dark": "https://rynt.ir/static/app/sekeh/images/wallpaper/dark-home.png",
+            "light": "https://rynt.ir/static/app/sekeh/images/wallpaper/light-home.png"
+          },
+          "payment": {
+            "dark": "https://rynt.ir/static/app/sekeh/images/wallpaper/dark-payment.png",
+            "light": "https://rynt.ir/static/app/sekeh/images/wallpaper/light-payment.png"
+          },
+          "services": {
+            "dark": "https://rynt.ir/static/app/sekeh/images/wallpaper/dark-services.png",
+            "light": "https://rynt.ir/static/app/sekeh/images/wallpaper/light-services.png"
+          },
+          "transfer": {
+            "dark": "https://rynt.ir/static/app/sekeh/images/wallpaper/dark-transfer.png",
+            "light": "https://rynt.ir/static/app/sekeh/images/wallpaper/light-transfer.png"
+          }
+        }
+      }
+    },
+    "banners": [
+      {
+        "action": "WEBVIEW",
+        "imageUrl": "https://rynt.ir/static/app/sekeh/images/banner/gozaresh.png",
+        "target": "https://www.behpardakht.com",
+        "title": " گزارش اختتامیه"
+      },
+      {
+        "action": "WEBVIEW",
+        "imageUrl": "https://rynt.ir/static/app/sekeh/images/banner/banner-1.png",
+        "target": "https://sekeh.behpardakht.com/",
+        "title": "پرداخت قبض"
+      },
+      {
+        "action": "WEBVIEW",
+        "imageUrl": "https://rynt.ir/static/app/sekeh/images/banner/banner-2.png",
+        "target": "https://sekeh.behpardakht.com/",
+        "title": "شارژ خودکار"
+      },
+      {
+        "action": "WEBVIEW",
+        "imageUrl": "https://rynt.ir/static/app/sekeh/images/banner/banner-3.png",
+        "target": "https://sekeh.behpardakht.com/",
+        "title": "کیف پول"
+      }
+    ],
+    "baseUrl": "https://rynt.ir/api",
+    "cardsTTL": 300,
+    "clientId": "27aa7ca1-1ae1-4468-83d6-4386b7a48ce3",
+    "isRialDigitalEnabled": true,
+    "loginOtpExpiry": 300,
+    "maintenanceMode": {
+      "effts": "2025-05-04T00:00:00",
+      "enabled": false,
+      "expts": "2025-05-19T17:59:59",
+      "message": "اپلیکیشن سکه در حال بروزرسانی می باشد<CR>صمیمانه از شکیبایی شما سپاسگذاریم"
+    },
+    "navBar": {
+      "home": {
+        "activeIconUrl": "https://rynt.ir/static/app/sekeh/images/navbar/home-active.png",
+        "iconUrl": "https://rynt.ir/static/app/sekeh/images/navbar/home.png"
+      },
+      "indicatorColor": "#FF5259",
+      "moneyTransferIconHome": {
+        "activeIconUrl": "https://rynt.ir/static/app/sekeh/images/navbar/money-trs-active.png",
+        "iconUrl": "https://rynt.ir/static/app/sekeh/images/navbar/money-trs.png"
+      },
+      "paymentIconHome": {
+        "activeIconUrl": "https://rynt.ir/static/app/sekeh/images/navbar/payment-active.png",
+        "iconUrl": "https://rynt.ir/static/app/sekeh/images/navbar/payment.png"
+      },
+      "serviceIconHome": {
+        "activeIconUrl": "https://rynt.ir/static/app/sekeh/images/navbar/services-active.png",
+        "iconUrl": "https://rynt.ir/static/app/sekeh/images/navbar/services.png"
+      }
+    },
+    "newBanners": [
+      {
+        "action": "WEBVIEW",
+        "imageUrl": "https://rynt.ir/static/app/sekeh/images/banner/dima.png",
+        "target": "https://dima.mellat.ir/",
+        "title": "دیما"
+      },
+      {
+        "action": "WEBVIEW",
+        "imageUrl": "https://rynt.ir/static/app/sekeh/images/banner/kaam_2.png",
+        "target": "https://kam.behfarsw.ir",
+        "title": "کام، سرمایه آینده"
+      },
+      {
+        "Id": "991bca5d-a0e9-4684-bce3-8891sfbe08a9",
+        "action": "PAGE",
+        "imageUrl": "https://rynt.ir/static/app/sekeh/images/banner/Active-Kahroba_v4-NoCTA.png",
+        "target": "kahroba",
+        "title": "کهربا"
+      },
+      {
+        "action": "AUTH_WEBVIEW",
+        "imageUrl": "https://rynt.ir/static/app/sekeh/images/banner/tamin.png",
+        "target": "TAMIN",
+        "title": "پرداخت بیمه تامین اجتماعی"
+      },
+      {
+        "action": "PAGE",
+        "imageUrl": "https://rynt.ir/static/app/sekeh/images/banner/last10turnover_banner.png",
+        "target": "Invoice",
+        "title": "ده گردش آخر"
+      },
+      {
+        "action": "PAGE",
+        "imageUrl": "https://rynt.ir/static/app/sekeh/images/banner/installmentBanner.png",
+        "target": "Installment",
+        "title": "پرداخت اقساط"
+      },
+      {
+        "action": "PAGE",
+        "imageUrl": "https://rynt.ir/static/app/sekeh/images/banner/charity_banner.png",
+        "target": "CHARITY",
+        "title": "نیکوکاری"
+      }
+    ],
+    "webviewTimeOut": 15000
+  },
+  "pages": {
+    "home": {
+      "bgUrl": "https://rynt.ir/static/app/sekeh/images/home/background.jpg",
+      "featureUrl": [
+        {
+          "action": "webview",
+          "imageUrl": "https://rynt.ir/static/app/sekeh/images/features/d09ead6c-8e4f-47d9-a041-d53944e34e3a.png",
+          "serviceCode": "feature1",
+          "target": "https://sekeh.behpardakht.com/",
+          "title": "سرمایه گذاری در نیروگاه خورشیدی"
+        },
+        {
+          "action": "webview",
+          "imageUrl": "https://rynt.ir/static/app/sekeh/images/features/50f6483e-f82e-43d6-8fcd-b27ef48c0574.png",
+          "serviceCode": "feature2",
+          "target": "https://sekeh.behpardakht.com/",
+          "title": "سرمایه گذاری در مسکن"
+        }
+      ],
+      "logoUrl": "https://rynt.ir/static/app/sekeh/images/home/logo.png",
+      "shorcuts": [
+        {
+          "badge": {
+            "backgroundColor": "",
+            "content": "",
+            "textColor": ""
+          },
+          "iconUrl": "https://rynt.ir/static/app/sekeh/images/shortcuts/topup-icon.png",
+          "serviceCode": "topUp",
+          "title": "شارژ"
+        },
+        {
+          "badge": {
+            "backgroundColor": "",
+            "content": "",
+            "textColor": ""
+          },
+          "iconUrl": "https://rynt.ir/static/app/sekeh/images/shortcuts/package-icon.png",
+          "serviceCode": "package",
+          "title": "اینترنت"
+        },
+        {
+          "badge": {
+            "backgroundColor": "",
+            "content": "",
+            "textColor": ""
+          },
+          "iconUrl": "https://rynt.ir/static/app/sekeh/images/shortcuts/bill-icon.png",
+          "serviceCode": "bill",
+          "title": "قبض"
+        },
+        {
+          "badge": {
+            "backgrounfColor": "",
+            "content": "",
+            "textColor": ""
+          },
+          "iconUrl": "https://rynt.ir/static/app/sekeh/images/shortcuts/balance-inq-icon.png",
+          "serviceCode": "balanceInq",
+          "title": "موجودی"
+        }
+      ]
+    },
+    "paymnet": [
+      {
+        "activeImageUrl": "https://rynt.ir/static/app/sekeh/images/services/bill.png",
+        "badge": {
+          "backgrounfColor": "",
+          "content": "",
+          "textColor": ""
+        },
+        "inactiveImageUrl": "https://rynt.ir/static/app/sekeh/images/services/bill-inactive.png",
+        "serviceCode": "bill",
+        "title": "قبض"
+      },
+      {
+        "activeImageUrl": "https://rynt.ir/static/app/sekeh/images/services/carServices.png",
+        "badge": {
+          "backgroundColor": "",
+          "content": "بزودی",
+          "textColor": "#E84B51"
+        },
+        "inactiveImageUrl": "https://rynt.ir/static/app/sekeh/images/services/carServices-inactive.png",
+        "serviceCode": "carServices",
+        "title": "خدمات خودرویی"
+      },
+      {
+        "activeImageUrl": "https://rynt.ir/static/app/sekeh/images/services/installment.png",
+        "badge": {
+          "backgroundColor": "",
+          "content": "بزودی",
+          "textColor": "#E84B51"
+        },
+        "inactiveImageUrl": "https://rynt.ir/static/app/sekeh/images/services/installment-inactive.png",
+        "serviceCode": "installment",
+        "title": "پرداخت اقساط"
+      },
+      {
+        "activeImageUrl": "https://rynt.ir/static/app/sekeh/images/services/taxi.png",
+        "badge": {
+          "backgroundColor": "",
+          "content": "بزودی",
+          "textColor": "#E84B51"
+        },
+        "inactiveImageUrl": "https://rynt.ir/static/app/sekeh/images/services/taxi-inactive.png",
+        "serviceCode": "taxi",
+        "title": "تاکسی"
+      },
+      {
+        "activeImageUrl": "https://rynt.ir/static/app/sekeh/images/services/charity.png",
+        "badge": {
+          "backgroundColor": "",
+          "content": "بزودی",
+          "textColor": "#E84B51"
+        },
+        "inactiveImageUrl": "https://rynt.ir/static/app/sekeh/images/services/charity-inactive.png",
+        "serviceCode": "charity",
+        "title": "نیکوکاری"
+      },
+      {
+        "activeImageUrl": "https://rynt.ir/static/app/sekeh/images/services/flight.png",
+        "badge": {
+          "backgroundColor": "",
+          "content": "بزودی",
+          "textColor": "#E84B51"
+        },
+        "inactiveImageUrl": "https://rynt.ir/static/app/sekeh/images/services/flight-inactive.png",
+        "serviceCode": "flight",
+        "title": "سفر"
+      },
+      {
+        "activeImageUrl": "https://rynt.ir/static/app/sekeh/images/services/shop.png",
+        "badge": {
+          "backgroundColor": "",
+          "content": "بزودی",
+          "textColor": "#E84B51"
+        },
+        "inactiveImageUrl": "https://rynt.ir/static/app/sekeh/images/services/shop-inactive.png",
+        "serviceCode": "shop",
+        "title": "فروشگاه"
+      }
+    ],
+    "services": [
+      {
+        "categoryCode": "1",
+        "categoryTitle": "مالی",
+        "items": [
+          {
+            "activeImageUrl": "https://rynt.ir/static/app/sekeh/images/services/tamin.png",
+            "badge": {
+              "backgroundColor": "",
+              "content": "بزودی",
+              "textColor": "#E84B51"
+            },
+            "inactiveImageUrl": "https://rynt.ir/static/app/sekeh/images/services/tamin-inactive.png",
+            "serviceCode": "tamin",
+            "title": "تامین سرمایه بانک ملت"
+          },
+          {
+            "activeImageUrl": "https://rynt.ir/static/app/sekeh/images/services/pazirandegi.png",
+            "badge": {
+              "backgroundColor": "",
+              "content": "بزودی",
+              "textColor": "#E84B51"
+            },
+            "inactiveImageUrl": "https://rynt.ir/static/app/sekeh/images/services/pazirandegi-inactive.png",
+            "serviceCode": "pazirandegi",
+            "title": "درخواست پذیرندگی"
+          },
+          {
+            "activeImageUrl": "https://rynt.ir/static/app/sekeh/images/services/rotbeh.png",
+            "badge": {
+              "backgroundColor": "",
+              "content": "بزودی",
+              "textColor": "#E84B51"
+            },
+            "inactiveImageUrl": "https://rynt.ir/static/app/sekeh/images/services/rotbeh-inactive.png",
+            "serviceCode": "rotbe",
+            "title": "رنبه بندی اعتباری"
+          }
+        ]
+      },
+      {
+        "categoryCode": "2",
+        "categoryTitle": "پرداخت",
+        "items": [
+          {
+            "activeImageUrl": "https://rynt.ir/static/app/sekeh/images/services/installment.png",
+            "badge": {
+              "backgroundColor": "",
+              "content": "بزودی",
+              "textColor": "#E84B51"
+            },
+            "inactiveImageUrl": "https://rynt.ir/static/app/sekeh/images/services/installment_inactive.png",
+            "serviceCode": "installment",
+            "title": "پرداخت اقساط"
+          }
+        ]
+      },
+      {
+        "categoryCode": "3",
+        "categoryTitle": "بیمه",
+        "items": [
+          {
+            "activeImageUrl": "https://rynt.ir/static/app/sekeh/images/services/insurance.png",
+            "badge": {
+              "backgroundColor": "",
+              "content": "بزودی",
+              "textColor": "#E84B51"
+            },
+            "inactiveImageUrl": "https://rynt.ir/static/app/sekeh/images/services/insurance-inactive.png",
+            "serviceCode": "insurance",
+            "title": "بیمه"
+          }
+        ]
+      },
+      {
+        "categoryCode": "4",
+        "categoryTitle": "سفر",
+        "items": [
+          {
+            "activeImageUrl": "https://rynt.ir/static/app/sekeh/images/services/flight.png",
+            "badge": {
+              "backgrounfColor": "",
+              "content": "بزودی",
+              "textColor": "#E84B51"
+            },
+            "inactiveImageUrl": "https://rynt.ir/static/app/sekeh/images/services/flight_inactive.png",
+            "serviceCode": "flight",
+            "title": "سفر"
+          }
+        ]
+      },
+      {
+        "categoryCode": "5",
+        "categoryTitle": "خودرو",
+        "items": [
+          {
+            "activeImageUrl": "https://rynt.ir/static/app/sekeh/images/services/carServices.png",
+            "badge": {
+              "backgroundColor": "",
+              "content": "بزودی",
+              "textColor": "#E84B51"
+            },
+            "inactiveImageUrl": "https://rynt.ir/static/app/sekeh/images/services/carServices_inactive.png",
+            "serviceCode": "carServices",
+            "title": "خدمات خودرویی"
+          },
+          {
+            "activeImageUrl": "https://rynt.ir/static/app/sekeh/images/services/taxi.png",
+            "badge": {
+              "backgroundColor": "",
+              "content": "بزودی",
+              "textColor": "#E84B51"
+            },
+            "inactiveImageUrl": "https://rynt.ir/static/app/sekeh/images/services/taxi_inactive.png",
+            "serviceCode": "taxi",
+            "title": "تاکسی"
+          }
+        ]
+      },
+      {
+        "categoryCode": "6",
+        "categoryTitle": "شهروندی",
+        "items": [
+          {
+            "activeImageUrl": "https://rynt.ir/static/app/sekeh/images/services/ghove.png",
+            "badge": {
+              "backgroundColor": "",
+              "content": "بزودی",
+              "textColor": "#E84B51"
+            },
+            "inactiveImageUrl": "https://rynt.ir/static/app/sekeh/images/services/ghove-inactive.png",
+            "serviceCode": "ghove",
+            "title": "قوه قضائیه"
+          },
+          {
+            "activeImageUrl": "https://rynt.ir/static/app/sekeh/images/services/sana.png",
+            "badge": {
+              "backgroundColor": "",
+              "content": "بزودی",
+              "textColor": "#E84B51"
+            },
+            "inactiveImageUrl": "https://rynt.ir/static/app/sekeh/images/services/sana-inactive.png",
+            "serviceCode": "sana",
+            "title": "سامانه ثنا"
+          },
+          {
+            "activeImageUrl": "https://rynt.ir/static/app/sekeh/images/services/ehraz.png",
+            "badge": {
+              "backgroundColor": "",
+              "content": "بزودی",
+              "textColor": "#E84B51"
+            },
+            "inactiveImageUrl": "https://rynt.ir/static/app/sekeh/images/services/ehraz-inactive.png",
+            "serviceCode": "ehraz",
+            "title": "احراز هویت آنلاین"
+          },
+          {
+            "activeImageUrl": "https://rynt.ir/static/app/sekeh/images/services/hamrahHooshmand.png",
+            "badge": {
+              "backgroundColor": "",
+              "content": "بزودی",
+              "textColor": "#E84B51"
+            },
+            "inactiveImageUrl": "https://rynt.ir/static/app/sekeh/images/services/hamrah-hooshmand-inactive.png",
+            "serviceCode": "hamrahHooshmand",
+            "title": "همراه هوشمند"
+          }
+        ]
+      },
+      {
+        "categoryCode": "7",
+        "categoryTitle": "سایر",
+        "items": [
+          {
+            "activeImageUrl": "https://rynt.ir/static/app/sekeh/images/services/takhfifan.png",
+            "badge": {
+              "backgroundColor": "",
+              "content": "بزودی",
+              "textColor": "#E84B51"
+            },
+            "inactiveImageUrl": "https://rynt.ir/static/app/sekeh/images/services/takhfifan-inactive.png",
+            "serviceCode": "takhfifan",
+            "title": "تخفیفان"
+          },
+          {
+            "activeImageUrl": "https://rynt.ir/static/app/sekeh/images/services/itbourse.png",
+            "badge": {
+              "backgroundColor": "",
+              "content": "بزودی",
+              "textColor": "#E84B51"
+            },
+            "inactiveImageUrl": "https://rynt.ir/static/app/sekeh/images/services/itbourse-inactive.png",
+            "serviceCode": "itBourse",
+            "title": "آی تی بورس"
+          }
+        ]
+      }
+    ]
+  },
+  "rules": {
+    "ipg": {
+      "amount": {
+        "max": 1000000000,
+        "min": 10000
+      }
+    },
+    "mpg": {
+      "amount": {
+        "max": 1000000000,
+        "min": 10000
+      }
+    }
+  },
+  "services": [
+    {
+      "code": "kahroba",
+      "providers": [
+        {
+          "cardBgSrc": "",
+          "color": "#D21F35",
+          "kahrobaActivationRegex": "کد\\s+فعالسازی\\s+([A-Za-z0-9]{8})",
+          "kahrobaSupport": true,
+          "logoSrc": "https://rynt.ir/static/app/sekeh/images/kahroba/mellat.png",
+          "name": "بانک ملت",
+          "startsWith": "610433,991975"
+        },
+        {
+          "cardBgSrc": "",
+          "color": "#EFAB32",
+          "kahrobaActivationRegex": "/کد\\s+فعالساز[یي]\\s+([A-Za-z0-9]{8})/",
+          "kahrobaSupport": true,
+          "logoSrc": "https://rynt.ir/static/app/sekeh/images/kahroba/melli.png",
+          "name": "بانک ملی",
+          "startsWith": "603799"
+        },
+        {
+          "cardBgSrc": "",
+          "color": "#184892",
+          "kahrobaActivationRegex": "",
+          "kahrobaSupport": true,
+          "logoSrc": "https://rynt.ir/static/app/sekeh/images/kahroba/saderat.png",
+          "name": "بانک صادرات",
+          "startsWith": "603769"
+        },
+        {
+          "cardBgSrc": "",
+          "color": "#2B3E8B",
+          "kahrobaActivationRegex": "",
+          "kahrobaSupport": true,
+          "logoSrc": "https://rynt.ir/static/app/sekeh/images/kahroba/tejarat.png",
+          "name": "بانک تجارت",
+          "startsWith": "585983,627353"
+        },
+        {
+          "cardBgSrc": "",
+          "color": "#CC7212",
+          "kahrobaActivationRegex": "",
+          "kahrobaSupport": true,
+          "logoSrc": "https://rynt.ir/static/app/sekeh/images/kahroba/sepah.png",
+          "name": "بانک سپه",
+          "startsWith": "589210,639370,606737,627381,636949,639599"
+        },
+        {
+          "cardBgSrc": "",
+          "color": "#F7C81D",
+          "kahrobaActivationRegex": "/(?:کد\\s?فعال\\s?ساز[یي](?:\\s+کهربا)?\\s*:?\\s*|کد\\s*:\\s*|رمز\\s*فعالساز[یي](?:\\s+کهربا)?\\s*:?\\s*|code\\s*:?\\s*)([A-Za-z0-9]{8})/",
+          "kahrobaSupport": true,
+          "logoSrc": "https://rynt.ir/static/app/sekeh/images/kahroba/pasargad.png",
+          "name": "بانک پاسارگاد",
+          "startsWith": "502229,639347"
+        },
+        {
+          "cardBgSrc": "",
+          "color": "#8D201D",
+          "kahrobaActivationRegex": "/کد\\s+فعالسازی\\s+کهربا\\s*:\\s*([A-Za-z0-9]{8})/",
+          "kahrobaSupport": true,
+          "logoSrc": "https://rynt.ir/static/app/sekeh/images/kahroba/parsian.png",
+          "name": "بانک پارسیان",
+          "startsWith": "622106,627884,639194"
+        },
+        {
+          "cardBgSrc": "",
+          "color": "#36653F",
+          "kahrobaActivationRegex": "",
+          "kahrobaSupport": true,
+          "logoSrc": "https://rynt.ir/static/app/sekeh/images/kahroba/keshavarzi.png",
+          "name": "بانک کشاورزی",
+          "startsWith": "603770,639217"
+        },
+        {
+          "cardBgSrc": "",
+          "color": "#BA6015",
+          "kahrobaActivationRegex": "",
+          "kahrobaSupport": false,
+          "logoSrc": "https://rynt.ir/static/app/sekeh/images/kahroba/maskan.png",
+          "name": "بانک مسکن",
+          "startsWith": "628023"
+        },
+        {
+          "cardBgSrc": "",
+          "color": "#094B7E",
+          "kahrobaActivationRegex": "/کد\\s+فعال\\s+ساز[یي]\\s*:[\\s\\n]*([A-Za-z0-9]{8})/",
+          "kahrobaSupport": true,
+          "logoSrc": "https://rynt.ir/static/app/sekeh/images/kahroba/refah.png",
+          "name": "بانک رفاه کارگران",
+          "startsWith": "589463"
+        },
+        {
+          "cardBgSrc": "",
+          "color": "#22A7E0",
+          "kahrobaActivationRegex": "",
+          "kahrobaSupport": false,
+          "logoSrc": "https://rynt.ir/static/app/sekeh/images/kahroba/saman.png",
+          "name": "بانک سامان",
+          "startsWith": "621986"
+        },
+        {
+          "cardBgSrc": "",
+          "color": "#A2288D",
+          "kahrobaActivationRegex": "",
+          "kahrobaSupport": true,
+          "logoSrc": "https://rynt.ir/static/app/sekeh/images/kahroba/eghtesadn.png",
+          "name": "بانک اقتصاد نوین",
+          "startsWith": "627412"
+        },
+        {
+          "cardBgSrc": "",
+          "color": "#3E5EAB",
+          "kahrobaActivationRegex": "",
+          "kahrobaSupport": true,
+          "logoSrc": "https://rynt.ir/static/app/sekeh/images/kahroba/sina.png",
+          "name": "بانک سینا",
+          "startsWith": "639346"
+        },
+        {
+          "cardBgSrc": "",
+          "color": "#DB2625",
+          "kahrobaActivationRegex": "/رمز\\s+فعالساز[یي]\\s+کهربا\\s*:\\s*([A-Za-z0-9]{8})/",
+          "kahrobaSupport": true,
+          "logoSrc": "https://rynt.ir/static/app/sekeh/images/kahroba/shahr.png",
+          "name": "بانک شهر",
+          "startsWith": "502806,504706"
+        },
+        {
+          "cardBgSrc": "",
+          "color": "#CF9D2B",
+          "kahrobaActivationRegex": "/(?:کد\\s?فعال\\s?ساز[یي](?:\\s+کهربا)?\\s*:?\\s*|کد\\s*:\\s*|رمز\\s*فعالساز[یي](?:\\s+کهربا)?\\s*:?\\s*|code\\s*:?\\s*)([A-Za-z0-9]{8})/",
+          "kahrobaSupport": true,
+          "logoSrc": "https://rynt.ir/static/app/sekeh/images/kahroba/ayandeh.png",
+          "name": "بانک آینده",
+          "startsWith": "636214"
+        },
+        {
+          "cardBgSrc": "",
+          "color": "#593192",
+          "kahrobaActivationRegex": "",
+          "kahrobaSupport": false,
+          "logoSrc": "https://rynt.ir/static/app/sekeh/images/kahroba/iranzamin.png",
+          "name": "بانک زمین",
+          "startsWith": "505785"
+        },
+        {
+          "cardBgSrc": "",
+          "color": "#098A9F",
+          "kahrobaActivationRegex": "",
+          "kahrobaSupport": false,
+          "logoSrc": "https://rynt.ir/static/app/sekeh/images/kahroba/dey.png",
+          "name": "بانک دی",
+          "startsWith": "502938"
+        },
+        {
+          "cardBgSrc": "",
+          "color": "#A78A53",
+          "kahrobaActivationRegex": "",
+          "kahrobaSupport": false,
+          "logoSrc": "https://rynt.ir/static/app/sekeh/images/kahroba/sanatmadan.png",
+          "name": "بانک صنعت و معدن",
+          "startsWith": "627961"
+        },
+        {
+          "cardBgSrc": "",
+          "color": "#204D6C",
+          "kahrobaActivationRegex": "",
+          "kahrobaSupport": false,
+          "logoSrc": "https://rynt.ir/static/app/sekeh/images/kahroba/sarmayeh.png",
+          "name": "بانک سرمایه",
+          "startsWith": "639607"
+        },
+        {
+          "cardBgSrc": "",
+          "color": "#F69118",
+          "kahrobaActivationRegex": "/کدفعال\\s+ساز[یي]\\s*:\\s*([A-Za-z0-9]{8})/",
+          "kahrobaSupport": true,
+          "logoSrc": "https://rynt.ir/static/app/sekeh/images/kahroba/khavarmiane.png",
+          "name": "بانک خاورمیانه",
+          "startsWith": "505809,585947"
+        },
+        {
+          "cardBgSrc": "",
+          "color": "#B12226",
+          "kahrobaActivationRegex": "",
+          "kahrobaSupport": true,
+          "logoSrc": "https://rynt.ir/static/app/sekeh/images/kahroba/gardeshgari.png",
+          "name": "بانک گردشگری",
+          "startsWith": "505416"
+        },
+        {
+          "cardBgSrc": "",
+          "color": "#0CA54D",
+          "kahrobaActivationRegex": "",
+          "kahrobaSupport": false,
+          "logoSrc": "https://rynt.ir/static/app/sekeh/images/kahroba/postbank.png",
+          "name": "پست بانک",
+          "startsWith": "627760"
+        },
+        {
+          "cardBgSrc": "",
+          "color": "#5CCFC1",
+          "kahrobaActivationRegex": "/(?:کد\\s?فعال\\s?ساز[یي](?:\\s+کهربا)?\\s*:?\\s*|کد\\s*:\\s*|رمز\\s*فعالساز[یي](?:\\s+کهربا)?\\s*:?\\s*|code\\s*:?\\s*)([A-Za-z0-9]{8})/",
+          "kahrobaSupport": true,
+          "logoSrc": "https://rynt.ir/static/app/sekeh/images/kahroba/tosetaavon.png",
+          "name": "بانک توسعه تعاون",
+          "startsWith": "502908"
+        },
+        {
+          "cardBgSrc": "",
+          "color": "#36653F",
+          "kahrobaActivationRegex": "",
+          "kahrobaSupport": true,
+          "logoSrc": "https://rynt.ir/static/app/sekeh/images/kahroba/tosesaderat.png",
+          "name": "بانک توسعه صادرات",
+          "startsWith": "207177,627648"
+        },
+        {
+          "cardBgSrc": "",
+          "color": "#198271",
+          "kahrobaActivationRegex": "/کد\\s*:\\s*([A-Za-z0-9]{8})/",
+          "kahrobaSupport": true,
+          "logoSrc": "https://rynt.ir/static/app/sekeh/images/kahroba/karafarin.png",
+          "name": "بانک کارآفرین",
+          "startsWith": "502910,627488"
+        },
+        {
+          "cardBgSrc": "",
+          "color": "",
+          "kahrobaActivationRegex": "",
+          "kahrobaSupport": false,
+          "logoSrc": "",
+          "name": "بانک مرکزی",
+          "startsWith": "636795"
+        },
+        {
+          "cardBgSrc": "",
+          "color": "#2BA0D2",
+          "kahrobaActivationRegex": "",
+          "kahrobaSupport": true,
+          "logoSrc": "https://rynt.ir/static/app/sekeh/images/kahroba/resalat.png",
+          "name": "بانک رسالت",
+          "startsWith": "504172"
+        },
+        {
+          "cardBgSrc": "",
+          "color": "#7eba26",
+          "kahrobaActivationRegex": "",
+          "kahrobaSupport": true,
+          "logoSrc": "https://rynt.ir/static/app/sekeh/images/kahroba/mehr.png",
+          "name": "بانک مهر",
+          "startsWith": "606373"
+        },
+        {
+          "cardBgSrc": "",
+          "color": "#0D6EA5",
+          "kahrobaActivationRegex": "",
+          "kahrobaSupport": false,
+          "logoSrc": "https://rynt.ir/static/app/sekeh/images/kahroba/kosar.png",
+          "name": "موسسه اعتباری کوثر",
+          "startsWith": "505801"
+        },
+        {
+          "cardBgSrc": "",
+          "color": "#1B5192",
+          "kahrobaActivationRegex": "",
+          "kahrobaSupport": true,
+          "logoSrc": "https://rynt.ir/static/app/sekeh/images/kahroba/melal.png",
+          "name": "موسسه اعتباری ملل",
+          "startsWith": "606256"
+        },
+        {
+          "cardBgSrc": "",
+          "color": "#89201D",
+          "kahrobaActivationRegex": "",
+          "kahrobaSupport": false,
+          "logoSrc": "https://rynt.ir/static/app/sekeh/images/kahroba/tose.png",
+          "name": "موسسه اعتباری توسعه",
+          "startsWith": "628157"
+        },
+        {
+          "cardBgSrc": "",
+          "color": "#203265",
+          "kahrobaActivationRegex": "",
+          "kahrobaSupport": false,
+          "logoSrc": "https://rynt.ir/static/app/sekeh/images/kahroba/iranvenezula.png",
+          "name": "بانک ایران ونزوئلا",
+          "startsWith": "581874"
+        },
+        {
+          "cardBgSrc": "",
+          "color": "#0f68cb",
+          "kahrobaActivationRegex": "",
+          "kahrobaSupport": false,
+          "logoSrc": "https://rynt.ir/static/app/sekeh/images/kahroba/noor.png",
+          "name": "موسسه نور",
+          "startsWith": "507677"
+        }
+      ],
+      "status": "ACTIVE",
+      "title": "کهربا"
+    },
+    {
+      "code": "cardTransfer",
+      "otpttl": 120,
+      "providers": [
+        {
+          "bankCode": "SHAHR",
+          "maxAmount": 150000000,
+          "minAmount": 10000
+        },
+        {
+          "bankCode": "SANAT",
+          "maxAmount": 150000000,
+          "minAmount": 10000
+        },
+        {
+          "bankCode": "ENBANK",
+          "maxAmount": 150000000,
+          "minAmount": 10000
+        },
+        {
+          "bankCode": "SADERAT",
+          "maxAmount": 150000000,
+          "minAmount": 10000
+        },
+        {
+          "bankCode": "MELLAT",
+          "maxAmount": 150000000,
+          "minAmount": 10000
+        },
+        {
+          "bankCode": "PARSIAN",
+          "maxAmount": 150000000,
+          "minAmount": 10000
+        },
+        {
+          "bankCode": "REFAH",
+          "maxAmount": 150000000,
+          "minAmount": 10000
+        },
+        {
+          "bankCode": "AYANDEH",
+          "maxAmount": 150000000,
+          "minAmount": 10000
+        },
+        {
+          "bankCode": "MELAL",
+          "maxAmount": 150000000,
+          "minAmount": 10000
+        },
+        {
+          "bankCode": "GARDESH",
+          "maxAmount": 150000000,
+          "minAmount": 10000
+        },
+        {
+          "bankCode": "SADAD",
+          "maxAmount": 150000000,
+          "minAmount": 10000
+        },
+        {
+          "bankCode": "KESHAVARZI",
+          "maxAmount": 150000000,
+          "minAmount": 10000
+        },
+        {
+          "bankCode": "TEJARAT",
+          "maxAmount": 150000000,
+          "minAmount": 10000
+        },
+        {
+          "bankCode": "SEPAH",
+          "maxAmount": 150000000,
+          "minAmount": 10000
+        },
+        {
+          "bankCode": "MEHRE",
+          "maxAmount": 150000000,
+          "minAmount": 10000
+        },
+        {
+          "bankCode": "GHAVAMIN",
+          "maxAmount": 150000000,
+          "minAmount": 10000
+        },
+        {
+          "bankCode": "ANSAR",
+          "maxAmount": 150000000,
+          "minAmount": 10000
+        },
+        {
+          "bankCode": "HEKMAT",
+          "maxAmount": 150000000,
+          "minAmount": 10000
+        },
+        {
+          "bankCode": "KOSAR",
+          "maxAmount": 150000000,
+          "minAmount": 10000
+        },
+        {
+          "bankCode": "DEY",
+          "maxAmount": 150000000,
+          "minAmount": 10000
+        },
+        {
+          "bankCode": "IRANZAMIN",
+          "maxAmount": 150000000,
+          "minAmount": 10000
+        },
+        {
+          "bankCode": "PASARGAD",
+          "maxAmount": 150000000,
+          "minAmount": 10000
+        },
+        {
+          "bankCode": "SAMAN",
+          "maxAmount": 150000000,
+          "minAmount": 10000
+        },
+        {
+          "bankCode": "SINA",
+          "maxAmount": 150000000,
+          "minAmount": 10000
+        },
+        {
+          "bankCode": "POST",
+          "maxAmount": 150000000,
+          "minAmount": 10000
+        },
+        {
+          "bankCode": "SARMAYE",
+          "maxAmount": 150000000,
+          "minAmount": 10000
+        },
+        {
+          "bankCode": "RESALAT",
+          "maxAmount": 150000000,
+          "minAmount": 10000
+        },
+        {
+          "bankCode": "MEHRI",
+          "maxAmount": 150000000,
+          "minAmount": 10000
+        }
+      ],
+      "status": "ACTIVE",
+      "title": "کارت به کارت"
+    },
+    {
+      "code": "cardBalanceInquiry",
+      "commissionAmount": 1800,
+      "commissionCaption": "شما در حال دریافت موجودی کارت با مشخصات بالا با کارمزد 1800 ریال هستید.",
+      "expiryDateRange": {
+        "from": "-1Y",
+        "to": "+8Y"
+      },
+      "otpttl": 120,
+      "providers": [
+        "ANSAR",
+        "AYANDEH",
+        "DAMAVAND",
+        "DEY",
+        "ENBANK",
+        "GARDESH",
+        "GHAVAMIN",
+        "HEKMAT",
+        "IR-VE",
+        "IRANZAMIN",
+        "KARAFARIN",
+        "KESHAVARZI",
+        "KHAVAR",
+        "KOSAR",
+        "MARKAZI",
+        "MASKAN",
+        "MEHRE",
+        "MEHRI",
+        "MELAL",
+        "MELLAT",
+        "NOOR",
+        "PARSIAN",
+        "PASARGAD",
+        "POST",
+        "REFAH",
+        "RESALAT",
+        "SADAD",
+        "SADERAT",
+        "SAMAN",
+        "SAMEN",
+        "SANAT",
+        "SARMAYE",
+        "SEPAH",
+        "SHAHR",
+        "SINA",
+        "SOROUSH",
+        "TEJARAT",
+        "TOSE",
+        "TOSES",
+        "TOSET"
+      ],
+      "status": "ACTIVE",
+      "title": "موجودی کارت"
+    },
+    {
+      "code": "cardManagement",
+      "expiryDateRange": {
+        "from": "-1Y",
+        "to": "+5Y"
+      },
+      "status": "ACTIVE",
+      "title": "مدیریت کارت بانکی"
+    },
+    {
+      "code": "bill",
+      "inputDigits": {
+        "max": 13,
+        "min": 6
+      },
+      "status": "ACTIVE",
+      "title": "قبض"
+    },
+    {
+      "code": "operatorBill",
+      "inputDigits": {
+        "max": 11,
+        "min": 10
+      },
+      "status": "ACTIVE",
+      "title": "قبض تلفن همراه و ثابت"
+    },
+    {
+      "code": "topUp",
+      "mno": [
+        {
+          "badgeUrl": "https://rynt.ir/static/app/sekeh/images/mno/badge-mci50w.png",
+          "iconDarkUrl": "https://rynt.ir/static/app/sekeh/images/mno/mci-logo-l.png",
+          "iconUrl": "https://rynt.ir/static/app/sekeh/images/mno/mci-logo.png",
+          "imageUrl": "https://rynt.ir/static/app/sekeh/images/mno/mci-logo.png",
+          "invalidPrefixes": [
+            "912"
+          ],
+          "isDefault": true,
+          "mno": "MCI",
+          "prefixes": [
+            "910",
+            "911",
+            "913",
+            "914",
+            "915",
+            "916",
+            "917",
+            "918",
+            "919",
+            "990",
+            "991",
+            "992",
+            "993",
+            "994",
+            "995",
+            "996"
+          ],
+          "rechargeTypes": [
+            {
+              "amount": {
+                "max": 1500000,
+                "min": 250000,
+                "step": 10000
+              },
+              "amounts": [
+                250000,
+                300000,
+                500000,
+                1000000,
+                1500000
+              ],
+              "badge": {
+                "color": "",
+                "content": ""
+              },
+              "description": "+۵٪",
+              "status": "ACTIVE",
+              "title": "معمولی",
+              "type": "NORMAL"
+            }
+          ],
+          "status": "ACTIVE",
+          "thumbnailUrl": "https://rynt.ir/static/app/sekeh/images/mno/mci-logo.png",
+          "title": "همراه اول"
+        },
+        {
+          "badgeUrl": "https://rynt.ir/static/app/sekeh/images/mno/badge-irancell50w.png",
+          "iconDarkUrl": "https://rynt.ir/static/app/sekeh/images/mno/irancell-logo-l.png",
+          "iconUrl": "https://rynt.ir/static/app/sekeh/images/mno/irancell-logo.png",
+          "imageUrl": "https://rynt.ir/static/app/sekeh/images/mno/irancell-logo.png",
+          "invalidPrefixes": [],
+          "isDefault": false,
+          "mno": "MTN",
+          "prefixes": [
+            "905",
+            "904",
+            "903",
+            "901",
+            "939",
+            "938",
+            "937",
+            "936",
+            "935",
+            "933",
+            "930",
+            "902",
+            "900"
+          ],
+          "rechargeTypes": [
+            {
+              "amount": {
+                "max": 10000000,
+                "min": 250000,
+                "step": 10000
+              },
+              "amounts": [
+                250000,
+                300000,
+                500000,
+                1000000,
+                10000000
+              ],
+              "badge": {
+                "color": "",
+                "content": ""
+              },
+              "description": "عادی",
+              "status": "ACTIVE",
+              "title": "معمولی",
+              "type": "NORMAL"
+            }
+          ],
+          "status": "ACTIVE",
+          "thumbnailUrl": "https://rynt.ir/static/app/sekeh/images/mno/irancell-logo.png",
+          "title": "ایرانسل"
+        },
+        {
+          "badgeUrl": "https://rynt.ir/static/app/sekeh/images/mno/badge-rightel50w.png",
+          "iconDarkUrl": "https://rynt.ir/static/app/sekeh/images/mno/rightel-logo-l.png",
+          "iconUrl": "https://rynt.ir/static/app/sekeh/images/mno/rightel-logo.png",
+          "imageUrl": "https://rynt.ir/static/app/sekeh/images/mno/rightel-logo.png",
+          "invalidPrefixes": [
+            "920"
+          ],
+          "isDefault": false,
+          "mno": "RTL",
+          "prefixes": [
+            "921",
+            "922",
+            "923"
+          ],
+          "rechargeTypes": [
+            {
+              "amount": {
+                "max": 1500000,
+                "min": 250000,
+                "step": 10000
+              },
+              "amounts": [
+                250000,
+                200000,
+                500000,
+                1000000,
+                1500000
+              ],
+              "badge": {
+                "color": "",
+                "content": ""
+              },
+              "description": "عادی",
+              "status": "ACTIVE",
+              "title": "معمولی",
+              "type": "NORMAL"
+            }
+          ],
+          "status": "ACTIVE",
+          "thumbnailUrl": "https://rynt.ir/static/app/sekeh/images/mno/rightel-logo.png",
+          "title": "رایتل"
+        }
+      ],
+      "status": "ACTIVE",
+      "title": "شارژ"
+    },
+    {
+      "categoryFilters": [
+        "همه",
+        "رومینگ",
+        "مکالمه",
+        "ساعتی",
+        "1 روزه",
+        "3 روزه",
+        "1 هفته",
+        "2 هفته",
+        "15 روزه",
+        "1 ماهه",
+        "2 ماهه",
+        "3 ماهه",
+        "4 ماهه",
+        "6 ماهه",
+        "1 ساله",
+        "انارستان",
+        "مشترکین جدید"
+      ],
+      "code": "package",
+      "filters": [
+        {
+          "duration": "1",
+          "durationType": "daily",
+          "title": "1 روزه"
+        },
+        {
+          "duration": "3",
+          "durationType": "daily",
+          "title": " 3 روزه"
+        },
+        {
+          "duration": "15",
+          "durationType": "daily",
+          "title": " 15 روزه"
+        },
+        {
+          "duration": "1",
+          "durationType": "weekly",
+          "title": " 1 هفته"
+        },
+        {
+          "duration": "1",
+          "durationType": "monthly",
+          "title": "1 ماهه"
+        },
+        {
+          "duration": "3",
+          "durationType": "monthly",
+          "title": "3 ماهه"
+        },
+        {
+          "duration": "4",
+          "durationType": "monthly",
+          "title": "4 ماهه"
+        },
+        {
+          "duration": "5",
+          "durationType": "monthly",
+          "title": "5 ماهه"
+        },
+        {
+          "duration": "6",
+          "durationType": "monthly",
+          "title": "6 ماهه"
+        },
+        {
+          "duration": "1",
+          "durationType": "yearly",
+          "title": "1 ساله"
+        }
+      ],
+      "mno": [
+        {
+          "badgeUrl": "https://rynt.ir/static/app/sekeh/images/mno/badge-mci50w.png",
+          "iconDarkUrl": "https://rynt.ir/static/app/sekeh/images/mno/mci-logo-l.png",
+          "iconUrl": "https://rynt.ir/static/app/sekeh/images/mno/mci-logo.png",
+          "imageUrl": "https://rynt.ir/static/app/sekeh/images/mno/mci-logo.png",
+          "isDefault": true,
+          "mno": "MCI",
+          "simTypes": [
+            {
+              "imageUrl": "https://rynt.ir/static/app/sekeh/images/mno/prepaid.png",
+              "prefixes": [
+                "910",
+                "911",
+                "913",
+                "914",
+                "915",
+                "916",
+                "917",
+                "918",
+                "919",
+                "990",
+                "991",
+                "992",
+                "993",
+                "994",
+                "995",
+                "996"
+              ],
+              "title": "اعتباری",
+              "type": "PREPAID"
+            },
+            {
+              "imageUrl": "https://rynt.ir/static/app/sekeh/images/mno/postpaid.png",
+              "prefixes": [
+                "912"
+              ],
+              "title": "دائمی",
+              "type": "POSTPAID"
+            }
+          ],
+          "status": "ACTIVE",
+          "thumbnailUrl": "https://rynt.ir/static/app/sekeh/images/mno/mci-logo.png",
+          "title": "همراه اول"
+        },
+        {
+          "badgeUrl": "https://rynt.ir/static/app/sekeh/images/mno/badge-irancell50w.png",
+          "iconDarkUrl": "https://rynt.ir/static/app/sekeh/images/mno/irancell-logo-l.png",
+          "iconUrl": "https://rynt.ir/static/app/sekeh/images/mno/irancell-logo.png",
+          "imageUrl": "https://rynt.ir/static/app/sekeh/images/mno/irancell-logo.png",
+          "isDefault": false,
+          "mno": "MTN",
+          "simTypes": [
+            {
+              "imageUrl": "https://rynt.ir/static/app/sekeh/images/mno/prepaid.png",
+              "prefixes": [
+                "905",
+                "904",
+                "903",
+                "901",
+                "939",
+                "938",
+                "937",
+                "936",
+                "935",
+                "933",
+                "930"
+              ],
+              "title": "اعتباری",
+              "type": "PREPAID"
+            },
+            {
+              "imageUrl": "https://rynt.ir/static/app/sekeh/images/mno/postpaid.png",
+              "prefixes": [
+                "902",
+                "900"
+              ],
+              "title": "دائمی",
+              "type": "POSTPAID"
+            },
+            {
+              "imageUrl": "https://rynt.ir/static/app/sekeh/images/mno/data.png",
+              "prefixes": [
+                "941"
+              ],
+              "title": "دیتا",
+              "type": "POSTPAID-TD"
+            }
+          ],
+          "status": "ACTIVE",
+          "thumbnailUrl": "https://rynt.ir/static/app/sekeh/images/mno/irancell-logo.png",
+          "title": "ایرانسل"
+        },
+        {
+          "badgeUrl": "https://rynt.ir/static/app/sekeh/images/mno/badge-rightel50w.png",
+          "iconDarkUrl": "https://rynt.ir/static/app/sekeh/images/mno/rightel-logo-l.png",
+          "iconUrl": "https://rynt.ir/static/app/sekeh/images/mno/rightel-logo.png",
+          "imageUrl": "https://rynt.ir/static/app/sekeh/images/mno/rightel-logo.png",
+          "isDefault": false,
+          "mno": "RTL",
+          "simTypes": [
+            {
+              "imageUrl": "https://rynt.ir/static/app/sekeh/images/mno/prepaid.png",
+              "prefixes": [
+                "921",
+                "922",
+                "923"
+              ],
+              "title": "اعتباری",
+              "type": "PREPAID"
+            },
+            {
+              "imageUrl": "https://rynt.ir/static/app/sekeh/images/mno/postpaid.png",
+              "prefixes": [
+                "920"
+              ],
+              "title": "دائمی",
+              "type": "POSTPAID"
+            },
+            {
+              "imageUrl": "https://rynt.ir/static/app/sekeh/images/mno/data.png",
+              "prefixes": [],
+              "title": "دیتا",
+              "type": "DATA"
+            }
+          ],
+          "status": "ACTIVE",
+          "thumbnailUrl": "https://rynt.ir/static/app/sekeh/images/mno/rightel-logo.png",
+          "title": "رایتل"
+        }
+      ],
+      "status": "ACTIVE",
+      "title": "اینترنت"
+    },
+    {
+      "amount": {
+        "max": 50000000,
+        "min": 10000,
+        "predefined": 50000,
+        "step": 5000
+      },
+      "amounts": [
+        50000,
+        100000,
+        150000,
+        200000,
+        250000,
+        500000
+      ],
+      "code": "charity",
+      "status": "active",
+      "tags": [
+        {
+          "title": "فطریه",
+          "value": "fetriyeh"
+        },
+        {
+          "title": "کودکان",
+          "value": "children"
+        },
+        {
+          "title": "نذورات",
+          "value": "offerings"
+        },
+        {
+          "title": "صدقه",
+          "value": "sadagheh"
+        },
+        {
+          "title": "ایتام",
+          "value": "orphans"
+        },
+        {
+          "title": "کفاره",
+          "value": "atonement"
+        },
+        {
+          "title": "کمک تحصیلی",
+          "value": "education"
+        }
+      ],
+      "title": "نیکوکاری"
+    },
+    {
+      "amount": {
+        "max": 50000000,
+        "min": 100000,
+        "predefined": 500000,
+        "step": 1000
+      },
+      "amounts": [
+        500000,
+        1000000,
+        1500000,
+        2000000,
+        2500000,
+        5000000
+      ],
+      "code": "refund",
+      "status": "active",
+      "title": "برداشت وجه"
+    },
+    {
+      "amount": {
+        "max": 10000000,
+        "min": 100000,
+        "predefined": 500000,
+        "step": 1000
+      },
+      "amountByLevel": {
+        "CUSTOMER": {
+          "max": 30000000,
+          "min": 10000
+        },
+        "CUSTOMER_ELEVATED": {
+          "max": 150000000,
+          "min": 10000
+        }
+      },
+      "amounts": [
+        500000,
+        1000000,
+        1500000,
+        2000000,
+        2500000,
+        5000000
+      ],
+      "code": "irdrRefund",
+      "status": "active",
+      "title": "برداشت ریال دیجیتال"
+    },
+    {
+      "amount": {
+        "max": 10000000,
+        "min": 100000,
+        "predefined": 500000,
+        "step": 1000
+      },
+      "amountByLevel": {
+        "CUSTOMER": {
+          "max": 30000000,
+          "min": 10000
+        },
+        "CUSTOMER_ELEVATED": {
+          "max": 150000000,
+          "min": 10000
+        }
+      },
+      "amounts": [
+        500000,
+        1000000,
+        1500000,
+        2000000,
+        2500000,
+        5000000
+      ],
+      "code": "irdrIncrease",
+      "status": "active",
+      "title": "افزایش ریال دیجیتال"
+    },
+    {
+      "amount": {
+        "max": 1000000000,
+        "min": 100000,
+        "step": 10000
+      },
+      "amounts": [
+        100000,
+        200000,
+        500000,
+        1000000,
+        3000000,
+        5000000
+      ],
+      "code": "ipg",
+      "status": "ACTIVE",
+      "title": "افزایش وجه"
+    },
+    {
+      "amount": {
+        "max": 1000000000,
+        "min": 100000,
+        "step": 10000
+      },
+      "amounts": [
+        100000,
+        200000,
+        500000,
+        1000000,
+        3000000,
+        5000000
+      ],
+      "code": "mpg",
+      "status": "ACTIVE",
+      "title": "افزایش وجه"
+    },
+    {
+      "amount": {
+        "max": 1000000000,
+        "min": 100000
+      },
+      "code": "wtw",
+      "status": "ACTIVE",
+      "title": "کارت به کارت"
+    },
+    {
+      "code": "pazirandegi",
+      "status": "inactive",
+      "title": "خدمات پذیرندگی"
+    },
+    {
+      "code": "tamin",
+      "status": "inactive",
+      "title": "تامین سرمابه بانک ملت"
+    },
+    {
+      "code": "rotbe",
+      "status": "inactive",
+      "title": "رتبه بندی اعتباری"
+    },
+    {
+      "code": "insurance",
+      "status": "inactive",
+      "title": "بیمه"
+    },
+    {
+      "code": "ghove",
+      "status": "inactive",
+      "title": "قوه قضائیه"
+    },
+    {
+      "code": "sana",
+      "status": "inactive",
+      "title": "سامانه ثنا"
+    },
+    {
+      "code": "ehraz",
+      "status": "inactive",
+      "title": "احراز هوست آنلاین"
+    },
+    {
+      "code": "hamrahHooshmand",
+      "status": "inactive",
+      "title": "همراه هوشمند"
+    },
+    {
+      "code": "takhfifan",
+      "status": "inactive",
+      "title": "تخفیفان"
+    },
+    {
+      "code": "itBourse",
+      "status": "inactive",
+      "title": "آی تی بورس"
+    },
+    {
+      "code": "installment",
+      "status": "inactive",
+      "title": "پرداخت اقساط"
+    },
+    {
+      "code": "carServices",
+      "status": "inactive",
+      "title": "خدمات خودرویی"
+    },
+    {
+      "code": "taxi",
+      "status": "inactive",
+      "title": "تاکسی"
+    },
+    {
+      "code": "charity",
+      "status": "inactive",
+      "title": "نیکوکاری"
+    },
+    {
+      "code": "flight",
+      "status": "inactive",
+      "title": "سفر و گردشگری"
+    },
+    {
+      "code": "shop",
+      "status": "inactive",
+      "title": "فروشگاه"
+    }
+  ],
+  "support": {
+    "email": "sekeh@behpardakht.com",
+    "tel": "02127312731"
+  }
+}

@@ -46,8 +46,8 @@ public sealed class ChangeRowVm
 }
 
 /// <summary>
-/// Reviews what the app is holding but has not written, one tier at a time, and hands a tier to the
-/// push screen.
+/// Reviews what the app is holding but has not written, one tier at a time, and pushes it — the
+/// review and the push are one window.
 ///
 /// <para>
 /// Per tier rather than all at once, because a push is one secret, one version and one typed
@@ -67,8 +67,11 @@ public sealed class ChangeRowVm
 /// </para>
 ///
 /// <para>
-/// Nothing here writes. It hands a tier over — the same hand-off Promote used to make, into the same
-/// screen, with the same fences behind it.
+/// Nothing here writes. The push half is a <see cref="PushVm"/> for the selected tier, rebuilt
+/// whenever the tier or its changes move, so every fence the push screen had is still the one in
+/// front of the button. It used to be a second window opened from this one, which meant reviewing
+/// the keys in one window, confirming the diff in another, and closing back to the first for the
+/// next tier; the queued changes and the live diff belong on one screen, read top to bottom.
 /// </para>
 /// </summary>
 public sealed partial class ChangesVm : ObservableObject
@@ -89,13 +92,51 @@ public sealed partial class ChangesVm : ObservableObject
 
     public ObservableCollection<ChangeRowVm> Changes { get; } = [];
 
-    public ObservableCollection<DiffLineVm> PreviewLines { get; } = [];
+    /// <summary>
+    /// The push for the selected tier, or null when there is nothing it may push — no tier, no
+    /// changes, or a tier marked read-only. Replaced rather than reset, because what it would send
+    /// changes whenever a path is discarded, and a plan built against the previous payload must not
+    /// survive into the next.
+    /// </summary>
+    [ObservableProperty]
+    private PushVm? _push;
+
+    /// <summary>
+    /// What each push made from this window reported, oldest first: the new version, and anything
+    /// that went wrong after the write landed. Kept here because the window moves on to the next
+    /// tier as soon as one is pushed, and a read-back failure must not vanish with the screen it was
+    /// reported on.
+    /// </summary>
+    public ObservableCollection<string> PushReport { get; } = [];
 
     public ObservableCollection<string> Warnings { get; } = [];
 
     public ObservableCollection<TierDocument> Tiers { get; } = [];
 
-    public string Title => "Unsaved changes";
+    public string Title => "Pending changes";
+
+    /// <summary>
+    /// Whether the window performs the live read itself. Off in tests, the same switch
+    /// <see cref="PushVm"/> takes: a rendering check that quietly read production Vault would be worse
+    /// than one that failed.
+    /// </summary>
+    public bool ChecksOnOpen { get; }
+
+    /// <summary>
+    /// Set once the host has shown the window. Until then a tier change builds the push but does not
+    /// read: the constructor selects the first tier, and a network read started from a constructor is
+    /// one nobody can await or see fail.
+    /// </summary>
+    private bool _opened;
+
+    /// <summary>Whether Check again has anything to check, and is not already checking.</summary>
+    public bool CanCheck => Push is { Busy: false };
+
+    /// <summary>Names what it reads, because "Check Vault again" over a file on disk would be wrong.</summary>
+    public string CheckLabel => Push is { TierIsFile: true } ? "Check file again" : "Check Vault again";
+
+    /// <summary>Whether the push button may be pressed. Every condition behind it is the push's own.</summary>
+    public bool CanPushNow => Push is { CanPush: true };
 
     /// <summary>
     /// Whether this tier can go to the push screen, which is where it is confirmed against what its
@@ -103,9 +144,10 @@ public sealed partial class ChangesVm : ObservableObject
     /// </summary>
     public bool CanPush => Changes.Count > 0 && Tier is { Writable: true };
 
-    public ChangesVm(MainVm main)
+    public ChangesVm(MainVm main, bool checksOnOpen = true)
     {
         _main = main;
+        ChecksOnOpen = checksOnOpen;
 
         // Published first: an edit made a moment ago on another tab may not have been flattened into
         // the documents yet, and a review screen that opened saying "nothing to write" would be
@@ -124,10 +166,104 @@ public sealed partial class ChangesVm : ObservableObject
         Tier = Tiers.FirstOrDefault();
     }
 
-    partial void OnTierChanged(TierDocument? value)
+    partial void OnTierChanged(TierDocument? value) => BuildChangeList();
+
+    /// <summary>
+    /// Called by the host once the window is on screen, and reads the selected tier's source: the
+    /// comparison is half of what this window shows, and it has nothing to show until it has one.
+    /// </summary>
+    public async Task OpenedAsync()
     {
-        PreviewLines.Clear();
-        BuildChangeList();
+        _opened = true;
+
+        if (ChecksOnOpen && Push is { } push)
+        {
+            await push.CheckVaultAsync().ConfigureAwait(true);
+        }
+    }
+
+    /// <summary>Reads the source again and rebuilds the comparison. A read — nothing is sent.</summary>
+    [RelayCommand(CanExecute = nameof(CanCheck))]
+    private Task CheckAgainAsync() => Push?.CheckVaultAsync() ?? Task.CompletedTask;
+
+    /// <summary>
+    /// Builds the push for what this tier now holds, and reads its source once the window is up.
+    ///
+    /// <para>
+    /// Rebuilt after every discard as well as every tier change: the payload is the tier's live
+    /// document, so taking one path back changes what would be sent, and the diff on screen has to be
+    /// against that rather than the payload it was checked with a moment ago.
+    /// </para>
+    /// </summary>
+    private void RebuildPush()
+    {
+        if (Push is { } previous)
+        {
+            previous.PropertyChanged -= OnPushChanged;
+        }
+
+        Push = Tier is { Writable: true } tier && Changes.Count > 0
+            ? new PushVm(_main, tier, tier.Live, What, checksOnOpen: false)
+            : null;
+
+        if (Push is { } push)
+        {
+            push.PropertyChanged += OnPushChanged;
+
+            if (_opened && ChecksOnOpen)
+            {
+                // Not awaited: this runs from a property setter. The check reports its own failure as
+                // the push's Problem, so nothing is lost by not waiting for it here.
+                _ = push.CheckVaultAsync();
+            }
+        }
+
+        NotifyPushState();
+    }
+
+    private void OnPushChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(PushVm.Busy) or nameof(PushVm.CanPush))
+        {
+            NotifyPushState();
+        }
+    }
+
+    private void NotifyPushState()
+    {
+        OnPropertyChanged(nameof(CanCheck));
+        OnPropertyChanged(nameof(CheckLabel));
+        OnPropertyChanged(nameof(CanPushNow));
+        CheckAgainCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <summary>
+    /// Pushes the selected tier and, once it has gone through, moves on to the next tier still holding
+    /// changes — a batch across four tiers is four confirmations in one window.
+    /// </summary>
+    [RelayCommand]
+    private async Task PushAsync()
+    {
+        if (Push is not { CanPush: true } push)
+        {
+            return;
+        }
+
+        await push.PushCommand.ExecuteAsync(null).ConfigureAwait(true);
+
+        if (push.PushedTier is null)
+        {
+            // Refused or failed. The push says why, and stays on screen to say it.
+            return;
+        }
+
+        PushReport.Add(push.Message);
+        foreach (var note in push.Notes)
+        {
+            PushReport.Add(note);
+        }
+
+        Pushed();
     }
 
     private void BuildChangeList()
@@ -137,9 +273,10 @@ public sealed partial class ChangesVm : ObservableObject
 
         if (Tier is null || _main.Store.Find(Tier.Id) is not { } editor)
         {
-            Message = "Nothing has been changed.";
+            Message = PushReport.Count > 0 ? "Pushed. Nothing is unsaved now." : "Nothing has been changed.";
             TargetDescription = string.Empty;
             OnPropertyChanged(nameof(CanPush));
+            RebuildPush();
             return;
         }
 
@@ -174,6 +311,8 @@ public sealed partial class ChangesVm : ObservableObject
             : $"{Changes.Count} change(s) held in memory for {Tier.Id}, written to no source yet.";
 
         OnPropertyChanged(nameof(CanPush));
+        OnPropertyChanged(nameof(What));
+        RebuildPush();
     }
 
     /// <summary>
@@ -230,7 +369,6 @@ public sealed partial class ChangesVm : ObservableObject
         _main.PublishEdits();
         _main.Tiers?.NotifyEditsChanged();
 
-        PreviewLines.Clear();
         Refresh();
     }
 
@@ -272,93 +410,34 @@ public sealed partial class ChangesVm : ObservableObject
     }
 
     /// <summary>
-    /// What this tier has changed, as a document diff against the state it was read in.
-    ///
-    /// <para>
-    /// A local preview, and it says so: the authoritative comparison is the one the push screen makes
-    /// against what the source holds at the moment of pushing. This one answers the narrower question
-    /// you are on this screen to ask — did my six edits do what I meant them to.
-    /// </para>
-    /// </summary>
-    [RelayCommand]
-    private void Preview()
-    {
-        PreviewLines.Clear();
-
-        if (Tier is null || _main.Store.Find(Tier.Id) is not { } editor)
-        {
-            return;
-        }
-
-        string before, after;
-        try
-        {
-            before = editor.OriginalText;
-            after = editor.WorkingText;
-        }
-        catch (Exception ex)
-        {
-            Message = $"Could not build the comparison: {ex.Message}";
-            return;
-        }
-
-        // Only the rows that differ: the question this screen is open to answer is "did my six edits
-        // do what I meant them to", and the document around them is not part of the answer.
-        foreach (var line in DiffLineVm.Build(before, after, includeUnchanged: false).Lines)
-        {
-            PreviewLines.Add(line);
-        }
-
-        Message = PreviewLines.Count == 0
-            ? "Nothing differs from the state this tier was read in."
-            : $"{PreviewLines.Count} changed line(s), against {Tier.Id} as it was read. " +
-              "Push compares against what that source holds at that moment.";
-
-        OnPropertyChanged(nameof(CanPush));
-    }
-
-    /// <summary>
     /// The document this tier would send. It is simply what the tier now says — there is nothing left
     /// to apply, because the changes were applied when they were made.
     /// </summary>
     public JsonNode? BuildUpdated() => CanPush ? Tier?.Live : null;
 
-    /// <summary>
-    /// The push this screen would hand on, or null when there is nothing to hand on. Asked instead of
-    /// spelling out "if there is a tier and it has changes" at each of the two hosts' buttons.
-    /// </summary>
-    public PendingPush? PendingPush() =>
-        Tier is { } tier && BuildUpdated() is { } updated
-            ? new PendingPush(tier, updated, What)
-            : null;
-
-    /// <summary>One phrase naming this batch, carried onto the push screen.</summary>
+    /// <summary>One phrase naming this batch, shown beside the destination.</summary>
     public string What => Tier is null
         ? string.Empty
         : $"{Changes.Count} in-memory change(s) on {Tier.Id}";
 
     /// <summary>
-    /// Called by the dialog once a push has gone through: that tier is now what its source holds, so
-    /// it has nothing unsaved left.
+    /// After a push has gone through: that tier is now what its source holds, so it has nothing
+    /// unsaved left, and the window moves to the next tier that does.
+    ///
+    /// <para>
+    /// Rebuilt from the documents rather than by removing the tier from the picker: the push adopted
+    /// the read-back, which replaced the document set, and a picker still holding the instances from
+    /// before would hand the next push a tier object nothing else is looking at.
+    /// </para>
     /// </summary>
-    public void Pushed()
+    private void Pushed()
     {
-        if (Tier is not { } tier)
+        if (Tier is { } tier)
         {
-            return;
+            _main.Store.Drop(tier.Id);
         }
 
-        _main.Store.Drop(tier.Id);
         _main.Tiers?.NotifyEditsChanged();
-
-        Tiers.Remove(tier);
-        Tier = Tiers.FirstOrDefault();
-
-        if (Tier is null)
-        {
-            Changes.Clear();
-            Message = "Pushed. Nothing is unsaved now.";
-            OnPropertyChanged(nameof(CanPush));
-        }
+        Refresh();
     }
 }

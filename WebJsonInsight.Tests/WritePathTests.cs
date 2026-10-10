@@ -66,11 +66,11 @@ public sealed class WritePathTests : TestContext
     }
 
     /// <summary>
-    /// With every source read-only there is nothing this app may upload, so the push screen does not
-    /// open at all rather than opening onto an empty picker.
+    /// A read-only tier's changes are still reviewed — they are real, and discarding them is still
+    /// possible — but the window offers no push for them, and says where it would have gone.
     /// </summary>
     [Fact]
-    public void Pushing_with_no_writable_source_is_refused()
+    public void A_read_only_tier_is_reviewed_but_offers_no_push()
     {
         var readOnly = new[]
         {
@@ -78,43 +78,90 @@ public sealed class WritePathTests : TestContext
             Fixtures.AsTier("stage", 1, "{\"A\":2}", writable: false),
         };
 
-        var (_, dialogs) = Seeded(readOnly);
+        var (main, _) = Seeded(readOnly);
 
-        dialogs.OpenPush();
+        main.Store.ApplyTree(main.Documents[0], System.Text.Json.Nodes.JsonNode.Parse("{\"A\":5}")!);
+        main.PublishEdits();
 
-        Assert.Null(dialogs.Push);
-        Assert.Contains("nothing this app may upload", dialogs.Refusal!, StringComparison.Ordinal);
+        var changes = new ChangesVm(main, checksOnOpen: false);
+
+        Assert.Equal("dev", changes.Tier!.Id);
+        Assert.NotEmpty(changes.Changes);
+        Assert.Null(changes.Push);
+        Assert.False(changes.CanPushNow);
     }
 
     // -------------------------------------------------------------- the push
 
+    /// <summary>Changes the Hub timeout on dev in memory, the way the Edit dialog does.</summary>
+    private static void EditDev(MainVm main)
+    {
+        var edit = new EditVm(main, ["PaymentSettings:Hub:Timeout"]);
+        var row = edit.Rows.First(r => r.TierId == "dev");
+        row.Action = RowAction.Set;
+        row.NewValue = "999";
+        row.Kind = System.Text.Json.JsonValueKind.Number;
+        edit.QueueCommand.Execute(null);
+    }
+
     /// <summary>
-    /// The fences, as the screen enforces them. CanPush wants a live read behind it, a real
+    /// The fences, as the merged window enforces them. CanPush wants a live read behind it, a real
     /// difference to send, and the tier's name typed out — and none of those is a formality: the
     /// first is where the check-and-set version comes from.
     /// </summary>
     [Fact]
     public void Push_stays_disabled_until_checked_and_confirmed()
     {
-        var main = Fixtures.NewMain();
-        Services.AddSingleton(main);
+        var (main, _) = Seeded();
+        EditDev(main);
 
-        var push = new PushVm(main, main.Documents[0], checksOnOpen: false);
+        var changes = new ChangesVm(main, checksOnOpen: false);
+        var push = changes.Push!;
 
-        var page = RenderComponent<PushDialog>(p => p
-            .Add(c => c.Vm, push)
+        var page = RenderComponent<ChangesDialog>(p => p
+            .Add(c => c.Vm, changes)
             .Add(c => c.OnClose, () => { }));
 
         Assert.False(push.CanPush);
 
         // Typing the name is not enough on its own: nothing has been read, so there is no version to
         // carry as a check-and-set and nothing to diff against.
-        push.ConfirmText = main.Documents[0].Id;
+        push.ConfirmText = "dev";
         Assert.False(push.HasChecked);
-        Assert.False(push.CanPush);
+        Assert.False(changes.CanPushNow);
 
         var button = page.FindAll("button").First(b => b.TextContent.Contains("Push to Vault", StringComparison.Ordinal));
         Assert.True(button.HasAttribute("disabled"));
+
+        // The confirmation box itself is off until there is a read to confirm against.
+        Assert.True(page.Find("#push-confirm").HasAttribute("disabled"));
+    }
+
+    /// <summary>
+    /// One window: the queued keys and the push for them, with no Preview button and no second
+    /// diff against the tier as it was read — only the one against the source as it is now.
+    /// </summary>
+    [Fact]
+    public void Pending_changes_shows_the_queued_keys_above_the_live_diff_in_one_window()
+    {
+        var (main, _) = Seeded();
+        EditDev(main);
+
+        var changes = new ChangesVm(main, checksOnOpen: false);
+
+        var page = RenderComponent<ChangesDialog>(p => p
+            .Add(c => c.Vm, changes)
+            .Add(c => c.OnClose, () => { }));
+
+        var markup = page.Markup;
+        var queued = markup.IndexOf("QUEUED CHANGES", StringComparison.Ordinal);
+        var diff = markup.IndexOf("WHAT THE PUSH WOULD CHANGE", StringComparison.Ordinal);
+
+        Assert.True(queued >= 0 && diff > queued, "The queued changes should sit above the push preview.");
+        Assert.Contains("PaymentSettings:Hub:Timeout", markup, StringComparison.Ordinal);
+        Assert.DoesNotContain(page.FindAll("button"), b => b.TextContent.Trim() == "Preview");
+        Assert.Contains(page.FindAll("button"), b => b.TextContent.Contains("Check Vault again", StringComparison.Ordinal));
+        Assert.Contains(page.FindAll("button"), b => b.TextContent.Contains("Discard this tier's changes", StringComparison.Ordinal));
     }
 
     /// <summary>The confirmation is the tier's own name, and nothing else will do.</summary>
@@ -138,26 +185,25 @@ public sealed class WritePathTests : TestContext
     }
 
     /// <summary>
-    /// A supplied document fixes the tier: a promote plan or an edited document belongs to the tier it
-    /// was built against, and a picker beside it would offer to push one tier's changes into another.
+    /// The push belongs to the tier picked above it: its own tier is fixed, so there is one picker in
+    /// the window rather than a second one that could push one tier's changes into another.
     /// </summary>
     [Fact]
-    public void A_supplied_document_fixes_the_destination()
+    public void The_push_is_fixed_to_the_tier_being_reviewed()
     {
-        var main = Fixtures.NewMain();
-        Services.AddSingleton(main);
+        var (main, _) = Seeded();
+        EditDev(main);
 
-        var dev = main.Documents.First(d => d.Id == "dev");
-        var push = new PushVm(main, dev, dev.Root, "a promoted subtree", checksOnOpen: false);
+        var changes = new ChangesVm(main, checksOnOpen: false);
 
-        var page = RenderComponent<PushDialog>(p => p
-            .Add(c => c.Vm, push)
+        var page = RenderComponent<ChangesDialog>(p => p
+            .Add(c => c.Vm, changes)
             .Add(c => c.OnClose, () => { }));
 
-        Assert.True(push.IsTierFixed);
-        Assert.Single(push.Tiers);
-        Assert.Empty(page.FindAll("#push-tier"));
-        Assert.Contains("a promoted subtree", page.Markup, StringComparison.Ordinal);
+        Assert.True(changes.Push!.IsTierFixed);
+        Assert.Single(changes.Push.Tiers);
+        Assert.Single(page.FindAll("select"));
+        Assert.Contains(changes.What, page.Markup, StringComparison.Ordinal);
     }
 
     // ------------------------------------------------------------- the edits
@@ -267,11 +313,11 @@ public sealed class WritePathTests : TestContext
     // ------------------------------------------------------------ the wiring
 
     /// <summary>
-    /// Promote and Pending changes do not write. They build a document and hand it to the one push
-    /// screen, which is where the live re-read, the diff and the typed confirmation live.
+    /// Promote does not write. It lands the subtree in memory, and Pending changes is then where it is
+    /// reviewed and pushed — the live re-read, the diff and the typed confirmation.
     /// </summary>
     [Fact]
-    public void Promote_hands_off_to_the_push_screen_rather_than_writing()
+    public void A_promotion_is_pushed_from_pending_changes_rather_than_written()
     {
         var (main, dialogs) = Seeded();
 
@@ -279,16 +325,16 @@ public sealed class WritePathTests : TestContext
         dialogs.OpenPromote(row);
 
         var promote = dialogs.Promote!;
-        promote.Destination = promote.Destinations.First();
+        var destination = promote.Destinations.First();
+        promote.Destination = destination;
 
-        var updated = promote.BuildUpdated();
-        Assert.NotNull(updated);
+        Assert.True(promote.Apply());
 
-        dialogs.OpenPush(promote.Destination, updated, promote.What);
+        dialogs.OpenChanges();
 
         Assert.Null(dialogs.Promote);
-        Assert.NotNull(dialogs.Push);
-        Assert.True(dialogs.Push!.IsTierFixed);
+        Assert.NotNull(dialogs.Changes);
+        Assert.Equal(destination.Id, dialogs.Changes!.Push!.Tier!.Id);
     }
 
     /// <summary>The host renders whichever dialog is open, and nothing when none is.</summary>

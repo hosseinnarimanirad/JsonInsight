@@ -1123,6 +1123,12 @@ public sealed partial class MainVm : ObservableObject
         // Opens on nothing: there are no snapshot files to preselect any more, and this tab is for
         // whatever two JSON files you have — a payload someone sent you, an export, a backup.
         JsonCompare ??= new JsonCompareVm(_loader!, _aliases!);
+
+        // Every way in here can change what is unsaved without going through PublishEdits: a push
+        // drops its tier's edits and adopts the read-back, a pull or a single-source load drops the
+        // edits made against what it replaced. Without this the top bar's push button stayed lit
+        // after a successful push, offering to write changes that had already been written.
+        NoteUnsavedChanged();
     }
 
     /// <summary>
