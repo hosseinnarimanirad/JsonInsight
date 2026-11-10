@@ -536,7 +536,23 @@
                             <TextBlock Text="{Binding PaneHeader}" VerticalAlignment="Center"
                                        Style="{StaticResource Text.SectionLabel}"
                                        TextTrimming="CharacterEllipsis"
-                                       ToolTip="This pane holds the selected node's whole subtree. Update node replaces that node with whatever is here — it is not a patch, and the keys it does not mention are gone." />
+                                       Visibility="{Binding ShowingEditorText, Converter={StaticResource BoolVis}, ConverterParameter=invert}" />
+
+                            <!-- While the pane holds the editable JSON, the header is the node's path,
+                                 as the All tiers strip shows it: the name of what Update node replaces.
+                                 Click the path, or the icon, to copy it - the path, never the value. -->
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                                        Visibility="{Binding ShowingEditorText, Converter={StaticResource BoolVis}}">
+                                <Button Style="{StaticResource Button.Icon}" Content="&#xE8C8;" FontSize="11"
+                                        Command="{Binding CopySelectedPathCommand}" Margin="0,0,4,0"
+                                        Visibility="{Binding SelectedPath, Converter={StaticResource NotEmptyVis}}"
+                                        ToolTip="Copy this path to the clipboard" />
+                                <TextBlock Text="{Binding PathLabel}" Style="{StaticResource Text.Mono}"
+                                           FontWeight="SemiBold" VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis" Cursor="Hand"
+                                           MouseLeftButtonUp="OnPathClick"
+                                           ToolTip="Click to copy this path. The pane holds this node's whole subtree; Update node replaces it with whatever is there - not a patch, so keys it does not mention are gone." />
+                            </StackPanel>
                         </DockPanel>
                     </Border>
 

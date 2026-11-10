@@ -128,6 +128,10 @@ public partial class JsonEditorView : UserControl
 
     private void OnCopyRowValue(object sender, RoutedEventArgs e) => CopyRow(sender, withKey: false);
 
+    /// <summary>The pane header's path copies on click, as the All tiers strip's does.</summary>
+    private void OnPathClick(object sender, System.Windows.Input.MouseButtonEventArgs e) =>
+        Vm?.CopySelectedPathCommand.Execute(null);
+
     /// <summary>The context menu's History…, for the row right-clicked — see <see cref="CopyRow"/>.</summary>
     private void OnShowRowHistory(object sender, RoutedEventArgs e)
     {

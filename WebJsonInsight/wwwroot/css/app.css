@@ -1222,6 +1222,14 @@ select.field { cursor: pointer; }
 .tree-row:hover .row-copy { visibility: visible; }
 .row-copy:hover { color: var(--brush-text); background: var(--brush-hover); }
 .row-copy.row-history { margin-left: 0; }
+.row-copy.visible { visibility: visible; margin-left: 0; }
+
+/* The Tier editor pane header's path: the All tiers strip's path, one line. */
+.pane-path { display: flex; align-items: center; gap: 4px; min-width: 0; flex: 1; }
+.pane-path .detail-path {
+    font-family: var(--font-mono); font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 
 .tree-name { font-family: var(--font-mono); }
 

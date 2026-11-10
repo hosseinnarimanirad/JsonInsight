@@ -226,9 +226,27 @@ else
             @* -------------------------------- Pane -------------------------------- *@
             <div class="card card-flush editor-pane">
                 <div class="pane-head">
-                    <span class="section-label" title="Replace this node wholesale. Any valid JSON is accepted, including a different shape.">
-                        @Vm.PaneHeader
-                    </span>
+                    @if (Vm.ShowingEditorText)
+                    {
+                        @* The node's path, as the All tiers strip shows it: the name of what Update
+                           node replaces. Click to copy — the path, never the value. *@
+                        <span class="pane-path">
+                            @if (Vm.SelectedPath.Length > 0)
+                            {
+                                <button class="row-copy visible" title="Copy this path to the clipboard"
+                                        @onclick="() => Vm.CopySelectedPathCommand.Execute(null)">
+                                    <Icon Name="copy" Size="11" />
+                                </button>
+                            }
+                            <button class="detail-path" title="Click to copy this path. The pane holds this node's whole subtree; Update node replaces it with whatever is there — not a patch."
+                                    disabled="@(Vm.SelectedPath.Length == 0)"
+                                    @onclick="() => Vm.CopySelectedPathCommand.Execute(null)">@Vm.PathLabel</button>
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="section-label">@Vm.PaneHeader</span>
+                    }
 
                     <div class="pane-head-actions">
                         @if (Vm.ShowingEditorText)

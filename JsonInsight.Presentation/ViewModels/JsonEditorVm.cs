@@ -656,6 +656,50 @@ public sealed partial class JsonEditorVm : ObservableObject
     /// The right-hand pane's own label. It names the scope while comparing, because a node-scoped
     /// diff that does not say which node it is showing is indistinguishable from a stale one.
     /// </summary>
+    /// <summary>
+    /// The selected node's full path — <c>AccountSettings:BornaApprovalJob</c> — in the colon form the
+    /// configuration binder and the All tiers strip use, or empty for the root and for no selection.
+    /// </summary>
+    public string SelectedPath => SelectedNode is { Path.Length: > 0 } node ? node.Path : string.Empty;
+
+    /// <summary>
+    /// What the pane header names while the pane shows the editable JSON: the node's path, so the
+    /// header says <em>which</em> node is in the pane rather than a fixed label. The path keeps its own
+    /// casing — this file treats Url and URL as two keys.
+    /// </summary>
+    public string PathLabel => SelectedNode switch
+    {
+        null => "No node selected",
+        { Path.Length: 0 } => $"{Tier?.Label ?? "document"} — whole document",
+        { } node => node.Path,
+    };
+
+    /// <summary>
+    /// Copies <see cref="SelectedPath"/> — the path, never the value, as the All tiers strip does:
+    /// values here carry live credentials, and a key path is what gets pasted into a report.
+    /// </summary>
+    [RelayCommand]
+    private void CopySelectedPath()
+    {
+        if (SelectedPath.Length == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            JsonInsight.Platform.Platform.Clipboard.SetText(SelectedPath);
+        }
+        catch (Exception ex)
+        {
+            Error = $"Could not copy: {ex.Message}";
+            return;
+        }
+
+        Error = null;
+        Message = $"Copied {SelectedPath}";
+    }
+
     public string PaneHeader
     {
         get
@@ -838,6 +882,8 @@ public sealed partial class JsonEditorVm : ObservableObject
         }
 
         OnPropertyChanged(nameof(CanShowHistory));
+        OnPropertyChanged(nameof(SelectedPath));
+        OnPropertyChanged(nameof(PathLabel));
         OnPropertyChanged(nameof(CanRevertNode));
         OnPropertyChanged(nameof(CanRemoveNode));
         OnPropertyChanged(nameof(SelectedIsRemoved));
