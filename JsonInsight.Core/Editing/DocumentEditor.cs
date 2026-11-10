@@ -143,7 +143,7 @@ public sealed class DocumentEditor
     public bool IsRemovedSinceOpened(string path) =>
         path.Length > 0 && Holds(Original, path) && !Holds(Working, path);
 
-    private static bool Holds(JsonNode root, string path)
+    internal static bool Holds(JsonNode root, string path)
     {
         if (IsArrayElement(path))
         {

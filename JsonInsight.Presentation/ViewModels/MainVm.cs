@@ -1058,7 +1058,7 @@ public sealed partial class MainVm : ObservableObject
         }
 
         Tiers?.Refresh(updated, Unavailable);
-        RawDiff = new RawDiffVm(updated);
+        RawDiff = new RawDiffVm(updated, new SettingsHistoryReader(Flattener));
 
         // The Tier editor is kept rather than rebuilt, so it has to be told: a key changed on the All
         // tiers tab lands in the same document it is showing, and without this it would go on
@@ -1099,7 +1099,7 @@ public sealed partial class MainVm : ObservableObject
             Tiers.Refresh(documents, Unavailable);
         }
 
-        RawDiff = new RawDiffVm(documents);
+        RawDiff = new RawDiffVm(documents, new SettingsHistoryReader(Flattener));
 
         // Rebuilt rather than refreshed: its whole state is an in-memory edit of a specific document,
         // and carrying that across a reload would mean editing one tree while showing another.

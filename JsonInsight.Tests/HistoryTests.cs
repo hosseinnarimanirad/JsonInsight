@@ -235,6 +235,25 @@ public sealed class NodeHistoryTests
         Assert.Contains("hunter2-new", history[0].Text, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// A key set to JSON null is a real state, distinct from the key being absent — restoring it must
+    /// put the null back rather than remove the key.
+    /// </summary>
+    [Fact]
+    public void A_key_set_to_null_is_present_not_absent()
+    {
+        var history = NodeHistory.Build("A",
+        [
+            Version(1, """{ "A": null }"""),
+            Version(2, """{ }"""),
+            Version(3, """{ "A": null }"""),
+        ]);
+
+        Assert.Equal([NodeChange.Added, NodeChange.Removed, NodeChange.Added], history.Select(r => r.Change));
+        Assert.Equal("null", history[0].Text);
+        Assert.Null(history[1].Text);
+    }
+
     [Fact]
     public void A_long_value_is_cut_short_in_the_preview()
     {

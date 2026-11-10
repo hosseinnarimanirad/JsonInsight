@@ -1,0 +1,136 @@
+@*
+    The Tier editor's history panel: the versions of the open tier's secret and what each did to the
+    selected node, as a narrow list beside the editor — the JetBrains "history for selection" / VS Code
+    Timeline shape. The diff is not in here: it takes the editor pane (see TierEditorTab), which is the
+    widest place on the tab.
+
+    Its versions are read when the panel opens and dropped when it closes. ↑/↓ move through the list
+    and the diff follows; Esc closes. Restore does not write anything: it hands the old value to the
+    editor as an ordinary edit, which goes out through the push window like any other.
+*@
+@inherits ObservingComponent<NodeHistoryVm>
+
+@if (Vm is not null)
+{
+    <div class="card card-flush history" @onkeydown="OnKey">
+        <div class="pane-head">
+            <span class="section-label" title="@Vm.Title">@Vm.Title</span>
+            <div class="pane-head-actions">
+                <button class="btn-ghost-tiny" title="Close the history (Esc). Every version it read is dropped."
+                        @onclick="Close">
+                    <Icon Name="close" />
+                </button>
+            </div>
+        </div>
+
+        <div class="history-options">
+            <div class="segment" role="group" aria-label="Scope">
+                <button class="btn btn-small @(Vm.WholeDocument ? "" : "toggled")"
+                        @onclick="() => Vm.WholeDocument = false"
+                        title="The versions that changed the selected node, and its diff.">This node</button>
+                <button class="btn btn-small @(Vm.WholeDocument ? "toggled" : "")"
+                        @onclick="() => Vm.WholeDocument = true"
+                        title="The versions that changed anything in this secret, and the whole document's changed lines.">Whole document</button>
+            </div>
+            <div class="history-switches">
+                <button class="switch small @(Vm.ShowAll ? "on" : "")"
+                        @onclick="() => Vm.ShowAll = !Vm.ShowAll"
+                        title="Also list the versions in which this node did not change.">
+                    <span class="switch-track"><span class="switch-knob"></span></span>
+                    <span>@Vm.ShowAllLabel</span>
+                </button>
+                <button class="switch small @(Vm.ComparePrevious ? "on" : "")"
+                        @onclick="() => Vm.ComparePrevious = !Vm.ComparePrevious"
+                        title="Off: the chosen version against what the editor holds now. On: the chosen version against the one before it — what that version changed.">
+                    <span class="switch-track"><span class="switch-knob"></span></span>
+                    <span>vs previous</span>
+                </button>
+            </div>
+            @if (Vm.Status.Length > 0)
+            {
+                <p class="caption">
+                    @if (Vm.IsBusy)
+                    {
+                        <span class="spinning"><Icon Name="refresh" Size="12" /></span>
+                    }
+                    @Vm.Status
+                </p>
+            }
+        </div>
+
+        @* The list takes the rest of the height: two lines a row — version, change and age; then the value. *@
+        <div class="history-list" tabindex="0" aria-label="Versions">
+            @foreach (var row in Vm.Rows)
+            {
+                <div class="history-row @(ReferenceEquals(row, Vm.Selected) ? "selected" : "") @(row.IsEnabled ? "" : "disabled")"
+                     title="@row.Details" @onclick="() => Pick(row)">
+                    <div class="h-line">
+                        <span class="h-label">@row.Label</span>
+                        <span class="h-change">@row.ChangeText</span>
+                        @if (row.InVaultNow)
+                        {
+                            <span class="h-badge">in Vault</span>
+                        }
+                        <span class="h-age">@row.Age</span>
+                    </div>
+                    <div class="h-preview">@row.Preview</div>
+                </div>
+            }
+            @if (Vm.Rows.Count == 0 && !Vm.IsBusy)
+            {
+                <div class="grid-empty">No version changed this node.</div>
+            }
+        </div>
+
+        <div class="history-foot">
+            @if (Vm.Note is { } note)
+            {
+                <p class="caption">@note</p>
+            }
+            <div class="history-actions">
+                <button class="btn btn-small" disabled="@(!Vm.CanCopy)"
+                        @onclick="() => Vm.CopyCommand.Execute(null)"
+                        title="Copy this node's value as the chosen version had it.">
+                    <Icon Name="copy" Size="13" /> <span>Copy value</span>
+                </button>
+                <button class="btn btn-small btn-primary" disabled="@(!Vm.CanRestore)"
+                        @onclick="() => Vm.RestoreCommand.Execute(null)"
+                        title="Put this version's value back into the node as an ordinary edit. Nothing is written: push it from the title bar, like any other change. Off for the whole document, and when the version already matches.">
+                    @Vm.RestoreLabel
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    protected override void ObserveAlso(NodeHistoryVm? vm) => Observe(vm?.Rows);
+
+    private void Pick(RevisionRowVm row)
+    {
+        if (row.IsEnabled)
+        {
+            Vm!.Selected = row;
+        }
+    }
+
+    private async Task Close() => await OnClose.InvokeAsync();
+
+    private async Task OnKey(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "ArrowDown":
+                Vm!.MoveCommand.Execute(1);
+                break;
+            case "ArrowUp":
+                Vm!.MoveCommand.Execute(-1);
+                break;
+            case "Escape":
+                await Close();
+                break;
+        }
+    }
+}

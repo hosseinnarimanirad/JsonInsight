@@ -10,19 +10,74 @@
     <DockPanel>
         <Border DockPanel.Dock="Top" Style="{StaticResource Card}" Margin="0,0,0,10">
             <StackPanel>
-                <StackPanel Orientation="Horizontal">
+                <!-- Each side is a source and a version of it. The version picker's last entry,
+                     "Earlier versions…", is what reads the list from Vault: nothing is asked until
+                     it is picked, and nothing read outlives this tab. -->
+                <WrapPanel Orientation="Horizontal">
                     <ComboBox ItemsSource="{Binding Documents}" SelectedItem="{Binding Left}"
-                              DisplayMemberPath="Label" MinWidth="240" />
+                              DisplayMemberPath="Label" MinWidth="200" ToolTip="Left-hand source" />
+                    <ComboBox ItemsSource="{Binding LeftSide.Versions}" SelectedItem="{Binding LeftSide.Selected}"
+                              MinWidth="230" Margin="6,0,0,0" ToolTip="Which version of the left-hand source"
+                              IsEnabled="{Binding LeftSide.IsBusy, Converter={StaticResource NotBool}}">
+                        <ComboBox.ItemContainerStyle>
+                            <Style TargetType="{x:Type ComboBoxItem}" BasedOn="{StaticResource {x:Type ComboBoxItem}}">
+                                <Setter Property="IsEnabled" Value="{Binding IsEnabled}" />
+                                <!-- A deleted or destroyed version is listed so the history has no
+                                     silent hole in it, and greyed because it cannot be read. -->
+                                <Style.Triggers>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter Property="Opacity" Value="0.5" />
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ComboBox.ItemContainerStyle>
+                    </ComboBox>
+                    <Button Style="{StaticResource Button.Icon}" Content="&#xE8C8;" Margin="4,0,0,0"
+                            Command="{Binding CopyCommand}" CommandParameter="left"
+                            ToolTip="Copy the left-hand JSON" />
+
                     <Button Style="{StaticResource Button.Icon}" Content="&#xE8AB;" Margin="8,0"
                             Command="{Binding SwapCommand}" ToolTip="Swap sides" />
+
                     <ComboBox ItemsSource="{Binding Documents}" SelectedItem="{Binding Right}"
-                              DisplayMemberPath="Label" MinWidth="240" />
+                              DisplayMemberPath="Label" MinWidth="200" ToolTip="Right-hand source" />
+                    <ComboBox ItemsSource="{Binding RightSide.Versions}" SelectedItem="{Binding RightSide.Selected}"
+                              MinWidth="230" Margin="6,0,0,0" ToolTip="Which version of the right-hand source"
+                              IsEnabled="{Binding RightSide.IsBusy, Converter={StaticResource NotBool}}">
+                        <ComboBox.ItemContainerStyle>
+                            <Style TargetType="{x:Type ComboBoxItem}" BasedOn="{StaticResource {x:Type ComboBoxItem}}">
+                                <Setter Property="IsEnabled" Value="{Binding IsEnabled}" />
+                                <!-- A deleted or destroyed version is listed so the history has no
+                                     silent hole in it, and greyed because it cannot be read. -->
+                                <Style.Triggers>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter Property="Opacity" Value="0.5" />
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ComboBox.ItemContainerStyle>
+                    </ComboBox>
+                    <Button Style="{StaticResource Button.Icon}" Content="&#xE8C8;" Margin="4,0,0,0"
+                            Command="{Binding CopyCommand}" CommandParameter="right"
+                            ToolTip="Copy the right-hand JSON" />
+
                     <CheckBox Content="Hide unchanged lines" IsChecked="{Binding HideUnchanged}"
-                              Margin="18,0,0,0" />
-                </StackPanel>
+                              Margin="18,0,0,0" VerticalAlignment="Center" />
+                </WrapPanel>
+
+                <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,6,0,0"
+                           Visibility="{Binding LeftSide.Status, Converter={StaticResource NotEmptyVis}}">
+                    <Run Text="Left:" /> <Run Text="{Binding LeftSide.Status, Mode=OneWay}" />
+                </TextBlock>
+                <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,4,0,0"
+                           Visibility="{Binding RightSide.Status, Converter={StaticResource NotEmptyVis}}">
+                    <Run Text="Right:" /> <Run Text="{Binding RightSide.Status, Mode=OneWay}" />
+                </TextBlock>
 
                 <TextBlock Text="{Binding Summary}" Style="{StaticResource Text.Base}"
                            FontWeight="SemiBold" Margin="0,10,0,0" />
+                <TextBlock Text="{Binding CopyNote}" Style="{StaticResource Text.Caption}" Margin="0,4,0,0"
+                           Visibility="{Binding CopyNote, Converter={StaticResource NotEmptyVis}}" />
                 <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,4,0,0"
                            Text="Both sides are serialized through the same writer before diffing, so what appears here is a real content difference rather than a formatting artefact." />
             </StackPanel>

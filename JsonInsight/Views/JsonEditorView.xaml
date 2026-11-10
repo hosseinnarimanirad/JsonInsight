@@ -129,6 +129,114 @@
                        FontSize="12" TextWrapping="Wrap" />
         </ContentControl>
 
+        <!-- The history panel: the versions of this tier's secret and what each did to the selected
+             node, as a narrow list beside the editor - the JetBrains "history for selection" / VS Code
+             Timeline shape. The diff is not in here: it takes the editor pane, which is the widest
+             place on the tab. Versions are read when the panel opens and dropped when it closes. -->
+        <Border DockPanel.Dock="Right" Width="330" Margin="10,0,0,0" Style="{StaticResource Card.Flush}"
+                Visibility="{Binding IsHistoryOpen, Converter={StaticResource BoolVis}}">
+            <Border.InputBindings>
+                <KeyBinding Key="Escape" Command="{Binding CloseHistoryCommand}" />
+            </Border.InputBindings>
+
+            <DockPanel DataContext="{Binding History}">
+                <Border DockPanel.Dock="Top" Style="{StaticResource TableHeader}">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Style="{StaticResource Button.Icon}" Content="&#xE711;"
+                                Command="{Binding DataContext.CloseHistoryCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                ToolTip="Close the history (Esc). Every version it read is dropped." />
+                        <TextBlock Text="{Binding Title}" Style="{StaticResource Text.SectionLabel}"
+                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                   ToolTip="{Binding Title}" />
+                    </DockPanel>
+                </Border>
+
+                <!-- Scope as a two-part segment, then the two display switches on one line. -->
+                <StackPanel DockPanel.Dock="Top" Margin="10,8,10,0">
+                    <UniformGrid Columns="2">
+                        <ToggleButton Style="{StaticResource Toggle.Small}" Content="This node"
+                                      IsChecked="{Binding NodeScope}" Margin="0,0,2,0"
+                                      ToolTip="The versions that changed the selected node, and its diff." />
+                        <ToggleButton Style="{StaticResource Toggle.Small}" Content="Whole document"
+                                      IsChecked="{Binding WholeDocument}" Margin="2,0,0,0"
+                                      ToolTip="The versions that changed anything in this secret, and the whole document's changed lines." />
+                    </UniformGrid>
+                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                        <CheckBox Style="{StaticResource Switch.Filter}" Content="{Binding ShowAllLabel}"
+                                  IsChecked="{Binding ShowAll}" Margin="0,0,6,0"
+                                  ToolTip="Also list the versions in which this node did not change." />
+                        <CheckBox Style="{StaticResource Switch.Filter}" Content="vs previous"
+                                  IsChecked="{Binding ComparePrevious}"
+                                  ToolTip="Off: the chosen version against what the editor holds now. On: the chosen version against the one before it - what that version changed." />
+                    </StackPanel>
+                    <TextBlock Text="{Binding Status}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap"
+                               Margin="0,6,0,0"
+                               Visibility="{Binding Status, Converter={StaticResource NotEmptyVis}}" />
+                </StackPanel>
+
+                <!-- What to do with the chosen version, at the foot where it stays put. -->
+                <StackPanel DockPanel.Dock="Bottom" Margin="10,6,10,10">
+                    <TextBlock Text="{Binding Note}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,0,0,6"
+                               Visibility="{Binding Note, Converter={StaticResource NotEmptyVis}}" />
+                    <UniformGrid Columns="2">
+                        <Button Style="{StaticResource Button.Small}" Command="{Binding CopyCommand}"
+                                IsEnabled="{Binding CanCopy}" Margin="0,0,3,0"
+                                ToolTip="Copy this node's value as the chosen version had it.">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE8C8;" FontFamily="{StaticResource Font.Icons}" FontSize="11.5"
+                                           VerticalAlignment="Center" Margin="0,0,6,0" />
+                                <TextBlock Text="Copy value" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource Button.Primary}" Command="{Binding RestoreCommand}"
+                                Content="{Binding RestoreLabel}" IsEnabled="{Binding CanRestore}" Margin="3,0,0,0"
+                                ToolTipService.ShowOnDisabled="True"
+                                ToolTip="Put this version's value back into the node as an ordinary edit. Nothing is written: push it from the title bar, like any other change. Off for the whole document, and when the version already matches." />
+                    </UniformGrid>
+                </StackPanel>
+
+                <!-- The version list takes the rest of the height. Arrow keys move through it, and the
+                     diff in the pane follows. Two lines a row: version, change and age; then the value. -->
+                <ListBox Style="{StaticResource EntryList}" Margin="0,6,0,0"
+                         ItemsSource="{Binding Rows}" SelectedItem="{Binding Selected}">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="{x:Type ListBoxItem}" BasedOn="{StaticResource EntryItem}">
+                            <Setter Property="IsEnabled" Value="{Binding IsEnabled}" />
+                            <Setter Property="ToolTip" Value="{Binding Details}" />
+                            <Style.Triggers>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter Property="Opacity" Value="0.5" />
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Right" Text="{Binding Age}" Style="{StaticResource Text.Caption}"
+                                           VerticalAlignment="Top" Margin="8,1,0,0" />
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding Label}" Style="{StaticResource Text.Base}" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding ChangeText}" Style="{StaticResource Text.Caption}"
+                                                   VerticalAlignment="Center" Margin="8,0,0,0" />
+                                        <Border CornerRadius="8" Padding="6,0" Margin="8,0,0,0" VerticalAlignment="Center"
+                                                Background="{DynamicResource Brush.AccentSoft}"
+                                                Visibility="{Binding InVaultNow, Converter={StaticResource BoolVis}}">
+                                            <TextBlock Text="in Vault" FontSize="11" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource Brush.Accent}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding Preview}" Style="{StaticResource Text.Mono}"
+                                               TextTrimming="CharacterEllipsis" Margin="0,2,0,0" />
+                                </StackPanel>
+                            </DockPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+        </Border>
+
         <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="1.05*" MinWidth="280" />
@@ -202,6 +310,9 @@
                                                       ToolTip="Copy this node together with its key, ready to paste into another object." />
                                             <MenuItem Header="Copy value" Click="OnCopyRowValue"
                                                       ToolTip="Copy this node's value alone — what the pane's Copy copies for the selected node." />
+                                            <Separator />
+                                            <MenuItem Header="History…" Click="OnShowRowHistory"
+                                                      ToolTip="Read this tier's version history from Vault and show what each version did to this node." />
                                         </ContextMenu>
                                     </StackPanel.ContextMenu>
                                     <TextBlock Text="{Binding Glyph}" Width="14"
@@ -315,7 +426,7 @@
                     <Border DockPanel.Dock="Top" Style="{StaticResource TableHeader}">
                         <DockPanel>
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
-                                        Visibility="{Binding ShowingComparison, Converter={StaticResource BoolVis}, ConverterParameter=invert}">
+                                        Visibility="{Binding ShowingEditorText, Converter={StaticResource BoolVis}}">
                                 <!-- The display modes are switches rather than buttons, because they
                                      are states you leave set: a button labelled with its own current
                                      state has to be read before it can be pressed, and reads as an
@@ -337,6 +448,11 @@
                                           Checked="OnFindToggled"
                                           IsEnabled="{Binding ShowingComparison, Converter={StaticResource NotBool}}"
                                           ToolTip="Find and replace inside this pane (Ctrl+F). F3 finds the next match, Shift+F3 the previous." />
+
+                                <Button Style="{StaticResource Button.Small}" Content="History"
+                                        Command="{Binding ShowHistoryCommand}" Margin="0,0,4,0"
+                                        IsEnabled="{Binding CanShowHistory}" ToolTipService.ShowOnDisabled="True"
+                                        ToolTip="Read this tier's version history from Vault and show what each version did to the selected node. Read-only; nothing is kept once the panel closes." />
 
                                 <Button Style="{StaticResource Button.Small}"
                                         Command="{Binding CopyNodeCommand}" Margin="0,0,4,0"
@@ -419,7 +535,7 @@
                                     <MultiDataTrigger>
                                         <MultiDataTrigger.Conditions>
                                             <Condition Binding="{Binding FindOpen}" Value="True" />
-                                            <Condition Binding="{Binding ShowingComparison}" Value="False" />
+                                            <Condition Binding="{Binding ShowingEditorText}" Value="True" />
                                         </MultiDataTrigger.Conditions>
                                         <Setter Property="Visibility" Value="Visible" />
                                     </MultiDataTrigger>
@@ -583,7 +699,7 @@
                              are an ordinary child rather than an adorner, which would render above
                              the text and would not survive switching away from this tab. -->
                         <Border CornerRadius="7" Background="{DynamicResource Brush.Surface}"
-                                Visibility="{Binding ShowingComparison, Converter={StaticResource BoolVis}, ConverterParameter=invert}">
+                                Visibility="{Binding ShowingEditorText, Converter={StaticResource BoolVis}}">
                             <views:FindHighlightLayer x:Name="Highlights" Editor="{Binding ElementName=Editor}" />
                         </Border>
 
@@ -594,7 +710,7 @@
                              long value folding the shape out of it. Set through the style rather
                              than as attributes, because a local value would win over the trigger. -->
                         <TextBox x:Name="Editor"
-                                 Visibility="{Binding ShowingComparison, Converter={StaticResource BoolVis}, ConverterParameter=invert}"
+                                 Visibility="{Binding ShowingEditorText, Converter={StaticResource BoolVis}}"
                                  Text="{Binding EditorText, UpdateSourceTrigger=PropertyChanged, Delay=250}"
                                  IsReadOnly="{Binding IsEditorReadOnly}"
                                  Background="Transparent"
@@ -625,6 +741,15 @@
                                  Visibility="{Binding ShowingComparison, Converter={StaticResource BoolVis}}"
                                  ItemsSource="{Binding ComparisonLines}"
                                  ItemTemplate="{StaticResource DiffRow.Edit}"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
+
+                        <!-- The history's diff: the chosen version against the editor (or against the
+                             version before it). DiffRow, the blue of "these two differ", since neither
+                             side is an edit in progress. Its scope and counts are in the pane header. -->
+                        <ListBox Style="{StaticResource LineList}" Padding="4"
+                                 Visibility="{Binding IsHistoryOpen, Converter={StaticResource BoolVis}}"
+                                 ItemsSource="{Binding History.Lines}"
+                                 ItemTemplate="{StaticResource DiffRow}"
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
                     </Grid>
                 </DockPanel>

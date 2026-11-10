@@ -60,6 +60,49 @@ public sealed class UiSmokeTests
     }
 
     /// <summary>
+    /// The Tier editor with its history panel open, in both themes: the panel's bindings only run once
+    /// it has a view model, which the smoke test above never gives it. The fake reader answers
+    /// synchronously, so the panel is loaded by the time it renders.
+    /// </summary>
+    [Theory]
+    [InlineData(AppTheme.Dark)]
+    [InlineData(AppTheme.Light)]
+    public void Tier_editor_renders_with_the_history_panel_open(AppTheme theme)
+    {
+        var errors = RunOnStaThread(() =>
+        {
+            EnsureApplication();
+            ThemeManager.Apply(theme);
+            var listener = new BindingErrorListener();
+
+            using (listener.Capture())
+            {
+                var main = NewMainVm();
+                var editor = main.JsonEditor!;
+                editor.ExpandAllCommand.Execute(null);
+
+                var node = editor.Nodes.First(n => n.Path.Length > 0 && !n.IsContainer && !n.Path.Contains('['));
+                editor.HistoryReader = new DerivedHistoryReader(editor.Tier!, node.Path, main.Flattener);
+                editor.ShowHistoryCommand.Execute(node);
+
+                Assert.NotNull(editor.History);
+                Assert.NotEmpty(editor.History!.Rows);
+
+                Render(new JsonEditorView { DataContext = editor });
+
+                editor.History.ShowAll = true;
+                editor.History.ComparePrevious = true;
+                Render(new JsonEditorView { DataContext = editor });
+            }
+
+            return listener.Errors;
+        });
+
+        Assert.True(errors.Count == 0,
+            "WPF reported binding errors:" + Environment.NewLine + string.Join(Environment.NewLine, errors));
+    }
+
+    /// <summary>
     /// The projects screen with rows actually realised, and in each of the three states a row has —
     /// resting, renaming, and asking whether Delete was meant.
     ///

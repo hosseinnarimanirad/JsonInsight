@@ -132,16 +132,22 @@ public sealed record DiffLines(IReadOnlyList<DiffLineVm> Lines, int Added, int R
 /// The plain-text escape hatch: any two sources, canonically serialized and diffed line by line.
 /// Both sides go through the same writer, so what shows up is a real content difference rather
 /// than a formatting artefact.
+///
+/// <para>
+/// Either side can also be an earlier version of a Vault source — see <see cref="DiffSideVm"/>. That
+/// is a read-only query made when asked, and nothing it reads outlives the tab.
+/// </para>
 /// </summary>
 public sealed partial class RawDiffVm : ObservableObject
 {
     private readonly IReadOnlyList<TierDocument> _documents;
+    private bool _swapping;
 
     [ObservableProperty]
-    private TierDocument? _left;
+    private DiffSideVm _leftSide;
 
     [ObservableProperty]
-    private TierDocument? _right;
+    private DiffSideVm _rightSide;
 
     [ObservableProperty]
     private bool _hideUnchanged = true;
@@ -149,49 +155,130 @@ public sealed partial class RawDiffVm : ObservableObject
     [ObservableProperty]
     private string _summary = string.Empty;
 
+    /// <summary>Transient feedback from Copy — "Copied stage v31", or why nothing was copied.</summary>
+    [ObservableProperty]
+    private string? _copyNote;
+
     public ObservableCollection<DiffLineVm> Lines { get; } = [];
 
     public IReadOnlyList<TierDocument> Documents => _documents;
 
-    public RawDiffVm(IReadOnlyList<TierDocument> documents)
+    public RawDiffVm(IReadOnlyList<TierDocument> documents, IHistoryReader? history = null)
     {
         _documents = documents;
-        _left = documents.FirstOrDefault();
-        _right = documents.Skip(1).FirstOrDefault() ?? documents.FirstOrDefault();
+        _leftSide = new DiffSideVm(history, Rebuild);
+        _rightSide = new DiffSideVm(history, Rebuild);
+
+        _swapping = true;
+        _leftSide.Reset(documents.FirstOrDefault());
+        _rightSide.Reset(documents.Skip(1).FirstOrDefault() ?? documents.FirstOrDefault());
+        _swapping = false;
+
         Rebuild();
     }
 
-    partial void OnLeftChanged(TierDocument? value) => Rebuild();
+    /// <summary>The left-hand source. Picking one puts that side back on its current document.</summary>
+    public TierDocument? Left
+    {
+        get => LeftSide.Source;
+        set
+        {
+            if (!ReferenceEquals(value, LeftSide.Source))
+            {
+                LeftSide.Reset(value);
+                OnPropertyChanged();
+            }
+        }
+    }
 
-    partial void OnRightChanged(TierDocument? value) => Rebuild();
+    /// <summary>The right-hand source. Picking one puts that side back on its current document.</summary>
+    public TierDocument? Right
+    {
+        get => RightSide.Source;
+        set
+        {
+            if (!ReferenceEquals(value, RightSide.Source))
+            {
+                RightSide.Reset(value);
+                OnPropertyChanged();
+            }
+        }
+    }
 
     partial void OnHideUnchangedChanged(bool value) => Rebuild();
 
+    /// <summary>Swaps the two sides whole — source, version and the version list with them.</summary>
     [RelayCommand]
-    private void Swap() => (Left, Right) = (Right, Left);
+    private void Swap()
+    {
+        _swapping = true;
+        (LeftSide, RightSide) = (RightSide, LeftSide);
+        _swapping = false;
+
+        OnPropertyChanged(nameof(Left));
+        OnPropertyChanged(nameof(Right));
+        Rebuild();
+    }
+
+    /// <summary>
+    /// Copies one side's whole JSON — the version that side is showing — through the same clipboard
+    /// the Tier editor's own Copy uses. "left" or "right".
+    /// </summary>
+    [RelayCommand]
+    private void Copy(string? which)
+    {
+        var side = string.Equals(which, "right", StringComparison.OrdinalIgnoreCase) ? RightSide : LeftSide;
+
+        if (side.Text is not { } text)
+        {
+            CopyNote = "Nothing to copy yet.";
+            return;
+        }
+
+        try
+        {
+            JsonInsight.Platform.Platform.Clipboard.SetText(text);
+            CopyNote = $"Copied {side.Name}.";
+        }
+        catch (Exception ex)
+        {
+            // Another process can hold the clipboard open. Nothing was copied, so say so.
+            CopyNote = $"Could not copy: {ex.Message}";
+        }
+    }
 
     private void Rebuild()
     {
-        Lines.Clear();
+        if (_swapping)
+        {
+            return;
+        }
 
-        if (Left is null || Right is null)
+        Lines.Clear();
+        CopyNote = null;
+
+        if (LeftSide.Source is null || RightSide.Source is null)
         {
             Summary = "Pick two sources.";
             return;
         }
 
-        string leftText, rightText;
+        string? leftText, rightText;
         try
         {
-            // Live rather than Root: this tab answers "what do these two say", and an edit made on
-            // the Tier editor is part of what they say. Root is only the baseline a push checks the
-            // source against.
-            leftText = OrdinalJsonWriter.SerializeToText(Left.Live);
-            rightText = OrdinalJsonWriter.SerializeToText(Right.Live);
+            leftText = LeftSide.Text;
+            rightText = RightSide.Text;
         }
         catch (Exception ex)
         {
             Summary = $"Could not serialize: {ex.Message}";
+            return;
+        }
+
+        if (leftText is null || rightText is null)
+        {
+            // An old version still being read, or one that failed — its own status line says which.
+            Summary = $"{LeftSide.Name} → {RightSide.Name}:  waiting for a version to be read.";
             return;
         }
 
@@ -205,6 +292,6 @@ public sealed partial class RawDiffVm : ObservableObject
         // Not DiffLines.Counts: this tab is comparing two sources rather than describing an edit
         // somebody made, so the summary names both sides and reads in the direction the two columns
         // are laid out in.
-        Summary = $"{Left.Id} → {Right.Id}:  {diff.Added} added, {diff.Removed} removed, {diff.Modified} modified";
+        Summary = $"{LeftSide.Name} → {RightSide.Name}:  {diff.Added} added, {diff.Removed} removed, {diff.Modified} modified";
     }
 }

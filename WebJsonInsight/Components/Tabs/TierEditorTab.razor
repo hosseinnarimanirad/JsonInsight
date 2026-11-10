@@ -99,7 +99,7 @@ else
             }
         </div>
 
-        <div class="editor-body">
+        <div class="editor-body @(Vm.IsHistoryOpen ? "with-history" : "")">
 
             @* ------------------------------ Hierarchy ----------------------------- *@
             <div class="card card-flush editor-tree">
@@ -190,6 +190,14 @@ else
                                     @onclick="() => Vm.CopyNodeWithKeyCommand.Execute(node)">
                                 <Icon Name="copy" Size="11" />
                             </button>
+                            @if (Vm.CanShowHistory)
+                            {
+                                <button class="row-copy row-history" title="History of this node: what each Vault version did to it"
+                                        @onclick:stopPropagation="true"
+                                        @onclick="() => Vm.ShowHistoryCommand.Execute(node)">
+                                    <Icon Name="list" Size="11" />
+                                </button>
+                            }
                         </div>
                     }
 
@@ -213,6 +221,14 @@ else
                     </span>
 
                     <div class="pane-head-actions">
+                        <button class="btn btn-small @(Vm.IsHistoryOpen ? "toggled" : "")"
+                                disabled="@(!Vm.CanShowHistory)"
+                                title="@(Vm.HistoryUnavailable ?? "Read this tier's version history from Vault and show what each version did to the selected node. Read-only; nothing is kept once the panel closes.")"
+                                @onclick="ToggleHistory">
+                            <Icon Name="list" Size="13" /> <span>History</span>
+                        </button>
+                        @if (Vm.ShowingEditorText)
+                        {
                         <button class="switch small @(Vm.CompactJson ? "on" : "")"
                                 @onclick="() => Vm.CompactJson = !Vm.CompactJson"
                                 title="Display only — nothing compact is ever written. Switching mid-edit reformats what is in the pane rather than reloading the node, so an edit in progress survives it.">
@@ -225,10 +241,19 @@ else
                             <span class="switch-track"><span class="switch-knob"></span></span>
                             <span>Wrap</span>
                         </button>
+                        }
                     </div>
                 </div>
 
-                @if (Vm.ShowingComparison)
+                @if (Vm.History is { } shown)
+                {
+                    @* The history's diff takes the pane — the widest place on the tab — while the
+                       panel beside it holds only the version list. Its scope and counts are in the
+                       pane header above. *@
+                    <DiffLinesView Lines="shown.Lines" LeftHeader="@shown.LeftHeader" RightHeader="@shown.RightHeader"
+                                   EmptyMessage="@(shown.IsBusy ? "Reading versions…" : "Pick a version.")" />
+                }
+                else if (Vm.ShowingComparison)
                 {
                     @* Laid out as opened | as edited, so a removed line has somewhere to appear and a
                        changed one shows what it changed from. Its three colours are the tree's —
@@ -348,11 +373,50 @@ else
                     </div>
                 }
             </div>
+
+            @* ------------------------------- History ----------------------------- *@
+            @if (Vm.History is { } history)
+            {
+                <HistoryPanel Vm="history" OnClose="() => Vm.CloseHistoryCommand.Execute(null)" />
+            }
         </div>
     </div>
 }
 
 @code {
+    private NodeHistoryVm? _observedHistory;
+
+    /// <summary>
+    /// The pane renders the open history's diff, so its lines are watched too. A new panel is a new
+    /// view model, so this re-subscribes whenever <see cref="JsonEditorVm.History"/> changes.
+    /// </summary>
+    private void ObserveHistory()
+    {
+        if (Vm?.History is { } history && !ReferenceEquals(history, _observedHistory))
+        {
+            _observedHistory = history;
+            Observe(history, history.Lines);
+        }
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        base.OnAfterRender(firstRender);
+        ObserveHistory();
+    }
+
+    private void ToggleHistory()
+    {
+        if (Vm!.IsHistoryOpen)
+        {
+            Vm.CloseHistoryCommand.Execute(null);
+        }
+        else
+        {
+            Vm.ShowHistoryCommand.Execute(null);
+        }
+    }
+
     private ElementReference _findInput;
     private ElementReference _paneInput;
     private ElementReference _highlightLayer;
@@ -362,6 +426,7 @@ else
     protected override void ObserveAlso(JsonEditorVm? vm)
     {
         Observe(vm?.Nodes, vm?.Tiers, vm?.ComparisonLines);
+        ObserveHistory();
         ObserveNodes();
     }
 

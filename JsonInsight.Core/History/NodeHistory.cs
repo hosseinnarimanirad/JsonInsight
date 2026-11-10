@@ -74,8 +74,11 @@ public static class NodeHistory
 
         foreach (var version in ascending)
         {
-            var node = JsonNavigator.Find(version.Root, path);
-            var signature = node is null ? null : Signature(version.Flat, path, node);
+            // Holds rather than Find alone: a key set to JSON null is present, and restoring it
+            // has to put the null back rather than remove the key.
+            var present = Present(version.Root, path);
+            var node = present ? JsonNavigator.Find(version.Root, path) : null;
+            var signature = present ? Signature(version.Flat, path, node) : null;
 
             var change = (first, previous is not null, signature is not null) switch
             {
@@ -93,8 +96,8 @@ public static class NodeHistory
                 version.Version,
                 version.CreatedTime,
                 change,
-                node is null ? null : OrdinalJsonWriter.SerializeToText(node),
-                Preview(version.Flat, path, node)));
+                present ? Text(node) : null,
+                present ? Preview(version.Flat, path, node) : "—"));
 
             previous = signature;
             first = false;
@@ -106,14 +109,21 @@ public static class NodeHistory
 
     /// <summary>The node at <paramref name="path"/> as canonical JSON, or null when it is absent.</summary>
     public static string? TextAt(JsonNode root, string path) =>
-        JsonNavigator.Find(root, path) is { } node ? OrdinalJsonWriter.SerializeToText(node) : null;
+        Present(root, path) ? Text(JsonNavigator.Find(root, path)) : null;
+
+    /// <summary>Whether the version holds the key at all — a key set to JSON null included.</summary>
+    private static bool Present(JsonNode root, string path) =>
+        path.Length == 0 || Editing.DocumentEditor.Holds(root, path);
+
+    private static string Text(JsonNode? node) =>
+        node is null ? "null" : OrdinalJsonWriter.SerializeToText(node);
 
     /// <summary>
     /// What a node "is" for change detection: its leaves and their comparable values, in path order.
     /// A node with no leaves at all (an empty object or array) falls back to its canonical text, so
     /// going from <c>{}</c> to <c>[]</c> still counts.
     /// </summary>
-    internal static string Signature(FlatConfig flat, string path, JsonNode node)
+    internal static string Signature(FlatConfig flat, string path, JsonNode? node)
     {
         var leaves = Leaves(flat, path)
             .OrderBy(l => l.Path, StringComparer.Ordinal)
@@ -122,7 +132,7 @@ public static class NodeHistory
 
         return leaves.Length > 0
             ? string.Join('\u001e', leaves)
-            : "\u001d" + OrdinalJsonWriter.SerializeCompactToText(node);
+            : "\u001d" + (node is null ? "null" : OrdinalJsonWriter.SerializeCompactToText(node));
     }
 
     /// <summary>
@@ -131,11 +141,6 @@ public static class NodeHistory
     /// </summary>
     internal static string Preview(FlatConfig flat, string path, JsonNode? node)
     {
-        if (node is null)
-        {
-            return "—";
-        }
-
         if (path.Length > 0 && flat.Find(path) is { } leaf)
         {
             var shown = SecretMasker.Describe(leaf);

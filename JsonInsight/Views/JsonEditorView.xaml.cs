@@ -128,6 +128,16 @@ public partial class JsonEditorView : UserControl
 
     private void OnCopyRowValue(object sender, RoutedEventArgs e) => CopyRow(sender, withKey: false);
 
+    /// <summary>The context menu's History…, for the row right-clicked — see <see cref="CopyRow"/>.</summary>
+    private void OnShowRowHistory(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { Parent: ContextMenu { PlacementTarget: FrameworkElement { DataContext: JsonNodeVm node } } }
+            && Vm is { } vm)
+        {
+            vm.ShowHistoryCommand.Execute(node);
+        }
+    }
+
     /// <summary>
     /// The row comes through the menu's placement target rather than the MenuItem's DataContext: a
     /// ContextMenu lives in its own visual tree (the same gotcha VaultView's row menu documents), and

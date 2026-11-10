@@ -479,6 +479,7 @@ public sealed partial class JsonEditorVm : ObservableObject
     public JsonEditorVm(MainVm main, EditorPlace? openOn = null)
     {
         _main = main;
+        HistoryReader = new SettingsHistoryReader(main.Flattener);
 
         foreach (var document in main.Documents)
         {
@@ -659,6 +660,16 @@ public sealed partial class JsonEditorVm : ObservableObject
     {
         get
         {
+            if (History is { } history)
+            {
+                // The history's diff has the pane while the panel is open — the pane is the widest
+                // place on the tab, and a two-column diff squeezed into a side panel is unreadable.
+                var scope = history.Path.Length == 0 ? "WHOLE DOCUMENT" : history.Path;
+                return history.DiffHeading.Length == 0
+                    ? $"HISTORY  —  {scope}"
+                    : $"{history.DiffHeading}  —  {scope}  ·  {history.DiffSummary}";
+            }
+
             if (!ShowingComparison)
             {
                 // Kept short: the toolbar beside it grew a button, and a header that ellipsises
@@ -779,6 +790,8 @@ public sealed partial class JsonEditorVm : ObservableObject
 
     partial void OnTierChanged(TierDocument? value)
     {
+        // A history is one secret's; another tier is another secret.
+        CloseHistory();
         Error = null;
         Message = null;
         ShowingComparison = false;
@@ -817,6 +830,14 @@ public sealed partial class JsonEditorVm : ObservableObject
 
         LoadEditorText();
 
+        // The open history follows the tree. Its versions are already in memory, so moving the
+        // selection is a recomputation, not another round of Vault reads.
+        if (History is not null && value is not null)
+        {
+            History.NodePath = value.Path;
+        }
+
+        OnPropertyChanged(nameof(CanShowHistory));
         OnPropertyChanged(nameof(CanRevertNode));
         OnPropertyChanged(nameof(CanRemoveNode));
         OnPropertyChanged(nameof(SelectedIsRemoved));
@@ -1130,6 +1151,14 @@ public sealed partial class JsonEditorVm : ObservableObject
     /// </summary>
     partial void OnShowingComparisonChanged(bool value)
     {
+        // One thing in the pane at a time: the comparison and the history's diff both want it.
+        if (value)
+        {
+            CloseHistory();
+        }
+
+        OnPropertyChanged(nameof(ShowingEditorText));
+
         if (value)
         {
             RebuildComparison();
@@ -1290,6 +1319,147 @@ public sealed partial class JsonEditorVm : ObservableObject
         var where = node.Path.Length > 0 ? node.Path : "the whole document";
         var how = withKey && node.Path.Length > 0 ? " with its key" : string.Empty;
         Message = $"Copied {where}{how} — {payload.Length:N0} characters.";
+    }
+
+    /// <summary>
+    /// Reads the open tier's version history. Settable so tests can stand in for Vault; the app uses
+    /// <see cref="SettingsHistoryReader"/>.
+    /// </summary>
+    public IHistoryReader HistoryReader { get; set; }
+
+    /// <summary>
+    /// The history panel, while it is open. Null otherwise — and null is the state that holds no
+    /// old versions at all, which is the point of closing it.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsHistoryOpen))]
+    private NodeHistoryVm? _history;
+
+    public bool IsHistoryOpen => History is not null;
+
+    /// <summary>The pane shows the editable JSON — neither the comparison nor the history's diff.</summary>
+    public bool ShowingEditorText => !ShowingComparison && !IsHistoryOpen;
+
+    partial void OnHistoryChanged(NodeHistoryVm? oldValue, NodeHistoryVm? newValue)
+    {
+        if (oldValue is not null)
+        {
+            oldValue.PropertyChanged -= OnHistoryPropertyChanged;
+        }
+
+        if (newValue is not null)
+        {
+            newValue.PropertyChanged += OnHistoryPropertyChanged;
+        }
+
+        OnPropertyChanged(nameof(ShowingEditorText));
+        OnPropertyChanged(nameof(PaneHeader));
+    }
+
+    private void OnHistoryPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(NodeHistoryVm.DiffHeading) or nameof(NodeHistoryVm.DiffSummary) or nameof(NodeHistoryVm.Path))
+        {
+            OnPropertyChanged(nameof(PaneHeader));
+        }
+    }
+
+    /// <summary>Why History is off for this tier, or null when it can be opened.</summary>
+    public string? HistoryUnavailable => Tier is null
+        ? "Nothing is loaded."
+        : HistoryReader.Unavailable(Tier);
+
+    public bool CanShowHistory => Tier is not null && HistoryReader.Unavailable(Tier) is null;
+
+    /// <summary>
+    /// Opens the history panel on a node — the selected one, or the row a context menu was opened
+    /// on, which becomes the selection so the panel and the pane are about the same thing. A read-only
+    /// query, made now because it was asked for.
+    /// </summary>
+    [RelayCommand]
+    private void ShowHistory(JsonNodeVm? node)
+    {
+        if (Tier is not { } tier || !CanShowHistory)
+        {
+            Error = HistoryUnavailable;
+            return;
+        }
+
+        if (node is not null && !ReferenceEquals(node, SelectedNode))
+        {
+            SelectedNode = node;
+        }
+
+        CloseHistory();
+
+        // The history's diff takes the pane, so the pane's other modes step aside.
+        ShowingComparison = false;
+        FindOpen = false;
+
+        History = new NodeHistoryVm(
+            HistoryReader,
+            tier,
+            SelectedNode?.Path ?? string.Empty,
+            CanEdit,
+            CurrentTextAt,
+            RestoreFromHistory);
+
+        _ = History.Load();
+    }
+
+    /// <summary>Closes the panel and drops every version it read.</summary>
+    [RelayCommand]
+    private void CloseHistory()
+    {
+        if (History is { } open)
+        {
+            History = null;
+            open.Dispose();
+        }
+    }
+
+    /// <summary>The node as the document holds it now — edits included — or null when it is not there.</summary>
+    private string? CurrentTextAt(string path) =>
+        Editor is { } editor && editor.Holds(path) ? editor.TextAt(path) : null;
+
+    /// <summary>
+    /// Puts an old version's value back as an ordinary edit, or removes the node when that version did
+    /// not have it. Nothing is written: it lands in memory like Update node and goes out through the
+    /// push window, with its version check and typed confirmation. Returns why it failed, or null.
+    /// </summary>
+    private string? RestoreFromHistory(string path, string? text)
+    {
+        if (Editor is null || !CanEdit || path.Length == 0)
+        {
+            return "This tier cannot be edited here.";
+        }
+
+        try
+        {
+            if (text is null)
+            {
+                Editor.Remove(path);
+            }
+            else
+            {
+                Editor.Replace(path, text);
+            }
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+            return ex.Message;
+        }
+
+        Error = null;
+        Message = text is null
+            ? $"Removed {path}, as the chosen version had it. Nothing has been written yet."
+            : $"Restored {path} from history. Nothing has been written yet.";
+
+        // The same path either way: a removed node stays in the tree as a tombstone, and the
+        // history panel follows the selection — reselecting the parent would move it off the node.
+        AfterChange(reselect: path);
+        return null;
     }
 
     /// <summary>
@@ -1549,6 +1719,10 @@ public sealed partial class JsonEditorVm : ObservableObject
         OnPropertyChanged(nameof(IsEditorReadOnly));
         OnPropertyChanged(nameof(CanReplace));
         OnPropertyChanged(nameof(StatusLine));
+        OnPropertyChanged(nameof(CanShowHistory));
+
+        // An edit, an undo or a restore moves what "current" means in the history's diff.
+        History?.CurrentChanged();
     }
 
     private void LoadEditorText()

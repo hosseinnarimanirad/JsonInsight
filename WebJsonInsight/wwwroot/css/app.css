@@ -1122,6 +1122,36 @@ select.field { cursor: pointer; }
 .spacer { flex: 1; }
 
 .editor-body { display: grid; grid-template-columns: 400px 1fr; gap: 10px; flex: 1; min-height: 0; }
+.editor-body.with-history { grid-template-columns: 340px 1fr 330px; }
+
+/* ------------------------------- History --------------------------------- */
+/* A narrow version list; the diff itself takes the editor pane. */
+
+.history { display: flex; flex-direction: column; min-height: 0; }
+.history-options { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px 0; }
+.history-options .caption { margin: 0; }
+.segment { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.history-switches { display: flex; gap: 6px; flex-wrap: wrap; }
+.history-list { flex: 1; min-height: 0; overflow-y: auto; padding: 6px; outline: none; }
+.history-row { padding: 6px 10px; border-radius: 7px; cursor: pointer; }
+.history-row:hover { background: var(--brush-hover); }
+.history-row.selected { background: var(--brush-selected); }
+.history-row.disabled { opacity: 0.5; cursor: default; }
+.h-line { display: flex; align-items: baseline; gap: 8px; }
+.h-label { font-weight: 600; }
+.h-change, .h-age { font-size: var(--font-size-small); color: var(--brush-text-secondary); }
+.h-age { margin-left: auto; white-space: nowrap; }
+.h-badge {
+    font-size: 11px; font-weight: 600; padding: 0 6px; border-radius: 8px;
+    background: var(--brush-accent-soft); color: var(--brush-accent);
+}
+.h-preview {
+    font-family: var(--font-mono); margin-top: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.history-foot { padding: 6px 10px 10px; border-top: 1px solid var(--brush-border-subtle); }
+.history-foot .caption { margin: 0 0 6px; }
+.history-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 
 /* --------------------------------- Tree ---------------------------------- */
 
@@ -1189,6 +1219,7 @@ select.field { cursor: pointer; }
 
 .tree-row:hover .row-copy { visibility: visible; }
 .row-copy:hover { color: var(--brush-text); background: var(--brush-hover); }
+.row-copy.row-history { margin-left: 0; }
 
 .tree-name { font-family: var(--font-mono); }
 
