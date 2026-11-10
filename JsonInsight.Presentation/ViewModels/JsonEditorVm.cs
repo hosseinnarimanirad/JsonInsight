@@ -1379,15 +1379,63 @@ public sealed partial class JsonEditorVm : ObservableObject
     [RelayCommand]
     private void ShowHistory(JsonNodeVm? node)
     {
+        if (node is not null && !ReferenceEquals(node, SelectedNode))
+        {
+            SelectedNode = node;
+        }
+
+        OpenHistory(SelectedNode?.Path ?? string.Empty);
+    }
+
+    /// <summary>
+    /// Opens the history of <paramref name="path"/> on the tier named <paramref name="tierId"/> — how
+    /// the All tiers grid gets here. The path need not be in the tier now: "when did prod lose this
+    /// key?" is one of the questions history is for, so a key the tree cannot select still gets its
+    /// history, with nothing selected in the tree.
+    /// </summary>
+    public void ShowHistoryAt(string tierId, string path)
+    {
+        if (Tiers.FirstOrDefault(t => t.Id.Equals(tierId, StringComparison.OrdinalIgnoreCase)) is not { } tier)
+        {
+            Error = $"{tierId} is not loaded.";
+            return;
+        }
+
+        if (!ReferenceEquals(tier, Tier))
+        {
+            Tier = tier;
+        }
+
+        // A filter or a collapsed ancestor would hide the row; clear both so the node can be shown.
+        Filter = string.Empty;
+        ShowChangedOnly = false;
+        foreach (var ancestor in ConfigPath.Ancestors(path))
+        {
+            _collapsed.Remove(ancestor);
+        }
+
+        RebuildTree();
+
+        var node = Nodes.FirstOrDefault(n => n.Path.Equals(path, StringComparison.Ordinal));
+        if (node is not null)
+        {
+            SelectedNode = node;
+        }
+
+        OpenHistory(path);
+
+        if (node is null)
+        {
+            Message = $"{path} is not in {tier.Label} now — its history shows when it was there.";
+        }
+    }
+
+    private void OpenHistory(string path)
+    {
         if (Tier is not { } tier || !CanShowHistory)
         {
             Error = HistoryUnavailable;
             return;
-        }
-
-        if (node is not null && !ReferenceEquals(node, SelectedNode))
-        {
-            SelectedNode = node;
         }
 
         CloseHistory();
@@ -1399,7 +1447,7 @@ public sealed partial class JsonEditorVm : ObservableObject
         History = new NodeHistoryVm(
             HistoryReader,
             tier,
-            SelectedNode?.Path ?? string.Empty,
+            path,
             CanEdit,
             CurrentTextAt,
             RestoreFromHistory);

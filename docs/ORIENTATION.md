@@ -32,8 +32,8 @@ reintroduce a local copy of anything.
 | `JsonInsight.Presentation` | `net8.0` | Every view model, shared by both front ends. CommunityToolkit.Mvvm + DiffPlex. Touches no UI framework — the three places it needed to are behind `Platform`. |
 | `JsonInsight` | `net8.0-windows`, `UseWPF` | The WPF desktop app. Views, XAML themes, code-behind. |
 | `WebJsonInsight` | `net8.0`, `WinExe` | The Photino + Blazor desktop app (same window, webview instead of WPF). Runs on Windows, Linux, macOS. |
-| `JsonInsight.Tests` | `net8.0-windows`, `UseWPF` | Core + view-model + WPF-view tests. **356 tests.** |
-| `WebJsonInsight.Tests` | `net8.0` | bUnit component tests for the Blazor front end. **114 tests.** |
+| `JsonInsight.Tests` | `net8.0-windows`, `UseWPF` | Core + view-model + WPF-view tests. **461 tests** (2026-11-10). |
+| `WebJsonInsight.Tests` | `net8.0` | bUnit component tests for the Blazor front end. **122 tests** (2026-11-10). |
 
 Two solution files, deliberately: `JsonInsight.slnx` (modern) and `JsonInsight.sln` (what VS 2022
 opens). `AppPaths` treats either as the repository marker, so deleting the one you don't use would
@@ -64,6 +64,7 @@ JsonInsight.Core
 ├── Promote/        PromotionPlanner, JsonNavigator, OrdinalJsonWriter
 ├── Sources/        SourceCatalog, SourceEnvironment, ISourceProvider, LocalFileSourceProvider
 ├── Vault/          VaultClient, VaultPusher, VaultSettings, VaultBrowser, TierRefresher
+├── History/        SecretHistory, SecretVersion, NodeHistory   ← read-only, on demand, nothing kept
 ├── Classify/       Classifier (secret / infra / ordinary), SecretMasker
 └── config/         tiers.json, aliases.json, arrays.json, classify.json   ← authored, hand-editable
 
@@ -75,6 +76,8 @@ JsonInsight.Presentation/ViewModels
 ├── JsonCompareVm   Compare files
 ├── VaultVm         Sources tab
 ├── ProjectsVm      the projects screen
+├── NodeHistoryVm   the Tier editor's history panel (its diff takes the editor pane)
+├── DiffSideVm      one Text diff side + its version picker; IHistoryReader / SettingsHistoryReader
 ├── PushVm/PromoteVm/EditVm/ChangesVm/RestartVm/LogVm   dialogs and the log
 ```
 
@@ -142,9 +145,10 @@ anything anywhere, and each fence exists because of a specific failure:
    are different claims.
 7. Nothing after step 5 may turn a landed write into a reported failure.
 
-**Secrets are never rendered** anywhere except the Tier editor's text pane, which has to show them
-because a subtree cannot be retyped without being read. Everything else shows
-`•••••• len 64 a3f1c9`.
+**Secrets are never rendered in a summary.** The grid, previews, the history list and every other
+one-line rendering show `•••••• len 64 a3f1c9`. Real values appear only where whole JSON is shown to
+be read, compared or retyped: the Tier editor's text pane, the history diff that takes that pane, and
+the Text diff tab — a subtree cannot be retyped, copied or restored without being read.
 
 **`RepositoryHygieneTests`** fails the build if any file names the deployment this tool grew up
 against, or carries credential-shaped text. If it fires, **replace the value — do not add an
@@ -218,6 +222,14 @@ Recent, and each was a deliberate reversal of something that looked reasonable:
   the selected tier, rebuilt (and re-checked) on every tier change and every discard; the standalone
   `PushDialog` in both hosts is gone, and so is the review's own preview against the tier as read.
   One column: tier/check/discard → destination → queued changes → live diff → typed confirmation.
+- **Version history is a read-only query, made when asked, and nothing is kept** *(2026-11-10)*.
+  No cache, no disk: the Tier editor's panel holds the versions it read only while open (so it can
+  follow the tree without re-reading), a Text diff side holds only the one old version on screen.
+  Restore is `DocumentEditor.Replace`/`Remove` — an ordinary edit, pushed like any other; there is no
+  whole-document rollback. The panel is a narrow list and its diff takes the editor pane; opening the
+  comparison closes it. The grid's **History in** goes through `MainVm.ShowHistory` and the host's
+  `EditorRequested` handler, since which tab shows belongs to the host. Vault only. Plan and phase
+  notes: `docs/todo/version-history.md`.
 - **Anything that rebuilds the tabs re-announces `HasUnsavedChanges`** (`MainVm.BuildTabs`). A push
   drops its tier and adopts the read-back without passing `PublishEdits`, and the title bar's push
   button used to stay lit afterwards.
@@ -258,9 +270,10 @@ Concrete conventions:
 | change writing | `VaultPusher`, `LocalFileSourceProvider`, `PushVm`, `ChangesVm` (which holds the `PushVm`), both `ChangesDialog`s |
 | change how JSON is flattened/diffed | `Flattener`, `MultiDiff`, `config/arrays.json`, `config/aliases.json` |
 | change what counts as a secret | `config/classify.json`, `Classifier` |
+| change version history | `SecretHistory`, `NodeHistory`, `NodeHistoryVm`, `DiffSideVm`, `HistoryPanel.razor`, the panel in `Views/JsonEditorView.xaml` |
 | add a colour | all four theme dictionaries, then use the token |
 
 ---
 
-*Last updated 2026-08-10. If you make a structural change or reverse a decision in §8, update this
+*Last updated 2026-11-10 (version history). If you make a structural change or reverse a decision in §8, update this
 file in the same pass — it is only worth having if it is true.*

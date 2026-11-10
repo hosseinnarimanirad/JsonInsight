@@ -16,6 +16,10 @@ public partial class MainWindow : Window
         DataContext = _vm;
 
         Tiers.PromoteRequested += OnPromoteRequested;
+
+        // The grid's History opens the Tier editor's panel; which tab shows is the window's call.
+        // The Tier editor is the first tab.
+        _vm.EditorRequested += (_, _) => MainTabs.SelectedIndex = 0;
         Tiers.EditRequested += OnEditRequested;
         Tiers.ReviewChangesRequested += OnReviewChangesRequested;
 

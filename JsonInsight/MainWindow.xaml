@@ -319,7 +319,7 @@
             <!-- SelectionChanged publishes whatever the Tier editor has edited into the documents the
                  other tabs read. Done on the way out of a tab rather than per keystroke: see
                  MainVm.PublishEdits. -->
-            <TabControl SelectionChanged="OnTabChanged"
+            <TabControl x:Name="MainTabs" SelectionChanged="OnTabChanged"
                         Visibility="{Binding ShowingProjectList, Converter={StaticResource BoolVis}, ConverterParameter=invert}">
                 <TabItem Header="Tier editor" ToolTip="Edit one tier's document as JSON, a node at a time.">
                     <views:JsonEditorView x:Name="Editor" DataContext="{Binding JsonEditor}" />

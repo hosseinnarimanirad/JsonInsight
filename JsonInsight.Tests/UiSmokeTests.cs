@@ -93,6 +93,11 @@ public sealed class UiSmokeTests
                 editor.History.ShowAll = true;
                 editor.History.ComparePrevious = true;
                 Render(new JsonEditorView { DataContext = editor });
+
+                // The grid's detail strip, where the per-tier History buttons only exist once a row
+                // is selected.
+                main.Tiers!.SelectedRow = main.Tiers.Rows.First(r => !r.IsGroup);
+                Render(new TiersView { DataContext = main.Tiers });
             }
 
             return listener.Errors;

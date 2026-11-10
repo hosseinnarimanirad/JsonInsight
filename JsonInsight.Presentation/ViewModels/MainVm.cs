@@ -96,6 +96,27 @@ public sealed partial class MainVm : ObservableObject
     [ObservableProperty]
     private JsonEditorVm? _jsonEditor;
 
+    /// <summary>
+    /// Something asked for the Tier editor to be shown — the All tiers grid's History, so far. Which
+    /// tab is showing belongs to the host, so the host listens and switches.
+    /// </summary>
+    public event EventHandler? EditorRequested;
+
+    /// <summary>
+    /// Opens the history of one key on one tier in the Tier editor, and asks the host to show it.
+    /// A read-only Vault query, made now because it was asked for.
+    /// </summary>
+    public void ShowHistory(string tierId, string path)
+    {
+        if (JsonEditor is not { } editor)
+        {
+            return;
+        }
+
+        editor.ShowHistoryAt(tierId, path);
+        EditorRequested?.Invoke(this, EventArgs.Empty);
+    }
+
     [ObservableProperty]
     private VaultVm? _vault;
 

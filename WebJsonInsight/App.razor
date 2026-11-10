@@ -231,6 +231,9 @@
         // finding, now that the banner is gone.
         Observe(Main, Main.Problems, Main.Log);
         Theme.Changed += OnThemeChanged;
+
+        // The grid's History opens the Tier editor's panel; which tab shows is the shell's call.
+        Main.EditorRequested += OnEditorRequested;
     }
 
     protected override async Task OnAfterRenderAsync(bool first)
@@ -261,6 +264,12 @@
     }
 
     private void OnThemeChanged(AppTheme theme) => _ = InvokeAsync(StateHasChanged);
+
+    private void OnEditorRequested(object? sender, EventArgs e) => _ = InvokeAsync(() =>
+    {
+        SelectTab("editor");
+        StateHasChanged();
+    });
 
     private async Task Pull()
     {
@@ -313,7 +322,11 @@
         }
     }
 
-    protected override void Disposing() => Theme.Changed -= OnThemeChanged;
+    protected override void Disposing()
+    {
+        Theme.Changed -= OnThemeChanged;
+        Main.EditorRequested -= OnEditorRequested;
+    }
 
     public async ValueTask DisposeAsync()
     {

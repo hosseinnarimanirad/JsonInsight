@@ -225,7 +225,8 @@ restructuring a section, pasting in a block someone sent you, retyping a subtree
 there is no Save, because there is nowhere to save to. The tier picker names each tier's version in
 the list — `dev v39`, `prod v11`, or `dev (file)` — because that is the version a push is built on,
 and the one a push is refused over if somebody replaces it first. It offers every source that was
-read, not only the four being compared.
+read, not only the four being compared. **History** opens the selected node's version history beside
+the tree — see *History* below.
 
 **All tiers** — one row per configuration path, one column per tier, each column headed by where its
 values came from and, for a Vault source, which version: `Vault v34`, not merely `Vault`. Which KV
@@ -246,12 +247,15 @@ This is also where configuration is changed: a row's own **Edit** button changes
 across the tiers. Editing starts from the row rather than from a toolbar button, because a button
 acting on "whatever is selected" is the one that eventually gets pressed against the wrong row.
 Nothing on this tab writes directly — see *Editing* below. The other direction is the title bar's
-**Push to Vault or disk**, which is the only place a push starts. See *Pushing to Vault*.
+**Push to Vault or disk**, which is the only place a push starts. See *Pushing to Vault*. The selected
+row's strip also offers **History in** each Vault column, which opens that key's history on the Tier
+editor — see *History*.
 
 **Text diff** — any two *configured tiers*, both serialized through the same writer, diffed line by
 line, laid out **as left | as right**. Long lines wrap rather than scrolling sideways: a PEM block or
 a 900-character token used to carry the right-hand column off the screen with it, so a two-column
-diff read as a one-column one until you scrolled to find the other side.
+diff read as a one-column one until you scrolled to find the other side. Either side can
+also be an earlier version of a Vault source, picked from **Earlier versions…** — see *History*.
 
 **Compare files** — any two JSON files on disk, browsed for. The one tab that reads a file at all,
 and it never writes one. Compared by key path, not by line, so a reordered key is not a change; one
@@ -900,13 +904,64 @@ and every tab showing the previous one is showing history.
 **It pushes one tier per press.** A push is one secret, one version and one typed confirmation, and a
 confirmation covering four environments at once would be worth less than the four it replaced.
 
-**It keeps no copy of what it replaced.** The previous version is in Vault's own history, which is
-the one place that cannot go stale; a local copy would be a second answer to a question that already
+**It keeps no copy of what it replaced.** The previous version is in Vault's own history — which is
+where *History* reads it from — the one place that cannot go stale; a local copy would be a second answer to a question that already
 has one — which is the arrangement this app spent its first version explaining.
 
 **Reading and writing are separate capabilities in Vault.** A token that pulls a secret is not
 necessarily allowed to update it, and a 403 says exactly that rather than being folded into a generic
 failure.
+
+## History
+
+**Every Vault source has a version history, and the app reads it only when asked.** KV v2 keeps the
+last `max_versions` versions of a secret — 10 unless the mount says otherwise — and three places in
+the app can show them:
+
+- **Tier editor → History**, in the pane header or on a tree row's right-click menu. A narrow panel
+  beside the editor lists the versions that changed the selected node: version, what it did (added,
+  changed, removed), how long ago, and a one-line preview with secrets masked. The editor pane shows
+  the diff of the chosen version against what the editor holds now. **vs previous** diffs it against
+  the version before it instead — *what that version changed*. **Whole document** widens the list to
+  every version that changed anything, and the diff to the secret's changed lines. ↑/↓ move through
+  the list; Esc closes it.
+- **All tiers → History in**, in the selected row's strip: one button per Vault column. It opens the
+  Tier editor on that tier and key with the panel already open — a key that tier no longer has
+  included, which is how "when did prod lose this?" gets answered.
+- **Text diff**, where each side's version picker ends with **Earlier versions…**. Picking it lists
+  the versions; picking one diffs that version against the other side. The column heading names it —
+  `AS STAGE V31` — because an old version mistaken for the current one is the one mistake that tab
+  must not make.
+
+**The panel follows the tree.** It reads the version list and every readable version once, when it
+opens (the newest 50 at most), so clicking another node or switching to *Whole document* recomputes
+from what is already in memory instead of asking Vault again. "Current" is what the editor holds,
+unpushed edits included; the diff heading says `ON SCREEN` when that may not be what Vault holds.
+
+**Nothing is kept.** An old version lives exactly as long as the panel or picker that asked for it:
+closing the panel, switching tier, changing a side's source or reloading the tabs drops it, and the
+next look reads Vault again. Nothing goes to disk. This is not the snapshot folder coming back — that
+was a copy of an answer that lived somewhere else; a version number names an answer Vault keeps
+itself and can never change, read live and thrown away.
+
+**History never writes.** Getting an old value back is **Copy value**, or **Restore vN**, which puts
+that version's value into the node as an ordinary edit — or removes the node, when vN did not have it.
+It then leaves the way every change does: Pending changes, the check-and-set, the typed confirmation.
+The result is a *new* version holding the old value, not a rollback. There is no restoring a whole
+document: putting back thirty keys to undo one would also undo the twenty-nine changes nobody meant to
+undo.
+
+**What it cannot tell you.** Vault records *when* a version was written, not *who* wrote it — that is
+in Vault's audit log, not here. Versions older than `max_versions` are gone, and the panel says so
+(*Vault no longer keeps v1–v24*) instead of presenting v25 as the beginning. A deleted or destroyed
+version is listed, greyed, with the reason. Reading history needs `read` on
+`{mount}/metadata/{path}`, a capability separate from reading the secret and from the `list` that
+Search uses, and a 403 is worded as exactly that. A local file has no history to show, so History is
+off for one.
+
+**What it shows.** The list's previews mask secrets like every other summary in the app. The diff
+shows real values, as the Tier editor's pane it takes over does — a secret cannot be compared, copied
+or restored without being read.
 
 ## Promoting a section
 
@@ -1039,8 +1094,9 @@ classify → (promote or edit).
 | `Editing/` | Both editing models, neither of which writes. `PendingEdit` / `EditSet` / `EditApplier` / `EditValidator` are the key-by-key change set; `DocumentEditor` is the whole-subtree editor with the undo stack behind the Tier editor tab. |
 | `Promote/` | `PromotionPlanner` builds the promote plan and applies it to a copy of the destination; `OrdinalJsonWriter` is the byte-exact canonical serializer; `JsonNavigator` resolves a configuration path against a tree, array elements included. None of it writes anything — a mutation produces a document, and `VaultPusher` is what does anything with one. |
 | `Sources/` | What a source *is*, and the seam the rest of the app sees instead of Vault. `SourceKind` and `ISourceProvider` (load, blocked, preflight, save); `VaultSourceProvider` and `LocalFileSourceProvider`, which carry the same write fence — `PayloadValidator` is the shared middle of it rather than a copy; `SourceEnvironment`, the closed list of environment names a source is chosen from; `SourceProject`, one project's set of sources; `SourceProviders`, the registry both the read and the write path resolve through; and `SourceCatalog`, which turns the open project's settings into the `TiersConfig` everything downstream compares, or stands aside for `tiers.json` when nothing has been chosen. |
-| `Vault/` | `VaultClient` (KV v2 read, list, mount enumeration, and one check-and-set write), `VaultPusher` (the fences, the preflight and the read-back for a Vault write), `VaultTierLoader` (a payload → a `TierDocument`), `TierRefresher` (the whole-fleet read behind both startup and the pull button, dispatching each tier to its provider), `VaultBrowser` (the bounded per-row metadata walk behind Search), and the settings pair: `VaultWorkspace` (every project, and the migration off the pre-projects shape — folding the app-wide document into each row's path and pushing the shared credentials down into the rows that relied on them) with `VaultSettings` (one project as everything else sees it) and `VaultSettingsStore`, the only code that knows which half goes to appsettings.json and which to user secrets. |
-| `ViewModels/`, `Views/` | One VM and one view per tab, plus `ProjectsVm`/`ProjectsView` for the screen the app opens on, `PromoteDialog`, `EditDialog`, `ChangesDialog` (the review and the push, one window) and the layout converters. `JsonEditorVm` is the largest, because the hierarchy, the pane, the change markers and the undo state all belong to one screen. |
+| `History/` | Read-only version history, on demand. `SecretHistory` reads a Vault tier's version list and old versions (and says why it cannot, for a file or an incomplete connection); `SecretVersion` is an old version, deliberately *not* a `TierDocument` so nothing built for pushing can be handed one; `NodeHistory` works out which versions changed a node, on the flattened leaves so a reordered set is not a change. Nothing here caches or writes. |
+| `Vault/` | `VaultClient` (KV v2 read — current or a given version — list, metadata, mount enumeration, and one check-and-set write), `VaultPusher` (the fences, the preflight and the read-back for a Vault write), `VaultTierLoader` (a payload → a `TierDocument`), `TierRefresher` (the whole-fleet read behind both startup and the pull button, dispatching each tier to its provider), `VaultBrowser` (the bounded per-row metadata walk behind Search), and the settings pair: `VaultWorkspace` (every project, and the migration off the pre-projects shape — folding the app-wide document into each row's path and pushing the shared credentials down into the rows that relied on them) with `VaultSettings` (one project as everything else sees it) and `VaultSettingsStore`, the only code that knows which half goes to appsettings.json and which to user secrets. |
+| `ViewModels/`, `Views/` | One VM and one view per tab, plus `ProjectsVm`/`ProjectsView` for the screen the app opens on, `PromoteDialog`, `EditDialog`, `ChangesDialog` (the review and the push, one window) and the layout converters. `JsonEditorVm` is the largest, because the hierarchy, the pane, the change markers and the undo state all belong to one screen. History adds `NodeHistoryVm` (the Tier editor's panel) and `DiffSideVm` (a Text diff side and its version picker), both reading through `IHistoryReader`. |
 | `Themes/` | The look. `Light.xaml` and `Dark.xaml` hold colours and nothing else; `Controls.xaml` holds every style and template; `ThemeManager.cs` swaps the colour dictionary at runtime. |
 | `Assets/` | `JsonInsight.ico` — a vault handwheel in the app's navy and accent blue, ten frames from 16 to 256px (the 16 and 20px frames drop the spokes, which turn to mush at that scale). `make-icon.ps1` draws and repacks it; run it only to change the icon. |
 | `config/` | The four JSON files above. |
@@ -1107,11 +1163,13 @@ nothing after a switch and silently drops a control's colour.
 dotnet test JsonInsight.sln
 ```
 
-280 tests across twenty files (`RoundTripTests`, `PromoteTests`, `EditTests`,
+461 tests in `JsonInsight.Tests`, among them `RoundTripTests`, `PromoteTests`, `EditTests`,
 `DocumentEditorTests`, `EditorPaneTests`, `ArrayNodeTests`, `TreeTests`, `DiffTests`, `SecretTests`,
 `JsonCompareTests`, `VaultTests`, `VaultTierTests`, `PushTests`, `DocumentTests`,
 `SourceProviderTests`, `LocalFileProviderTests`, `SourceCatalogTests`, `SourcesTabTests`,
-`ProjectTests`, `UiSmokeTests`).
+`ProjectTests` and `UiSmokeTests`; history has `HistoryTests`, `TextDiffHistoryTests`,
+`NodeHistoryPanelTests` and `GridHistoryTests`, all against a stand-in `IHistoryReader`. 122 bUnit
+tests in `WebJsonInsight.Tests`.
 
 They run against **real the application payloads** — the last snapshots pulled before this app stopped keeping
 any, read from `Fixtures` and wrapped as tiers exactly as a Vault read produces
@@ -1221,9 +1279,9 @@ The load-bearing ones:
 **No bulk push**: one tier per press, because a push is one secret, one version and one typed
 confirmation. **No offline anything**: with no tier on disk there is nothing to read, compare or edit
 without a reachable Vault, and an edit you have not pushed does not survive closing the window. **No
-version browser**: this app reads the current version of a secret and nothing else, so rolling back
-means reading the previous version somewhere that can show you one — Vault's own UI — and pushing it
-again. **One document at a time**: switching is a reload rather than a second set of columns, so
+whole-document rollback**: history is read-only and restores one node at a time, as an ordinary edit
+pushed like any other — see *History*. **No history for a local file**, which has no versions to
+read. **One document at a time**: switching is a reload rather than a second set of columns, so
 there is no cross-document diff — that is what the Compare files tab is for. **No value translation
 between incomparable shapes** (`Redis` to `RedisCache` is declared incomparable, with the reason
 shown). On the All tiers tab, **no editing of array-valued keys** — the Couchbase `Scopes` sets are

@@ -461,8 +461,30 @@ public sealed partial class TiersVm : ObservableObject
         Rebuild();
 
         OnPropertyChanged(nameof(Documents));
+        OnPropertyChanged(nameof(HistoryTiers));
         OnPropertyChanged(nameof(SourceLabel));
         DocumentsChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// The grid's columns that have a version history to show — the Vault ones; a file has none.
+    /// One History button each in the selected row's strip.
+    /// </summary>
+    public IReadOnlyList<TierDocument> HistoryTiers => _documents.Where(d => d.IsFromVault).ToArray();
+
+    /// <summary>
+    /// The selected row's history on one tier, opened in the Tier editor beside the tree. This is the
+    /// place a difference between tiers is noticed, so "when did prod change this?" starts here.
+    /// </summary>
+    [RelayCommand]
+    private void ShowHistory(TierDocument? tier)
+    {
+        if (tier is null || SelectedRow is not { Path.Length: > 0 } row)
+        {
+            return;
+        }
+
+        _main.ShowHistory(tier.Id, row.Path);
     }
 
     /// <summary>

@@ -1123,6 +1123,8 @@ select.field { cursor: pointer; }
 
 .editor-body { display: grid; grid-template-columns: 400px 1fr; gap: 10px; flex: 1; min-height: 0; }
 .editor-body.with-history { grid-template-columns: 340px 1fr 330px; }
+.detail-history { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+.detail-history .caption { margin-right: 4px; }
 
 /* ------------------------------- History --------------------------------- */
 /* A narrow version list; the diff itself takes the editor pane. */
