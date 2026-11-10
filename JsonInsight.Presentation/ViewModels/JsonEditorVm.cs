@@ -174,8 +174,59 @@ public sealed partial class JsonEditorVm : ObservableObject
     [ObservableProperty]
     private bool _wordWrap = true;
 
-    [ObservableProperty]
     private string? _message;
+
+    /// <summary>
+    /// What the last action did — "Replaced X. Nothing has been written yet." Kept as the record of
+    /// it; on screen it is shown as <see cref="Toast"/>, which goes away by itself. Every set raises
+    /// the toast again, even with the same text, so a second identical action is still confirmed.
+    /// </summary>
+    public string? Message
+    {
+        get => _message;
+        set
+        {
+            _message = value;
+            OnPropertyChanged();
+
+            if (!string.IsNullOrEmpty(value))
+            {
+                ShowToast(value);
+            }
+        }
+    }
+
+    /// <summary>
+    /// The short confirmation over the pane after an action, or null when none is showing — the
+    /// same toast the All tiers tab shows for Copy. Errors are not toasts: they stay up as the red
+    /// notice until the next action clears them.
+    /// </summary>
+    [ObservableProperty]
+    private string? _toast;
+
+    /// <summary>Longer than the grid's copy toast: these sentences say what was not written yet.</summary>
+    public static readonly TimeSpan ToastDuration = TimeSpan.FromSeconds(3.5);
+
+    /// <summary>Bumped per toast, so a timer only takes down its own.</summary>
+    private int _toastGeneration;
+
+    private void ShowToast(string text)
+    {
+        var generation = ++_toastGeneration;
+        Toast = text;
+        _ = HideToastAsync(generation);
+    }
+
+    private async Task HideToastAsync(int generation)
+    {
+        // Back on the caller's context, so the property change is raised where the view binds it.
+        await Task.Delay(ToastDuration).ConfigureAwait(true);
+
+        if (generation == _toastGeneration)
+        {
+            Toast = null;
+        }
+    }
 
     [ObservableProperty]
     private string? _error;
@@ -571,19 +622,17 @@ public sealed partial class JsonEditorVm : ObservableObject
         (_, null) => string.Empty,
         (_, { IsRemoved: true }) => string.Empty,
 
+        // Short, because it sits under the text being typed; the tooltips carry the reasons.
         (_, { IsContainer: true }) when SelectedIsElement =>
-            "Press Update node to apply. This is one element of an array: it can be replaced in place, " +
-            "but not removed — deleting one shifts every element after it, so remove it from the array's own JSON.",
+            "Press Update node to apply. An array element can be replaced here, not removed.",
 
         (_, { IsContainer: true }) =>
-            "Press Update node to apply — a section is not applied as you type, because it is invalid JSON for as long as it takes to type one.",
+            "Press Update node to apply. A section is not applied as you type.",
 
         (_, { IsScalarArray: true }) =>
-            "Press Update node to apply. This is one list rather than a set of rows: its elements have " +
-            "no identity to name them by, so it is read and changed whole.",
+            "Press Update node to apply. A list of values is changed whole.",
 
-        _ => "Applied as you type. Update node is the fallback for a shape change — a section typed " +
-             "into a value's pane.",
+        _ => "Applied as you type. Typing a section here needs Update node.",
     };
 
     /// <summary>
@@ -669,7 +718,7 @@ public sealed partial class JsonEditorVm : ObservableObject
     /// </summary>
     public string PathLabel => SelectedNode switch
     {
-        null => "No node selected",
+        null => "No node selected — pick one on the left; the top row is the whole document",
         { Path.Length: 0 } => $"{Tier?.Label ?? "document"} — whole document",
         { } node => node.Path,
     };
@@ -749,9 +798,8 @@ public sealed partial class JsonEditorVm : ObservableObject
 
     public string PushHint => _pushBlocked
                               ?? (IsModified
-                                  ? $"Write this document to {PushDestination}. You will see it diffed against " +
-                                    "what that source holds now, and confirm, before anything is sent."
-                                  : "Nothing has been changed yet.");
+                                  ? $"Unpushed changes. Push writes them to {PushDestination}, after a diff you confirm."
+                                  : "No changes yet.");
 
     /// <summary>Where the push would land — the tier's secret, or its file.</summary>
     private string PushDestination => Tier?.Definition.Kind == SourceKind.LocalFile
@@ -859,7 +907,10 @@ public sealed partial class JsonEditorVm : ObservableObject
         // the hierarchy is to get to one part of it.
         SelectedNode = null;
         EditorText = string.Empty;
-        Message = "Pick a node on the left to see its JSON. The top row is the whole document.";
+
+        // What to do next is in the pane header ("No node selected — …"), which stays until a node
+        // is picked; a toast would be gone before it was read.
+        Message = null;
 
         NotifyState();
     }

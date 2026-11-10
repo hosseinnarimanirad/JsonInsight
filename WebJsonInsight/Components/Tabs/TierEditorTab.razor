@@ -99,15 +99,18 @@ else
                 <div class="notice notice-warn"><Icon Name="warn" /> <span>@Vm.ReadOnlyReason</span></div>
             }
 
+            @* Errors stay up until the next action clears them. What an action did is the toast
+               below instead — the All tiers tab's copy toast — so it does not push the pane down. *@
             @if (!string.IsNullOrEmpty(Vm.Error))
             {
                 <div class="notice notice-danger"><Icon Name="warn" /> <span>@Vm.Error</span></div>
             }
-            else if (!string.IsNullOrEmpty(Vm.Message))
-            {
-                <div class="notice notice-ok"><Icon Name="ok" /> <span>@Vm.Message</span></div>
-            }
         </div>
+
+        @if (Vm.Toast is { } toast)
+        {
+            <div class="toast" role="status">@toast</div>
+        }
 
         <div class="editor-body @(Vm.IsHistoryOpen ? "with-history" : "")">
 

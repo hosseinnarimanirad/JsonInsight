@@ -567,6 +567,20 @@ also the button that undid however far you had navigated. A tier or a path the n
 longer have simply does not come back — the default is honest there, and selecting the parent
 instead would quietly point the pane at something else.
 
+**Where the tab says things.** Each kind of message has one place:
+
+- **The pane header** names the selected node by its path, e.g. `AccountSettings:BornaApprovalJob`, as
+  the All tiers strip does. Click it, or the copy icon, to copy the path (never the value). The root
+  row reads "beta — whole document". With nothing selected, the header says where to start. While the
+  pane holds a comparison or a history diff, the header names that diff instead.
+- **The toolbar line** covers the document as a whole: the loaded source and version, then what a
+  push would do or why it will not. The push hint used to be a card of its own at the bottom of the
+  tab. The web app already had it in the toolbar.
+- **The strip under the pane** says how the pane commits, or why **Update node** is off (below).
+- **A toast** at the bottom of the tab says what the last action did ("Replaced …. Nothing has been
+  written yet."), then goes away after a few seconds. This is the All tiers copy toast. Errors are not
+  toasts: they stay up as the red notice until the next action clears them.
+
 ### The pane commits two different ways
 
 Which one you are in depends on what is selected, and the pane says so on its bottom strip rather

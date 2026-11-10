@@ -9,6 +9,7 @@
              mc:Ignorable="d"
              PreviewKeyDown="OnPaneKeyDown">
 
+    <Grid>
     <DockPanel>
         <!-- Toolbar: which tier, and everything that acts on the document as a whole. -->
         <Border DockPanel.Dock="Top" Style="{StaticResource Card}" Margin="0,0,0,10">
@@ -118,9 +119,15 @@
                         </Button>
                     </StackPanel>
 
-                    <TextBlock Text="{Binding StatusLine}" Style="{StaticResource Text.Caption}"
+                    <!-- One line for the document as a whole: which version is loaded, then what a
+                         push would do or why it will not. The push hint was a card of its own at the
+                         bottom of the tab; it is about the same document as this line, so it is here,
+                         as the web app has it. -->
+                    <TextBlock Style="{StaticResource Text.Caption}"
                                VerticalAlignment="Center" Margin="18,0,18,0"
-                               TextTrimming="CharacterEllipsis" />
+                               TextTrimming="CharacterEllipsis" ToolTip="{Binding PushHint}">
+                        <Run Text="{Binding StatusLine, Mode=OneWay}" /><Run Text="  ·  " /><Run Text="{Binding PushHint, Mode=OneWay}" />
+                    </TextBlock>
                 </DockPanel>
 
                 <!-- dev is readable here and never writable; saying why beats a greyed-out button. -->
@@ -129,21 +136,6 @@
                     <TextBlock Text="{Binding ReadOnlyReason}" Foreground="{DynamicResource Brush.Shape}"
                                FontSize="12" TextWrapping="Wrap" />
                 </ContentControl>
-            </StackPanel>
-        </Border>
-
-        <!-- There is no push button on this tab any more. An edit lands in the shared in-memory
-             document the moment it is applied, so the title bar's push button already sends exactly
-             what this pane shows — two buttons for the same act is one of them pressed by mistake.
-             What remains is the hint line: what a push would do, or why it will not. -->
-        <Border DockPanel.Dock="Bottom" Style="{StaticResource Card}" Margin="0,10,0,0"
-                Visibility="{Binding CanEdit, Converter={StaticResource BoolVis}}">
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Text="&#xE8A5;" FontFamily="{StaticResource Font.Icons}" FontSize="12"
-                           Foreground="{DynamicResource Brush.TextTertiary}" VerticalAlignment="Top"
-                           Margin="0,2,8,0" />
-                <TextBlock Text="{Binding PushHint}" Style="{StaticResource Text.Secondary}"
-                           FontSize="12" TextWrapping="Wrap" MaxWidth="1050" />
             </StackPanel>
         </Border>
 
@@ -660,11 +652,8 @@
 
                     <!-- This pane shows values in clear, credentials included. It has to: a subtree
                          cannot be retyped without being read. The hierarchy beside it still renders
-                         secrets as fingerprints, which is the form worth scanning. -->
-                    <TextBlock DockPanel.Dock="Bottom" Text="{Binding Message}"
-                               Style="{StaticResource Text.Secondary}" FontSize="12"
-                               TextWrapping="Wrap" Margin="11,9"
-                               Visibility="{Binding Message, Converter={StaticResource NotEmptyVis}}" />
+                         secrets as fingerprints, which is the form worth scanning. The result of the
+                         last action is the toast over the tab, not a line here. -->
 
                     <!-- Which of the two ways this pane commits - or, while the pane does not parse,
                          why Update node is off. A screen where some edits land as you type and
@@ -791,4 +780,16 @@
             </Border>
         </Grid>
     </DockPanel>
+
+    <!-- What the last action did, over the pane at the bottom centre, gone after a few seconds - the
+         All tiers tab's copy toast. It ignores the mouse, so it never swallows a click underneath. -->
+    <Border HorizontalAlignment="Center" VerticalAlignment="Bottom"
+            Margin="0,0,0,28" Padding="14,8" CornerRadius="8" MaxWidth="640"
+            IsHitTestVisible="False"
+            Background="{DynamicResource Brush.Text}"
+            Visibility="{Binding Toast, Converter={StaticResource NotEmptyVis}}">
+        <TextBlock Text="{Binding Toast}" FontSize="12" TextWrapping="Wrap"
+                   Foreground="{DynamicResource Brush.Window}" />
+    </Border>
+    </Grid>
 </UserControl>

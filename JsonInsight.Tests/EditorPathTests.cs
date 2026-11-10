@@ -25,7 +25,7 @@ public sealed class EditorPathTests
     public void The_header_names_the_selected_node_by_its_path()
     {
         var vm = Open();
-        Assert.Equal("No node selected", vm.PathLabel);
+        Assert.StartsWith("No node selected", vm.PathLabel, StringComparison.Ordinal);
 
         var node = vm.Nodes.First(n => n.Path.Contains(':') && !n.IsContainer);
         vm.SelectedNode = node;
