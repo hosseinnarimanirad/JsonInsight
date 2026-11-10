@@ -11,6 +11,22 @@ function New-RoundedPath([single]$x, [single]$y, [single]$w, [single]$h, [single
     return $p
 }
 
+# One glyph as a path, scaled so its ink (not its font box) is $h tall and centred on ($cx,$cy).
+# Measuring the ink is what keeps "{" and "}" the same height and optically centred at every size.
+function Fill-Glyph($g, [string]$ch, [single]$cx, [single]$cy, [single]$h, $brush) {
+    $p = New-Object System.Drawing.Drawing2D.GraphicsPath
+    $ff = New-Object System.Drawing.FontFamily("Segoe UI Semibold")
+    $p.AddString($ch, $ff, 0, [single]100, (New-Object System.Drawing.PointF(0, 0)),
+        [System.Drawing.StringFormat]::GenericTypographic)
+    $b = $p.GetBounds()
+    $k = $h / $b.Height
+    $m = New-Object System.Drawing.Drawing2D.Matrix
+    $m.Translate($cx, $cy); $m.Scale($k, $k); $m.Translate(-($b.X + $b.Width / 2), -($b.Y + $b.Height / 2))
+    $p.Transform($m)
+    $g.FillPath($brush, $p)
+    $m.Dispose(); $ff.Dispose(); $p.Dispose()
+}
+
 function New-IconBitmap([int]$S) {
     $bmp = New-Object System.Drawing.Bitmap($S, $S, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
     $g = [System.Drawing.Graphics]::FromImage($bmp)
@@ -24,7 +40,7 @@ function New-IconBitmap([int]$S) {
     $side = $f - 2 * $inset
     $radius = $f * 0.215
 
-    # --- Vault body: rounded tile in the app's header navy, lit from the top-left.
+    # --- Tile: rounded square in the app's header navy, lit from the top-left.
     $body = New-RoundedPath $inset $inset $side $side $radius
     $grad = New-Object System.Drawing.Drawing2D.LinearGradientBrush(
         (New-Object System.Drawing.PointF(0, 0)),
@@ -45,54 +61,38 @@ function New-IconBitmap([int]$S) {
     $cy = $f / 2.0
     $accent = [System.Drawing.Color]::FromArgb(255, 59, 130, 246)
 
-    # --- Dial notches: only legible above 48px, so they are drawn there and nowhere else.
-    if ($S -ge 48) {
-        $nPen = New-Object System.Drawing.Pen(
-            [System.Drawing.Color]::FromArgb(150, 124, 147, 184), [single]($f * 0.028))
-        $nPen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
-        $nPen.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
-        for ($i = 0; $i -lt 8; $i++) {
-            $a = [Math]::PI * 2 * $i / 8.0
-            $r1 = $f * 0.365
-            $r2 = $f * 0.415
-            $g.DrawLine($nPen,
-                [single]($cx + [Math]::Cos($a) * $r1), [single]($cy + [Math]::Sin($a) * $r1),
-                [single]($cx + [Math]::Cos($a) * $r2), [single]($cy + [Math]::Sin($a) * $r2))
-        }
-        $nPen.Dispose()
-    }
-
-    # Below 24px the spokes and the ring merge into a blob, so the glyph drops to a bare
-    # dial — one ring, one hub — rather than a smaller version of the full handwheel.
+    # Below 24px a thin stroke turns to grey mush, so the braces grow and the lens gets a
+    # heavier ring rather than shrinking in proportion.
     $tiny = $S -lt 24
 
-    # --- Handwheel: ring plus four spokes that cross it, the plain read of "vault".
-    $ringR = if ($tiny) { $f * 0.30 } else { $f * 0.275 }
-    $ringW = if ($tiny) { $f * 0.115 } else { $f * 0.085 }
-    $ringPen = New-Object System.Drawing.Pen($accent, [single]$ringW)
-    $g.DrawEllipse($ringPen, [single]($cx - $ringR), [single]($cy - $ringR), [single]($ringR * 2), [single]($ringR * 2))
-    $ringPen.Dispose()
+    # --- Braces: pale "{ }", the plain read of "JSON".
+    $braceH = if ($tiny) { $f * 0.66 } else { $f * 0.56 }
+    $braceDx = if ($tiny) { $f * 0.30 } else { $f * 0.29 }
+    $paleBrush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(255, 226, 236, 252))
+    Fill-Glyph $g '{' ($cx - $braceDx) $cy $braceH $paleBrush
+    Fill-Glyph $g '}' ($cx + $braceDx) $cy $braceH $paleBrush
+    $paleBrush.Dispose()
 
-    if (-not $tiny) {
-        $spokePen = New-Object System.Drawing.Pen($accent, [single]($f * 0.075))
-        $spokePen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
-        $spokePen.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
-        for ($i = 0; $i -lt 4; $i++) {
-            $a = [Math]::PI / 4 + [Math]::PI / 2 * $i
-            $r1 = $f * 0.05
-            $r2 = $f * 0.305
-            $g.DrawLine($spokePen,
-                [single]($cx + [Math]::Cos($a) * $r1), [single]($cy + [Math]::Sin($a) * $r1),
-                [single]($cx + [Math]::Cos($a) * $r2), [single]($cy + [Math]::Sin($a) * $r2))
-        }
-        $spokePen.Dispose()
-    }
+    # --- Magnifier between them, in the accent: "insight into" the document. The lens sits a
+    # little up and left so lens + handle together are centred, not the lens alone.
+    $lensR = if ($tiny) { $f * 0.13 } else { $f * 0.115 }
+    $lensW = if ($tiny) { $f * 0.09 } else { $f * 0.065 }
+    $lx = $cx - $f * 0.03
+    $ly = $cy - $f * 0.03
+    $lensPen = New-Object System.Drawing.Pen($accent, [single]$lensW)
+    $g.DrawEllipse($lensPen, [single]($lx - $lensR), [single]($ly - $lensR), [single](2 * $lensR), [single](2 * $lensR))
+    $lensPen.Dispose()
 
-    # --- Hub: a pale centre so the wheel still reads as a wheel when the spokes blur at 16px.
-    $hubR = if ($tiny) { $f * 0.085 } else { $f * 0.10 }
-    $hubBrush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(255, 226, 236, 252))
-    $g.FillEllipse($hubBrush, [single]($cx - $hubR), [single]($cy - $hubR), [single]($hubR * 2), [single]($hubR * 2))
-    $hubBrush.Dispose()
+    $handlePen = New-Object System.Drawing.Pen($accent, [single]($lensW * 1.25))
+    $handlePen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
+    $handlePen.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
+    $a = [Math]::PI / 4
+    $h1 = $lensR + $lensW * 0.4
+    $h2 = $lensR + $f * 0.12
+    $g.DrawLine($handlePen,
+        [single]($lx + [Math]::Cos($a) * $h1), [single]($ly + [Math]::Sin($a) * $h1),
+        [single]($lx + [Math]::Cos($a) * $h2), [single]($ly + [Math]::Sin($a) * $h2))
+    $handlePen.Dispose()
 
     $grad.Dispose()
     $body.Dispose()

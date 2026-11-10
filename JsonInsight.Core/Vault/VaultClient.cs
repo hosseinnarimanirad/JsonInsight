@@ -12,6 +12,38 @@ public sealed record VaultReadResult(
     string SecretPath,
     string Address);
 
+/// <summary>One entry of a secret's KV v2 version list.</summary>
+public sealed record VaultVersionInfo(
+    int Version,
+    DateTimeOffset? CreatedTime,
+    DateTimeOffset? DeletionTime,
+    bool Destroyed)
+{
+    /// <summary>
+    /// Whether the version's data can still be read at <paramref name="now"/>. A deletion time in
+    /// the future is a scheduled deletion (<c>delete_version_after</c>), not a deletion yet.
+    /// </summary>
+    public bool Readable(DateTimeOffset now) => !Destroyed && (DeletionTime is null || DeletionTime > now);
+
+    /// <summary>Why the version cannot be read, or null when it can.</summary>
+    public string? Unreadable(DateTimeOffset now) =>
+        Destroyed ? "destroyed"
+        : DeletionTime is { } deleted && deleted <= now ? "deleted"
+        : null;
+}
+
+/// <summary>
+/// A secret's version history as Vault's metadata endpoint reports it. Versions are newest first.
+/// <see cref="MaxVersions"/> of 0 means the mount's own setting applies, which defaults to 10.
+/// </summary>
+public sealed record VaultSecretMetadata(
+    string SecretPath,
+    string Address,
+    int CurrentVersion,
+    int OldestVersion,
+    int MaxVersions,
+    IReadOnlyList<VaultVersionInfo> Versions);
+
 /// <summary>A successful write: the version Vault created, and where it created it.</summary>
 public sealed record VaultWriteResult(
     int Version,
@@ -180,21 +212,50 @@ public sealed class VaultClient : IDisposable
         version.GetString() == "2";
 
     /// <summary>Reads the secret and returns its configuration JSON.</summary>
-    public async Task<VaultReadResult> ReadAsync(string secretPath, CancellationToken cancellationToken = default)
+    public Task<VaultReadResult> ReadAsync(string secretPath, CancellationToken cancellationToken = default) =>
+        ReadCoreAsync(secretPath, version: null, cancellationToken);
+
+    /// <summary>
+    /// Reads one earlier version of the secret. Read-only, like everything history does: nothing in
+    /// this app writes an old version back — restoring a value goes through an ordinary edit and push.
+    /// </summary>
+    public Task<VaultReadResult> ReadVersionAsync(
+        string secretPath,
+        int version,
+        CancellationToken cancellationToken = default)
+    {
+        if (version < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(version), version, "KV v2 versions start at 1.");
+        }
+
+        return ReadCoreAsync(secretPath, version, cancellationToken);
+    }
+
+    private async Task<VaultReadResult> ReadCoreAsync(
+        string secretPath,
+        int? version,
+        CancellationToken cancellationToken)
     {
         var (mount, path) = ParseMountAndPath(secretPath);
+        var query = version is { } v ? $"?version={v}" : string.Empty;
 
         using var response = await _client
-            .GetAsync($"v1/{mount}/data/{path}", cancellationToken)
+            .GetAsync($"v1/{mount}/data/{path}{query}", cancellationToken)
             .ConfigureAwait(false);
 
         var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
-            throw new InvalidOperationException(
-                $"No secret at \"{secretPath}\" on {_address}. Vault returns 404 both for a path that " +
-                "does not exist and for one this token may not read.");
+            // A deleted or destroyed version also answers 404, with its metadata still in the body —
+            // which is a different sentence from "there is no such secret".
+            throw new InvalidOperationException(version is { } n
+                ? $"Version {n} of \"{secretPath}\" on {_address} cannot be read: Vault answers 404 for a " +
+                  "version that was deleted or destroyed, for one older than it still keeps, and for a " +
+                  "path this token may not read."
+                : $"No secret at \"{secretPath}\" on {_address}. Vault returns 404 both for a path that " +
+                  "does not exist and for one this token may not read.");
         }
 
         if (!response.IsSuccessStatusCode)
@@ -204,7 +265,7 @@ public sealed class VaultClient : IDisposable
         }
 
         using var document = JsonDocument.Parse(body);
-        var (data, version, created) = ParseEnvelope(document.RootElement, _address);
+        var (data, readVersion, created) = ParseEnvelope(document.RootElement, _address);
 
         if (data.ValueKind != JsonValueKind.Object)
         {
@@ -213,7 +274,7 @@ public sealed class VaultClient : IDisposable
                 "the appsettings root directly, so anything else is a differently-shaped secret.");
         }
 
-        return new VaultReadResult(data.GetRawText(), version, created, secretPath, _address);
+        return new VaultReadResult(data.GetRawText(), readVersion, created, secretPath, _address);
     }
 
     /// <summary>
@@ -421,6 +482,115 @@ public sealed class VaultClient : IDisposable
             .Select(k => k.GetString()!)
             .ToArray();
     }
+
+    /// <summary>
+    /// The secret's version list: which versions exist, when each was written, and which were deleted
+    /// or destroyed. Read-only, and read only when somebody asks for history.
+    ///
+    /// <para>
+    /// Reading metadata is its own capability in Vault — <c>read</c> on <c>{mount}/metadata/{path}</c>
+    /// — distinct from both reading the data and the <c>list</c> that Search uses, so a 403 here is
+    /// worded as exactly that rather than as a failed read of the secret.
+    /// </para>
+    /// </summary>
+    public async Task<VaultSecretMetadata> ReadMetadataAsync(
+        string secretPath,
+        CancellationToken cancellationToken = default)
+    {
+        var (mount, path) = ParseMountAndPath(secretPath);
+
+        using var response = await _client
+            .GetAsync($"v1/{mount}/metadata/{path}", cancellationToken)
+            .ConfigureAwait(false);
+
+        var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        if (response.StatusCode == HttpStatusCode.Forbidden)
+        {
+            throw new InvalidOperationException(
+                $"This token may not read the version history of {secretPath} on {_address} (403). " +
+                $"History needs \"read\" on {mount}/metadata/{path}, which is a separate capability from " +
+                "reading the secret itself.");
+        }
+
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            throw new InvalidOperationException(
+                $"No version history for \"{secretPath}\" on {_address}. Vault returns 404 both for a " +
+                "path that does not exist and for one this token may not read.");
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(
+                $"Vault metadata read failed at {_address} ({(int)response.StatusCode}): {Describe(body)}");
+        }
+
+        using var document = JsonDocument.Parse(body);
+        return ParseMetadata(document.RootElement, secretPath, _address);
+    }
+
+    /// <summary>
+    /// Reads a KV v2 metadata response. Versions come back newest first, which is the order every
+    /// history list shows them in.
+    /// </summary>
+    internal static VaultSecretMetadata ParseMetadata(JsonElement root, string secretPath, string address)
+    {
+        if (root.TryGetProperty("errors", out var errors) &&
+            errors.ValueKind == JsonValueKind.Array &&
+            errors.GetArrayLength() > 0)
+        {
+            throw new InvalidOperationException($"Vault returned errors at {address}: {errors.GetRawText()}");
+        }
+
+        if (!root.TryGetProperty("data", out var data) ||
+            data.ValueKind != JsonValueKind.Object ||
+            !data.TryGetProperty("versions", out var versions) ||
+            versions.ValueKind != JsonValueKind.Object)
+        {
+            throw new InvalidOperationException(
+                $"Vault metadata for {secretPath} has no \"data.versions\". This reader expects a KV v2 mount.");
+        }
+
+        var list = new List<VaultVersionInfo>();
+        foreach (var entry in versions.EnumerateObject())
+        {
+            if (!int.TryParse(entry.Name, out var number) || entry.Value.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
+            list.Add(new VaultVersionInfo(
+                number,
+                ReadTime(entry.Value, "created_time"),
+                ReadTime(entry.Value, "deletion_time"),
+                entry.Value.TryGetProperty("destroyed", out var destroyed) &&
+                destroyed.ValueKind == JsonValueKind.True));
+        }
+
+        list.Sort((a, b) => b.Version.CompareTo(a.Version));
+
+        return new VaultSecretMetadata(
+            secretPath,
+            address,
+            ReadInt(data, "current_version") ?? list.FirstOrDefault()?.Version ?? 0,
+            ReadInt(data, "oldest_version") ?? 0,
+            ReadInt(data, "max_versions") ?? 0,
+            list);
+    }
+
+    private static int? ReadInt(JsonElement element, string name) =>
+        element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number &&
+        value.TryGetInt32(out var number)
+            ? number
+            : null;
+
+    /// <summary>Vault writes an unset time as an empty string, so empty and missing both mean null.</summary>
+    private static DateTimeOffset? ReadTime(JsonElement element, string name) =>
+        element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String &&
+        DateTimeOffset.TryParse(value.GetString(), out var parsed)
+            ? parsed
+            : null;
 
     /// <summary>Validates the KV v2 envelope and returns data.data plus its version and creation time.</summary>
     internal static (JsonElement Data, int Version, DateTimeOffset? Created) ParseEnvelope(
