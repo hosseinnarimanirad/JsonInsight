@@ -233,6 +233,27 @@ public sealed class NodeHistoryPanelTests
         Assert.DoesNotContain(o.History.Lines, l => l.Type == DiffPlex.DiffBuilder.Model.ChangeType.Unchanged);
     }
 
+    /// <summary>
+    /// The toolbar's History is a mode, like Compare with original beside it: pressing it again
+    /// closes the panel rather than reading Vault a second time.
+    /// </summary>
+    [Fact]
+    public async Task The_toolbar_button_toggles_the_panel()
+    {
+        var o = await Open();
+        var before = o.Reader.Queries;
+
+        o.Editor.ToggleHistoryCommand.Execute(null);
+        Assert.False(o.Editor.IsHistoryOpen);
+
+        o.Editor.ToggleHistoryCommand.Execute(null);
+        await o.Editor.History!.Loading;
+
+        Assert.True(o.Editor.IsHistoryOpen);
+        Assert.Equal(o.Path, o.Editor.History.Path);
+        Assert.Equal(before * 2, o.Reader.Queries);
+    }
+
     [Fact]
     public async Task Switching_tier_closes_the_panel()
     {

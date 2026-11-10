@@ -1455,6 +1455,23 @@ public sealed partial class JsonEditorVm : ObservableObject
         _ = History.Load();
     }
 
+    /// <summary>
+    /// The toolbar's History button: a mode, like Compare with original beside it, so pressing it
+    /// again closes the panel rather than reopening it.
+    /// </summary>
+    [RelayCommand]
+    private void ToggleHistory()
+    {
+        if (IsHistoryOpen)
+        {
+            CloseHistory();
+        }
+        else
+        {
+            ShowHistory(null);
+        }
+    }
+
     /// <summary>Closes the panel and drops every version it read.</summary>
     [RelayCommand]
     private void CloseHistory()

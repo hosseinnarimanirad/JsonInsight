@@ -155,33 +155,35 @@
                                 <TextBlock Text="Copy" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
+                        <!-- On the path's own line, left of Copy: one button per Vault column, opening
+                             this key's version history on that tier in the Tier editor. A file column
+                             has no history, so no button. -->
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top"
+                                    Margin="10,0,0,0"
+                                    Visibility="{Binding HistoryTiers.Count, Converter={StaticResource NotEmptyVis}}">
+                            <TextBlock Text="History" Style="{StaticResource Text.Secondary}" FontSize="12"
+                                       VerticalAlignment="Center" Margin="0,0,6,0" />
+                            <ItemsControl ItemsSource="{Binding HistoryTiers}" VerticalAlignment="Center">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Style="{StaticResource Button.Small}" Content="{Binding Label}" Margin="0,0,4,0"
+                                                Command="{Binding DataContext.ShowHistoryCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"
+                                                ToolTip="Open this key's version history on this tier, in the Tier editor. Read-only: reads Vault now, keeps nothing." />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
                         <TextBlock Text="{Binding SelectedRow.Path}" Style="{StaticResource Text.Mono}"
                                    FontWeight="SemiBold" TextTrimming="None" TextWrapping="Wrap"
                                    Cursor="Hand" ToolTip="Click to copy this path"
                                    MouseLeftButtonUp="OnPathClick" />
                     </DockPanel>
-                    <!-- One button per Vault column: this key's version history on that tier,
-                         opened in the Tier editor beside the tree. A file column has no history. -->
-                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0"
-                                Visibility="{Binding HistoryTiers.Count, Converter={StaticResource NotEmptyVis}}">
-                        <TextBlock Text="History in" Style="{StaticResource Text.Secondary}" FontSize="12"
-                                   VerticalAlignment="Center" Margin="0,0,8,0" />
-                        <ItemsControl ItemsSource="{Binding HistoryTiers}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <WrapPanel />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Button Style="{StaticResource Button.Small}" Content="{Binding Label}" Margin="0,0,4,0"
-                                            Command="{Binding DataContext.ShowHistoryCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                            CommandParameter="{Binding}"
-                                            ToolTip="Open this key's version history on this tier, in the Tier editor. Read-only: reads Vault now, keeps nothing." />
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </StackPanel>
                     <TextBlock Text="{Binding SelectedRow.Detail}" Style="{StaticResource Text.Secondary}"
                                FontSize="12" TextWrapping="Wrap" Margin="0,5,0,0"
                                Visibility="{Binding SelectedRow.Detail, Converter={StaticResource NotEmptyVis}}" />

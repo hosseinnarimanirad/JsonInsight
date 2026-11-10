@@ -223,25 +223,26 @@ else
                     <div class="detail-path-row">
                         <button class="detail-path" title="Click to copy this path"
                                 @onclick="() => Vm.CopyPathCommand.Execute(selected)">@selected.Path</button>
+                        @* On the path's own line, before Copy: one button per Vault column, opening
+                           this key's version history on that tier in the Tier editor. A file column
+                           has no history, so no button. *@
+                        @if (Vm.HistoryTiers.Count > 0)
+                        {
+                            <div class="detail-history">
+                                <span class="caption inline">History</span>
+                                @foreach (var tier in Vm.HistoryTiers)
+                                {
+                                    <button class="btn btn-small"
+                                            title="Open this key's version history on @tier.Label, in the Tier editor. Read-only: reads Vault now, keeps nothing."
+                                            @onclick="() => Vm.ShowHistoryCommand.Execute(tier)">@tier.Label</button>
+                                }
+                            </div>
+                        }
                         <button class="btn btn-small" title="Copy this path to the clipboard"
                                 @onclick="() => Vm.CopyPathCommand.Execute(selected)">
                             <Icon Name="copy" Size="12" /> <span>Copy</span>
                         </button>
                     </div>
-                    @* One button per Vault column: this key's version history on that tier, opened
-                       in the Tier editor beside the tree. A file column has no history. *@
-                    @if (Vm.HistoryTiers.Count > 0)
-                    {
-                        <div class="detail-history">
-                            <span class="caption inline">History in</span>
-                            @foreach (var tier in Vm.HistoryTiers)
-                            {
-                                <button class="btn btn-small"
-                                        title="Open this key's version history on @tier.Label, in the Tier editor. Read-only: reads Vault now, keeps nothing."
-                                        @onclick="() => Vm.ShowHistoryCommand.Execute(tier)">@tier.Label</button>
-                            }
-                        </div>
-                    }
                     @if (!string.IsNullOrEmpty(selected.Detail))
                     {
                         <div class="detail-note">@selected.Detail</div>

@@ -227,7 +227,9 @@ Recent, and each was a deliberate reversal of something that looked reasonable:
   follow the tree without re-reading), a Text diff side holds only the one old version on screen.
   Restore is `DocumentEditor.Replace`/`Remove` — an ordinary edit, pushed like any other; there is no
   whole-document rollback. The panel is a narrow list and its diff takes the editor pane; opening the
-  comparison closes it. The grid's **History in** goes through `MainVm.ShowHistory` and the host's
+  comparison closes it. The toolbar's History is a toggle beside Compare
+  with original (`ToggleHistoryCommand`). The grid's per-tier **History** buttons (path line, beside
+  Copy) go through `MainVm.ShowHistory` and the host's
   `EditorRequested` handler, since which tab shows belongs to the host. Vault only. Plan and phase
   notes: `docs/todo/version-history.md`.
 - **Anything that rebuilds the tabs re-announces `HasUnsavedChanges`** (`MainVm.BuildTabs`). A push

@@ -65,10 +65,20 @@ else
                     Compare with original
                 </button>
 
+                @* Beside Compare with original because it is the same kind of thing: a mode that
+                   gives the pane a diff, lit while on, pressed again to leave. Opening one closes
+                   the other. *@
+                <button class="btn btn-small @(Vm.IsHistoryOpen ? "toggled" : "")"
+                        disabled="@(!Vm.CanShowHistory)"
+                        @onclick="() => Vm.ToggleHistoryCommand.Execute(null)"
+                        title="@(Vm.HistoryUnavailable ?? "Read this tier's version history from Vault and show what each version did to the selected node. Read-only; nothing is kept once the panel closes. Press again to close it.")">
+                    <Icon Name="list" Size="13" /> <span>History</span>
+                </button>
+
                 @* A switch rather than a button, matching Changed on the tree and Compact/Wrap below:
                    the find bar is a state you leave on, and Ctrl+F was the only way to reach it —
                    a shortcut is not a control, and nothing on screen said the bar existed. *@
-                <button class="switch @(Vm.FindOpen ? "on" : "")" disabled="@Vm.ShowingComparison"
+                <button class="switch @(Vm.FindOpen ? "on" : "")" disabled="@(!Vm.ShowingEditorText)"
                         @onclick="() => Vm.ToggleFindCommand.Execute(null)"
                         title="Find and replace over the pane (Ctrl+F). Every match is highlighted; Enter and Shift+Enter step through them.">
                     <span class="switch-track"><span class="switch-knob"></span></span>
@@ -221,12 +231,6 @@ else
                     </span>
 
                     <div class="pane-head-actions">
-                        <button class="btn btn-small @(Vm.IsHistoryOpen ? "toggled" : "")"
-                                disabled="@(!Vm.CanShowHistory)"
-                                title="@(Vm.HistoryUnavailable ?? "Read this tier's version history from Vault and show what each version did to the selected node. Read-only; nothing is kept once the panel closes.")"
-                                @onclick="ToggleHistory">
-                            <Icon Name="list" Size="13" /> <span>History</span>
-                        </button>
                         @if (Vm.ShowingEditorText)
                         {
                         <button class="switch small @(Vm.CompactJson ? "on" : "")"
@@ -405,17 +409,6 @@ else
         ObserveHistory();
     }
 
-    private void ToggleHistory()
-    {
-        if (Vm!.IsHistoryOpen)
-        {
-            Vm.CloseHistoryCommand.Execute(null);
-        }
-        else
-        {
-            Vm.ShowHistoryCommand.Execute(null);
-        }
-    }
 
     private ElementReference _findInput;
     private ElementReference _paneInput;

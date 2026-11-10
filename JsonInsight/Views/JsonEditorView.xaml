@@ -92,6 +92,30 @@
                                 </Style>
                             </Button.Style>
                         </Button>
+
+                        <!-- History sits beside Compare with original because it is the same kind of
+                             thing: a mode that gives the pane a diff, lit while it is on, pressed again
+                             to leave. The two take turns - opening one closes the other. -->
+                        <Button Command="{Binding ToggleHistoryCommand}" Margin="6,0,0,0" MinWidth="96"
+                                IsEnabled="{Binding CanShowHistory}" ToolTipService.ShowOnDisabled="True">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource Button.Secondary}">
+                                    <Setter Property="Content" Value="History" />
+                                    <Setter Property="ToolTip" Value="Read this tier's version history from Vault and show what each version did to the selected node. Read-only; nothing is kept once the panel closes. Press again to close it." />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsHistoryOpen}" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource Brush.Accent}" />
+                                            <Setter Property="Foreground" Value="{DynamicResource Brush.OnAccent}" />
+                                            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
+                                            <Setter Property="FontWeight" Value="SemiBold" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding CanShowHistory}" Value="False">
+                                            <Setter Property="ToolTip" Value="{Binding HistoryUnavailable}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
                     </StackPanel>
 
                     <TextBlock Text="{Binding StatusLine}" Style="{StaticResource Text.Caption}"
@@ -448,11 +472,6 @@
                                           Checked="OnFindToggled"
                                           IsEnabled="{Binding ShowingComparison, Converter={StaticResource NotBool}}"
                                           ToolTip="Find and replace inside this pane (Ctrl+F). F3 finds the next match, Shift+F3 the previous." />
-
-                                <Button Style="{StaticResource Button.Small}" Content="History"
-                                        Command="{Binding ShowHistoryCommand}" Margin="0,0,4,0"
-                                        IsEnabled="{Binding CanShowHistory}" ToolTipService.ShowOnDisabled="True"
-                                        ToolTip="Read this tier's version history from Vault and show what each version did to the selected node. Read-only; nothing is kept once the panel closes." />
 
                                 <Button Style="{StaticResource Button.Small}"
                                         Command="{Binding CopyNodeCommand}" Margin="0,0,4,0"

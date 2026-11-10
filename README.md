@@ -248,8 +248,8 @@ across the tiers. Editing starts from the row rather than from a toolbar button,
 acting on "whatever is selected" is the one that eventually gets pressed against the wrong row.
 Nothing on this tab writes directly — see *Editing* below. The other direction is the title bar's
 **Push to Vault or disk**, which is the only place a push starts. See *Pushing to Vault*. The selected
-row's strip also offers **History in** each Vault column, which opens that key's history on the Tier
-editor — see *History*.
+row's strip also has a **History** button per Vault column, on the path's line beside Copy, which
+opens that key's history on the Tier editor — see *History*.
 
 **Text diff** — any two *configured tiers*, both serialized through the same writer, diffed line by
 line, laid out **as left | as right**. Long lines wrap rather than scrolling sideways: a PEM block or
@@ -918,14 +918,17 @@ failure.
 last `max_versions` versions of a secret — 10 unless the mount says otherwise — and three places in
 the app can show them:
 
-- **Tier editor → History**, in the pane header or on a tree row's right-click menu. A narrow panel
+- **Tier editor → History**, in the toolbar beside *Compare with original* — a mode like it, lit
+  while open and pressed again to close; opening one closes the other — or on a tree row (right-click
+  menu in the desktop window, a hover button in the web one). A narrow panel
   beside the editor lists the versions that changed the selected node: version, what it did (added,
   changed, removed), how long ago, and a one-line preview with secrets masked. The editor pane shows
   the diff of the chosen version against what the editor holds now. **vs previous** diffs it against
   the version before it instead — *what that version changed*. **Whole document** widens the list to
   every version that changed anything, and the diff to the secret's changed lines. ↑/↓ move through
   the list; Esc closes it.
-- **All tiers → History in**, in the selected row's strip: one button per Vault column. It opens the
+- **All tiers → History**, on the selected row's path line beside Copy: one button per Vault column
+  (`dev`, `stage`, `prod`, …). It opens the
   Tier editor on that tier and key with the panel already open — a key that tier no longer has
   included, which is how "when did prod lose this?" gets answered.
 - **Text diff**, where each side's version picker ends with **Earlier versions…**. Picking it lists

@@ -69,7 +69,7 @@ public sealed class HistoryPanelTests : TestContext
         var page = RenderComponent<TierEditorTab>(p => p.Add(c => c.Vm, editor));
         Assert.Empty(page.FindAll(".history"));
 
-        page.FindAll(".pane-head-actions button").First(b => b.TextContent.Contains("History")).Click();
+        page.FindAll(".editor-toolbar button").First(b => b.TextContent.Contains("History")).Click();
         await editor.History!.Loading;
 
         page.WaitForAssertion(() =>
